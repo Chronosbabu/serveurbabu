@@ -30,6 +30,10 @@ def index():
 def ecole():
     return render_template('ecole.html')
 
+@app.route('/parent')
+def parent():
+    return render_template('parent.html')
+
 @app.route('/api/inscrire_enfant', methods=['POST'])
 def inscrire_enfant():
     data = request.get_json()
@@ -56,7 +60,6 @@ def on_message(data):
     if not id_enfant or not message:
         return
     # Ici tu peux stocker le message si besoin (ex: fichier ou base)
-    # On émet l’info à tous les clients connectés
     emit('nouveau_message', {'id_enfant': id_enfant, 'message': message}, broadcast=True)
 
 if __name__ == '__main__':
