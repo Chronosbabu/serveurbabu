@@ -1,23 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>École</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8" />
+  <title>Interface École</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/static/js/main_ecole.js"></script>
 </head>
 <body>
-  <h1>Bienvenue chers professeurs !</h1>
-
-  <h2>Inscrire un enfant</h2>
-  <input type="text" id="nomEnfant" placeholder="Nom de l'enfant">
+  <h1>Inscrire un enfant</h1>
+  <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
   <button id="btnInscrire">Inscrire</button>
 
-  <h2>Liste des enfants inscrits</h2>
+  <h2>Enfants inscrits</h2>
   <ul id="listeEnfants"></ul>
 
-  <script src="{{ url_for('static', filename='js/main_ecole.js') }}"></script>
+  <hr />
+
+  <h2>Envoyer un message</h2>
+  <select id="selectEnfant">
+    <option value="">-- Choisir un enfant --</option>
+  </select><br/><br/>
+
+  <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
+  <button id="btnEnvoyerMessage">Envoyer</button>
+
+  <h3>Messages reçus</h3>
+  <div id="messages" style="border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto;"></div>
 </body>
 </html>
-
-
 

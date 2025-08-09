@@ -1,10 +1,8 @@
-
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <title>Parent</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
   <h1>Bienvenue chers parents !</h1>
@@ -16,6 +14,17 @@
   <h2>Liste des enfants</h2>
   <ul id="listeEnfants"></ul>
 
-  <script src="{{ url_for('static', filename='js/main_parent.js') }}"></script>
+  <hr />
+
+  <h2>Messages reçus</h2>
+  <div id="messages" style="border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto;"></div>
+
+  <h2>Envoyer un message</h2>
+  <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
+  <button id="btnEnvoyerMessage">Envoyer</button>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/static/js/main_parent.js"></script>
 </body>
 </html>
+
