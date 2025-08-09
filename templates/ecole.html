@@ -1,21 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>École</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <title>École</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Bienvenue chers professeurs !</h1>
+  <h1>Bienvenue chers professeurs !</h1>
 
-    <h2>Inscrire un enfant</h2>
-    <input type="text" id="nomEnfant" placeholder="Nom de l'enfant">
-    <button id="btnInscrire">Inscrire</button>
+  <h2>Inscrire un enfant</h2>
+  <input type="text" id="nomEnfant" placeholder="Nom de l'enfant">
+  <button id="btnInscrire">Inscrire</button>
 
-    <h2>Liste des enfants inscrits</h2>
-    <ul id="listeEnfants"></ul>
+  <h2>Liste des enfants inscrits</h2>
+  <ul id="listeEnfants"></ul>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main_ecole.js') }}"></script>
 </body>
 </html>
+
+
 

@@ -1,20 +1,21 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Parent</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <title>Parent</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Bienvenue chers  !</h1>
+  <h1>Bienvenue chers parents !</h1>
 
-    <h2>Entrer l'ID de votre enfant</h2>
-    <input type="text" id="inputIdEnfant" placeholder="Exemple : ENFANT001">
-    <button id="btnValiderId">Valider</button>
+  <h2>Entrer l'ID de votre enfant</h2>
+  <input type="text" id="inputIdEnfant" placeholder="Exemple : ENFANT001">
+  <button id="btnValiderId">Valider</button>
 
-    <h2>Liste des enfants</h2>
-    <ul id="listeEnfants"></ul>
+  <h2>Liste des enfants</h2>
+  <ul id="listeEnfants"></ul>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main_parent.js') }}"></script>
 </body>
 </html>
