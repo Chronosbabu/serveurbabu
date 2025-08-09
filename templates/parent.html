@@ -1,31 +1,236 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Parent</title>
+  <meta charset="UTF-8" />
+  <title>Interface Parent - Chat Enfants</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      max-width: 600px;
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    #entry-section {
+      display: flex;
+      gap: 10px;
+    }
+    #inputIdEnfant {
+      flex-grow: 1;
+      padding: 8px;
+      font-size: 1em;
+    }
+    button {
+      padding: 8px 15px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    #listeEnfants {
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .btn-enfant {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-enfant:hover {
+      background-color: #0056b3;
+    }
+    #chat-section {
+      display: none;
+      flex-direction: column;
+      border: 1px solid #ccc;
+      padding: 10px;
+      max-height: 300px;
+    }
+    #messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      height: 200px;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      background-color: #f9f9f9;
+    }
+    #inputMessage {
+      width: 100%;
+      padding: 8px;
+      font-size: 1em;
+      box-sizing: border-box;
+      margin-bottom: 5px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Bienvenue chers parents !</h1>
+  <h1>Interface Parent - Suivi Enfant</h1>
+  <div id="container">
+    <div id="entry-section">
+      <input type="text" id="inputIdEnfant" placeholder="Entrer l'ID de l'enfant (ex : ENFANT001)" />
+      <button id="btnValiderId">Valider</button>
+    </div>
 
-  <h2>Entrer l'ID de votre enfant</h2>
-  <input type="text" id="inputIdEnfant" placeholder="Exemple : ENFANT001">
-  <button id="btnValiderId">Valider</button>
+    <div>
+      <strong>Enfants validés :</strong>
+      <div id="listeEnfants"></div>
+    </div>
 
-  <h2>Liste des enfants</h2>
-  <ul id="listeEnfants"></ul>
+    <div id="chat-section">
+      <h2 id="chat-title"></h2>
+      <div id="messages"></div>
+      <textarea id="inputMessage" placeholder="Écrire un message..."></textarea>
+      <button id="btnEnvoyerMessage">Envoyer</button>
+      <button id="btnFermerChat" style="margin-top:10px; background:#ccc; color:#000;">Fermer</button>
+    </div>
+  </div>
 
-  <hr />
-
-  <h2>Messages reçus</h2>
-  <div id="messages" style="border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto;"></div>
-
-  <h2>Envoyer un message</h2>
-  <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
-  <button id="btnEnvoyerMessage">Envoyer</button>
-
-  <!-- Charger Socket.IO depuis CDN pour éviter les problèmes -->
   <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-  <script src="{{ url_for('static', filename='js/main_parent.js') }}"></script>
+  <script>
+    const socket = io();
+
+    const inputIdEnfant = document.getElementById('inputIdEnfant');
+    const btnValiderId = document.getElementById('btnValiderId');
+    const listeEnfants = document.getElementById('listeEnfants');
+
+    const chatSection = document.getElementById('chat-section');
+    const chatTitle = document.getElementById('chat-title');
+    const messagesDiv = document.getElementById('messages');
+    const inputMessage = document.getElementById('inputMessage');
+    const btnEnvoyerMessage = document.getElementById('btnEnvoyerMessage');
+    const btnFermerChat = document.getElementById('btnFermerChat');
+
+    // Stockage enfants validés : { id: nom }
+    const enfantsValides = {};
+
+    // Stockage messages par enfant: { id: [messages] }
+    const messagesParEnfant = {};
+
+    let enfantSelectionne = null;
+
+    // Valider ID enfant
+    btnValiderId.addEventListener('click', () => {
+      const id = inputIdEnfant.value.trim().toUpperCase();
+      if (!id) {
+        alert("Merci d'entrer l'ID de l'enfant.");
+        return;
+      }
+      if (enfantsValides[id]) {
+        alert("Cet enfant est déjà ajouté.");
+        inputIdEnfant.value = '';
+        return;
+      }
+
+      fetch('/api/chercher_enfant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Enfant non trouvé");
+        return res.json();
+      })
+      .then(data => {
+        enfantsValides[id] = data.nom;
+        ajouterBoutonEnfant(id, data.nom);
+        inputIdEnfant.value = '';
+      })
+      .catch(() => alert("ID enfant invalide ou introuvable."));
+    });
+
+    // Ajouter bouton enfant validé
+    function ajouterBoutonEnfant(id, nom) {
+      const btn = document.createElement('button');
+      btn.textContent = `${nom} (${id})`;
+      btn.classList.add('btn-enfant');
+      btn.addEventListener('click', () => ouvrirChat(id));
+      listeEnfants.appendChild(btn);
+    }
+
+    // Ouvrir chat enfant sélectionné
+    function ouvrirChat(id) {
+      enfantSelectionne = id;
+      chatTitle.textContent = `Messages avec ${enfantsValides[id]} (${id})`;
+      afficherMessages(id);
+      chatSection.style.display = 'flex';
+    }
+
+    // Fermer chat
+    btnFermerChat.addEventListener('click', () => {
+      enfantSelectionne = null;
+      chatSection.style.display = 'none';
+      messagesDiv.innerHTML = '';
+      inputMessage.value = '';
+    });
+
+    // Afficher messages d’un enfant
+    function afficherMessages(id) {
+      messagesDiv.innerHTML = '';
+      if (!messagesParEnfant[id]) messagesParEnfant[id] = [];
+      messagesParEnfant[id].forEach(msg => {
+        const p = document.createElement('p');
+        p.textContent = `[${msg.emetteur}] ${msg.message}`;
+        messagesDiv.appendChild(p);
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Envoyer message
+    btnEnvoyerMessage.addEventListener('click', () => {
+      if (!enfantSelectionne) {
+        alert("Sélectionne un enfant pour envoyer un message.");
+        return;
+      }
+      const msg = inputMessage.value.trim();
+      if (!msg) {
+        alert("Écris un message avant d'envoyer.");
+        return;
+      }
+
+      // Envoyer au serveur
+      socket.emit('envoyer_message', {
+        id_enfant: enfantSelectionne,
+        message: msg,
+        emetteur: "parent",
+        destinataire: "ecole"
+      });
+
+      // Ajouter localement
+      if (!messagesParEnfant[enfantSelectionne]) messagesParEnfant[enfantSelectionne] = [];
+      messagesParEnfant[enfantSelectionne].push({ emetteur: "Moi", message: msg });
+      afficherMessages(enfantSelectionne);
+      inputMessage.value = '';
+    });
+
+    // Réception messages serveur (de l'école)
+    socket.on('nouveau_message', data => {
+      if (!data.id_enfant || !data.message) return;
+      const id = data.id_enfant;
+      const msg = data.message;
+      const emetteur = data.emetteur || 'école';
+
+      if (!messagesParEnfant[id]) messagesParEnfant[id] = [];
+      messagesParEnfant[id].push({ emetteur, message: msg });
+
+      // Si le chat ouvert est celui de cet enfant, on rafraîchit l’affichage
+      if (id === enfantSelectionne) {
+        afficherMessages(id);
+      }
+    });
+
+  </script>
 </body>
 </html>
 
