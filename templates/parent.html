@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Interface Parent - Chat Enfants</title>
+  <title>Interface Parent - Suivi Enfant</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -29,12 +29,12 @@
       cursor: pointer;
     }
     #listeEnfants {
-      max-height: 150px;
+      max-height: 200px;
       overflow-y: auto;
       border: 1px solid #ccc;
       padding: 5px;
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column; /* vertical */
       gap: 10px;
     }
     .btn-enfant {
@@ -42,8 +42,9 @@
       color: white;
       border: none;
       border-radius: 4px;
-      padding: 6px 12px;
+      padding: 8px 12px;
       cursor: pointer;
+      text-align: left;
       white-space: nowrap;
     }
     .btn-enfant:hover {
@@ -53,25 +54,42 @@
       display: none;
       flex-direction: column;
       border: 1px solid #ccc;
+      padding: 0;
+      height: 400px;
+      max-width: 600px;
+      box-sizing: border-box;
+    }
+    #chat-header {
+      background: #007BFF;
+      color: white;
       padding: 10px;
-      max-height: 300px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    #btnRetour {
+      background: #0056b3;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+    #chat-title {
+      flex-grow: 1;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.2em;
+      user-select: none;
     }
     #messages {
       flex-grow: 1;
       overflow-y: auto;
-      border: 1px solid #ddd;
-      padding: 10px;
-      height: 200px;
-      margin-bottom: 10px;
+      padding: 15px;
+      background: #f9f9f9;
       white-space: pre-wrap;
-      background-color: #f9f9f9;
-    }
-    #inputMessage {
-      width: 100%;
-      padding: 8px;
       font-size: 1em;
-      box-sizing: border-box;
-      margin-bottom: 5px;
     }
   </style>
 </head>
@@ -89,11 +107,11 @@
     </div>
 
     <div id="chat-section">
-      <h2 id="chat-title"></h2>
+      <div id="chat-header">
+        <button id="btnRetour">← Retour</button>
+        <div id="chat-title">Nom Enfant (ID)</div>
+      </div>
       <div id="messages"></div>
-      <textarea id="inputMessage" placeholder="Écrire un message..."></textarea>
-      <button id="btnEnvoyerMessage">Envoyer</button>
-      <button id="btnFermerChat" style="margin-top:10px; background:#ccc; color:#000;">Fermer</button>
     </div>
   </div>
 
@@ -108,9 +126,7 @@
     const chatSection = document.getElementById('chat-section');
     const chatTitle = document.getElementById('chat-title');
     const messagesDiv = document.getElementById('messages');
-    const inputMessage = document.getElementById('inputMessage');
-    const btnEnvoyerMessage = document.getElementById('btnEnvoyerMessage');
-    const btnFermerChat = document.getElementById('btnFermerChat');
+    const btnRetour = document.getElementById('btnRetour');
 
     // Stockage enfants validés : { id: nom }
     const enfantsValides = {};
@@ -120,7 +136,6 @@
 
     let enfantSelectionne = null;
 
-    // Valider ID enfant
     btnValiderId.addEventListener('click', () => {
       const id = inputIdEnfant.value.trim().toUpperCase();
       if (!id) {
@@ -150,7 +165,6 @@
       .catch(() => alert("ID enfant invalide ou introuvable."));
     });
 
-    // Ajouter bouton enfant validé
     function ajouterBoutonEnfant(id, nom) {
       const btn = document.createElement('button');
       btn.textContent = `${nom} (${id})`;
@@ -159,23 +173,20 @@
       listeEnfants.appendChild(btn);
     }
 
-    // Ouvrir chat enfant sélectionné
     function ouvrirChat(id) {
       enfantSelectionne = id;
-      chatTitle.textContent = `Messages avec ${enfantsValides[id]} (${id})`;
+      chatTitle.textContent = `${enfantsValides[id]} (${id})`;
       afficherMessages(id);
       chatSection.style.display = 'flex';
+      window.scrollTo(0, 0); // remonter en haut
     }
 
-    // Fermer chat
-    btnFermerChat.addEventListener('click', () => {
+    btnRetour.addEventListener('click', () => {
       enfantSelectionne = null;
       chatSection.style.display = 'none';
       messagesDiv.innerHTML = '';
-      inputMessage.value = '';
     });
 
-    // Afficher messages d’un enfant
     function afficherMessages(id) {
       messagesDiv.innerHTML = '';
       if (!messagesParEnfant[id]) messagesParEnfant[id] = [];
@@ -187,32 +198,7 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Envoyer message
-    btnEnvoyerMessage.addEventListener('click', () => {
-      if (!enfantSelectionne) {
-        alert("Sélectionne un enfant pour envoyer un message.");
-        return;
-      }
-      const msg = inputMessage.value.trim();
-      if (!msg) {
-        alert("Écris un message avant d'envoyer.");
-        return;
-      }
-
-      // Envoyer au serveur
-      socket.emit('envoyer_message', {
-        id_enfant: enfantSelectionne,
-        message: msg,
-        emetteur: "parent",
-        destinataire: "ecole"
-      });
-
-      // Ajouter localement
-      if (!messagesParEnfant[enfantSelectionne]) messagesParEnfant[enfantSelectionne] = [];
-      messagesParEnfant[enfantSelectionne].push({ emetteur: "Moi", message: msg });
-      afficherMessages(enfantSelectionne);
-      inputMessage.value = '';
-    });
+    // Le parent ne peut **pas** envoyer de messages, donc suppression des fonctions d'envoi
 
     // Réception messages serveur (de l'école)
     socket.on('nouveau_message', data => {
@@ -224,12 +210,10 @@
       if (!messagesParEnfant[id]) messagesParEnfant[id] = [];
       messagesParEnfant[id].push({ emetteur, message: msg });
 
-      // Si le chat ouvert est celui de cet enfant, on rafraîchit l’affichage
       if (id === enfantSelectionne) {
         afficherMessages(id);
       }
     });
-
   </script>
 </body>
 </html>
