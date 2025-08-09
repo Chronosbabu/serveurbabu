@@ -1,7 +1,9 @@
 console.log("JavaScript chargé - école");
 
+// Connexion au serveur Socket.IO
 const socket = io();
 
+// Chargement une fois la page prête
 window.onload = function() {
   const btnInscrire = document.getElementById('btnInscrire');
   const listeEnfants = document.getElementById('listeEnfants');
@@ -10,7 +12,7 @@ window.onload = function() {
   const inputMessage = document.getElementById('inputMessage');
   const divMessages = document.getElementById('messages');
 
-  // Fonction pour ajouter enfant dans liste et select
+  // Ajoute un enfant dans la liste affichée et dans le select
   function ajouterEnfant(id, nom) {
     const li = document.createElement('li');
     li.textContent = `${nom} (ID: ${id})`;
@@ -22,6 +24,7 @@ window.onload = function() {
     selectEnfant.appendChild(option);
   }
 
+  // Inscription d'un nouvel enfant
   btnInscrire.addEventListener('click', function() {
     const nom = document.getElementById('nomEnfant').value.trim();
     if (nom === '') {
@@ -46,6 +49,7 @@ window.onload = function() {
     .catch(() => alert("Erreur lors de l'inscription."));
   });
 
+  // Envoi d'un message à un enfant
   btnEnvoyer.addEventListener('click', function() {
     const idEnfant = selectEnfant.value;
     const message = inputMessage.value.trim();
@@ -61,7 +65,7 @@ window.onload = function() {
     inputMessage.value = '';
   });
 
-  // Réception des messages
+  // Réception des messages en temps réel
   socket.on('nouveau_message', data => {
     const { id_enfant, message } = data;
     const p = document.createElement('p');

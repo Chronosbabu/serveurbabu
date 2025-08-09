@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <title>Interface École</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- Chargement de Socket.IO depuis le CDN -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"
+    integrity="sha384-lQhtCtEr5eZbAVgA5m+3PLD5DQo7bGxu5rrtHPqZEqF0tgT04LoyqUBXqN9R24Hl"
+    crossorigin="anonymous"></script>
+  <!-- Ton script principal -->
   <script src="/static/js/main_ecole.js"></script>
 </head>
 <body>
@@ -28,4 +32,3 @@
   <div id="messages" style="border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto;"></div>
 </body>
 </html>
-
