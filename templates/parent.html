@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>Parent</title>
@@ -23,8 +23,9 @@
   <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
   <button id="btnEnvoyerMessage">Envoyer</button>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/static/js/main_parent.js"></script>
+  <!-- Chargement du script Socket.IO depuis ton serveur Flask -->
+  <script src="{{ request.host_url }}socket.io/socket.io.js"></script>
+  <script src="{{ url_for('static', filename='js/main_parent.js') }}"></script>
 </body>
 </html>
 
