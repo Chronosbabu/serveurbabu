@@ -1,6 +1,6 @@
 console.log("JavaScript chargé - parent");
 
-document.addEventListener('DOMContentLoaded', function() {
+window.onload = function() {
   const btn = document.getElementById('btnValiderId');
   if (btn) {
     btn.addEventListener('click', function() {
@@ -38,5 +38,5 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     console.error("Bouton btnValiderId introuvable dans le DOM");
   }
-});
+};
 
