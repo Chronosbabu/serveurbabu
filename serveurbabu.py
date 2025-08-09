@@ -19,6 +19,18 @@ def ecrire_enfants(data):
     with open(ENFANTS_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
+@app.route('/')
+def accueil():
+    return "Bienvenue sur le serveur"
+
+@app.route('/ecole')
+def ecole():
+    return render_template('ecole.html')
+
+@app.route('/parent')
+def parent():
+    return render_template('parent.html')
+
 @app.route('/api/inscrire_enfant', methods=['POST'])
 def inscrire_enfant():
     data = request.get_json()
@@ -27,7 +39,6 @@ def inscrire_enfant():
         return jsonify({'erreur': 'Nom vide'}), 400
 
     enfants = lire_enfants()
-    # Création d’un ID simple
     nouvel_id = f"ENFANT{len(enfants) + 1:03d}"
 
     enfants[nouvel_id] = {'nom': nom}
@@ -35,3 +46,6 @@ def inscrire_enfant():
 
     return jsonify({'id': nouvel_id, 'nom': nom})
 
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
