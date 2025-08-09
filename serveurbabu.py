@@ -46,6 +46,16 @@ def inscrire_enfant():
 
     return jsonify({'id': nouvel_id, 'nom': nom})
 
+@app.route('/api/chercher_enfant', methods=['POST'])
+def chercher_enfant():
+    data = request.get_json()
+    id_enfant = data.get('id', '').strip()
+    enfants = lire_enfants()
+    if id_enfant in enfants:
+        return jsonify({'nom': enfants[id_enfant]['nom']})
+    else:
+        return jsonify({'erreur': 'ID introuvable'}), 404
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
