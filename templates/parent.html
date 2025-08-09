@@ -23,8 +23,8 @@
   <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
   <button id="btnEnvoyerMessage">Envoyer</button>
 
-  <!-- Chargement du script Socket.IO depuis ton serveur Flask -->
-  <script src="{{ request.host_url }}socket.io/socket.io.js"></script>
+  <!-- Charger Socket.IO depuis CDN pour éviter les problèmes -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
   <script src="{{ url_for('static', filename='js/main_parent.js') }}"></script>
 </body>
 </html>

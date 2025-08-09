@@ -48,6 +48,17 @@ def inscrire_enfant():
 
     return jsonify({'id': nouvel_id, 'nom': nom})
 
+# **Nouvelle route pour rechercher un enfant par ID**
+@app.route('/api/chercher_enfant', methods=['POST'])
+def chercher_enfant():
+    data = request.get_json()
+    id_enfant = data.get('id', '').strip()
+    enfants = lire_enfants()
+    if id_enfant in enfants:
+        return jsonify({'nom': enfants[id_enfant]['nom']})
+    else:
+        return jsonify({'erreur': 'Enfant non trouvé'}), 404
+
 @socketio.on('connect')
 def on_connect():
     print('Client connecté')
@@ -59,7 +70,7 @@ def on_message(data):
     message = data.get('message')
     if not id_enfant or not message:
         return
-    # Ici tu peux stocker le message si besoin (ex: fichier ou base)
+    # Tu peux stocker les messages ici si tu veux (ex: fichier ou base)
     emit('nouveau_message', {'id_enfant': id_enfant, 'message': message}, broadcast=True)
 
 if __name__ == '__main__':
