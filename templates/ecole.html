@@ -3,127 +3,129 @@
 <head>
   <meta charset="UTF-8" />
   <title>Interface École</title>
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="/static/js/main_ecole.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 20px auto;
-      padding: 0 15px;
+      margin: 20px;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 25px;
-    }
-    #inscription-section {
+    #formulaire {
       display: flex;
       gap: 10px;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     #nomEnfant {
-      flex-grow: 1;
-      padding: 10px;
-      font-size: 1em;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      flex: 1;
+      padding: 8px;
+      font-size: 16px;
     }
     #btnInscrire {
-      padding: 10px 20px;
-      font-size: 1em;
+      padding: 8px 16px;
+      font-size: 16px;
       cursor: pointer;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      transition: background-color 0.3s ease;
-    }
-    #btnInscrire:hover {
-      background-color: #0056b3;
     }
     #listeEnfants {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
       list-style: none;
       padding: 0;
+      max-width: 400px;
     }
-    .enfant-btn {
-      background-color: #28a745;
+    .enfant-item {
+      margin-bottom: 12px;
+    }
+    .btn-enfant {
+      background-color: #2f86eb;
       color: white;
       border: none;
-      padding: 12px 15px;
+      padding: 10px 16px;
+      font-size: 18px;
       border-radius: 6px;
       cursor: pointer;
+      width: 100%;
       text-align: left;
-      font-size: 1.1em;
-      position: relative;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
       transition: background-color 0.3s ease;
     }
-    .enfant-btn:hover {
-      background-color: #1e7e34;
+    .btn-enfant:hover {
+      background-color: #1a5fc7;
     }
     .enfant-id {
-      font-size: 0.75em;
-      color: #eee;
-      position: absolute;
-      right: 15px;
-      bottom: 8px;
-      font-weight: normal;
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+      margin-left: 6px;
+      font-family: monospace;
       text-transform: lowercase;
-      opacity: 0.8;
-      user-select: none;
     }
   </style>
-  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-  <script src="/static/js/main_ecole.js"></script>
 </head>
 <body>
   <h1>Inscrire un enfant</h1>
-  
-  <div id="inscription-section">
+  <div id="formulaire">
     <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
     <button id="btnInscrire">Inscrire</button>
   </div>
-  
+
   <h2>Enfants inscrits</h2>
   <ul id="listeEnfants"></ul>
 
   <script>
-    // Fonction pour créer un bouton enfant avec id affiché en petit
-    function creerBoutonEnfant(id, nom) {
-      const btn = document.createElement('button');
-      btn.classList.add('enfant-btn');
-      btn.textContent = nom;
-      btn.title = `ID : ${id.toLowerCase()}`;
+    const nomInput = document.getElementById('nomEnfant');
+    const btnInscrire = document.getElementById('btnInscrire');
+    const listeEnfants = document.getElementById('listeEnfants');
 
-      const spanId = document.createElement('span');
-      spanId.classList.add('enfant-id');
-      spanId.textContent = id.toLowerCase();
-
-      btn.appendChild(spanId);
-
-      // Au clic, demander le message à envoyer
-      btn.addEventListener('click', () => {
-        const message = prompt(`Écrire un message pour ${nom} (${id}):`);
-        if (message && message.trim() !== '') {
-          // Émettre vers le serveur via socket.io (doit être défini dans main_ecole.js)
-          socket.emit('envoyer_message', { id_enfant: id, message: message.trim() });
-          alert('Message envoyé !');
-        }
-      });
-
-      return btn;
+    // Fonction pour créer un ID simple basé sur le nom (à adapter selon ta logique)
+    function creerId(nom) {
+      return nom.trim().toLowerCase().replace(/\s+/g, '_');
     }
 
-    // Remplacer la fonction ajouterEnfant du main_ecole.js
-    // (si tu veux, tu peux l'adapter dans ton fichier js)
-    function ajouterEnfant(id, nom) {
-      const liste = document.getElementById('listeEnfants');
-      const bouton = creerBoutonEnfant(id, nom);
+    // Ajouter enfant dans la liste (affichage uniquement)
+    function ajouterEnfant(nom) {
+      if (!nom.trim()) return;
+
+      const id = creerId(nom);
+      // Vérifier si déjà dans la liste
+      if (document.getElementById('enfant-' + id)) {
+        alert("Cet enfant est déjà inscrit.");
+        return;
+      }
+
       const li = document.createElement('li');
-      li.appendChild(bouton);
-      liste.appendChild(li);
+      li.className = 'enfant-item';
+
+      const btn = document.createElement('button');
+      btn.className = 'btn-enfant';
+      btn.id = 'enfant-' + id;
+      btn.textContent = nom;
+      btn.onclick = () => {
+        const message = prompt(`Entrer le message pour ${nom} :`);
+        if (message && message.trim()) {
+          // Ici, tu peux appeler ta fonction d'envoi avec id + message
+          console.log(`Message pour ${nom} (ID: ${id}) :`, message);
+          // Par exemple: envoyerMessage(id, message);
+        }
+      };
+
+      const spanId = document.createElement('div');
+      spanId.className = 'enfant-id';
+      spanId.textContent = id;
+
+      li.appendChild(btn);
+      li.appendChild(spanId);
+      listeEnfants.appendChild(li);
     }
+
+    btnInscrire.addEventListener('click', () => {
+      ajouterEnfant(nomInput.value);
+      nomInput.value = '';
+      nomInput.focus();
+    });
+
+    nomInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        btnInscrire.click();
+      }
+    });
   </script>
 </body>
 </html>
