@@ -3,130 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <title>Interface École</title>
+  <!-- Charger Socket.IO depuis le CDN sans integrity -->
   <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
   <script src="/static/js/main_ecole.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    #formulaire {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    #nomEnfant {
-      flex: 1;
-      padding: 8px;
-      font-size: 16px;
-    }
-    #btnInscrire {
-      padding: 8px 16px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    #listeEnfants {
-      list-style: none;
-      padding: 0;
-      max-width: 400px;
-    }
-    .enfant-item {
-      margin-bottom: 12px;
-    }
-    .btn-enfant {
-      background-color: #2f86eb;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      font-size: 18px;
-      border-radius: 6px;
-      cursor: pointer;
-      width: 100%;
-      text-align: left;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      transition: background-color 0.3s ease;
-    }
-    .btn-enfant:hover {
-      background-color: #1a5fc7;
-    }
-    .enfant-id {
-      font-size: 12px;
-      color: #666;
-      margin-top: 2px;
-      margin-left: 6px;
-      font-family: monospace;
-      text-transform: lowercase;
-    }
-  </style>
 </head>
 <body>
   <h1>Inscrire un enfant</h1>
-  <div id="formulaire">
-    <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
-    <button id="btnInscrire">Inscrire</button>
-  </div>
+  <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
+  <button id="btnInscrire">Inscrire</button>
 
   <h2>Enfants inscrits</h2>
   <ul id="listeEnfants"></ul>
 
-  <script>
-    const nomInput = document.getElementById('nomEnfant');
-    const btnInscrire = document.getElementById('btnInscrire');
-    const listeEnfants = document.getElementById('listeEnfants');
+  <hr />
 
-    // Fonction pour créer un ID simple basé sur le nom (à adapter selon ta logique)
-    function creerId(nom) {
-      return nom.trim().toLowerCase().replace(/\s+/g, '_');
-    }
+  <h2>Envoyer un message</h2>
+  <select id="selectEnfant">
+    <option value="">-- Choisir un enfant --</option>
+  </select><br/><br/>
 
-    // Ajouter enfant dans la liste (affichage uniquement)
-    function ajouterEnfant(nom) {
-      if (!nom.trim()) return;
+  <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
+  <button id="btnEnvoyerMessage">Envoyer</button>
 
-      const id = creerId(nom);
-      // Vérifier si déjà dans la liste
-      if (document.getElementById('enfant-' + id)) {
-        alert("Cet enfant est déjà inscrit.");
-        return;
-      }
-
-      const li = document.createElement('li');
-      li.className = 'enfant-item';
-
-      const btn = document.createElement('button');
-      btn.className = 'btn-enfant';
-      btn.id = 'enfant-' + id;
-      btn.textContent = nom;
-      btn.onclick = () => {
-        const message = prompt(`Entrer le message pour ${nom} :`);
-        if (message && message.trim()) {
-          // Ici, tu peux appeler ta fonction d'envoi avec id + message
-          console.log(`Message pour ${nom} (ID: ${id}) :`, message);
-          // Par exemple: envoyerMessage(id, message);
-        }
-      };
-
-      const spanId = document.createElement('div');
-      spanId.className = 'enfant-id';
-      spanId.textContent = id;
-
-      li.appendChild(btn);
-      li.appendChild(spanId);
-      listeEnfants.appendChild(li);
-    }
-
-    btnInscrire.addEventListener('click', () => {
-      ajouterEnfant(nomInput.value);
-      nomInput.value = '';
-      nomInput.focus();
-    });
-
-    nomInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        btnInscrire.click();
-      }
-    });
-  </script>
+  <h3>Messages reçus</h3>
+  <div id="messages" style="border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto;"></div>
 </body>
 </html>
+
 
