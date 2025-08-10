@@ -3,104 +3,127 @@
 <head>
   <meta charset="UTF-8" />
   <title>Interface École</title>
-  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-  <script src="/static/js/main_ecole.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f8f9fa;
-      padding: 20px;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 0 15px;
     }
-
     h1 {
       text-align: center;
-      color: #333;
+      margin-bottom: 25px;
     }
-
-    .inscription {
+    #inscription-section {
       display: flex;
       gap: 10px;
-      margin-bottom: 20px;
-      justify-content: center;
+      margin-bottom: 30px;
     }
-
-    .inscription input {
+    #nomEnfant {
+      flex-grow: 1;
       padding: 10px;
-      font-size: 16px;
+      font-size: 1em;
       border: 1px solid #ccc;
-      border-radius: 6px;
-      flex: 1;
+      border-radius: 4px;
     }
-
-    .inscription button {
+    #btnInscrire {
       padding: 10px 20px;
-      font-size: 16px;
-      background: #007bff;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #007BFF;
       color: white;
       border: none;
-      border-radius: 6px;
-      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
     }
-
-    .inscription button:hover {
-      background: #0056b3;
+    #btnInscrire:hover {
+      background-color: #0056b3;
     }
-
     #listeEnfants {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
       list-style: none;
       padding: 0;
     }
-
     .enfant-btn {
-      display: block;
-      background: white;
-      border: 1px solid #ddd;
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 8px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 12px 15px;
+      border-radius: 6px;
       cursor: pointer;
-      transition: all 0.2s;
       text-align: left;
+      font-size: 1.1em;
+      position: relative;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      transition: background-color 0.3s ease;
     }
-
     .enfant-btn:hover {
-      background: #e9f3ff;
+      background-color: #1e7e34;
     }
-
     .enfant-id {
-      display: block;
-      font-size: 12px;
-      color: #777;
-      margin-top: 4px;
+      font-size: 0.75em;
+      color: #eee;
+      position: absolute;
+      right: 15px;
+      bottom: 8px;
+      font-weight: normal;
+      text-transform: lowercase;
+      opacity: 0.8;
+      user-select: none;
     }
   </style>
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="/static/js/main_ecole.js"></script>
 </head>
 <body>
-  <h1>Gestion des enfants</h1>
-
-  <!-- Barre d'inscription -->
-  <div class="inscription">
+  <h1>Inscrire un enfant</h1>
+  
+  <div id="inscription-section">
     <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
     <button id="btnInscrire">Inscrire</button>
   </div>
-
-  <!-- Liste des enfants -->
+  
+  <h2>Enfants inscrits</h2>
   <ul id="listeEnfants"></ul>
 
   <script>
-    // Ici, le JS existant main_ecole.js gère la logique
-    // On ajoute juste l'ouverture de boîte de dialogue au clic sur un enfant
-    document.addEventListener("click", function(e) {
-      if (e.target.classList.contains("enfant-btn")) {
-        const id = e.target.dataset.id;
-        const nom = e.target.dataset.nom;
-        const message = prompt(`Message pour ${nom} :`);
-        if (message && message.trim() !== "") {
-          // On utilise l'événement Socket.IO déjà prévu dans ton JS
+    // Fonction pour créer un bouton enfant avec id affiché en petit
+    function creerBoutonEnfant(id, nom) {
+      const btn = document.createElement('button');
+      btn.classList.add('enfant-btn');
+      btn.textContent = nom;
+      btn.title = `ID : ${id.toLowerCase()}`;
+
+      const spanId = document.createElement('span');
+      spanId.classList.add('enfant-id');
+      spanId.textContent = id.toLowerCase();
+
+      btn.appendChild(spanId);
+
+      // Au clic, demander le message à envoyer
+      btn.addEventListener('click', () => {
+        const message = prompt(`Écrire un message pour ${nom} (${id}):`);
+        if (message && message.trim() !== '') {
+          // Émettre vers le serveur via socket.io (doit être défini dans main_ecole.js)
           socket.emit('envoyer_message', { id_enfant: id, message: message.trim() });
+          alert('Message envoyé !');
         }
-      }
-    });
+      });
+
+      return btn;
+    }
+
+    // Remplacer la fonction ajouterEnfant du main_ecole.js
+    // (si tu veux, tu peux l'adapter dans ton fichier js)
+    function ajouterEnfant(id, nom) {
+      const liste = document.getElementById('listeEnfants');
+      const bouton = creerBoutonEnfant(id, nom);
+      const li = document.createElement('li');
+      li.appendChild(bouton);
+      liste.appendChild(li);
+    }
   </script>
 </body>
 </html>
