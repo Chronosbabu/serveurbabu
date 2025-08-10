@@ -1,96 +1,23 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <title>Interface Parent - Suivi Enfant</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      max-width: 600px;
-    }
-    #container {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-    #entry-section {
-      display: flex;
-      gap: 10px;
-    }
-    #inputIdEnfant {
-      flex-grow: 1;
-      padding: 8px;
-      font-size: 1em;
-    }
-    button {
-      padding: 8px 15px;
-      font-size: 1em;
-      cursor: pointer;
-    }
-    #listeEnfants {
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      padding: 5px;
-      display: flex;
-      flex-direction: column; /* vertical */
-      gap: 10px;
-    }
-    .btn-enfant {
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 8px 12px;
-      cursor: pointer;
-      text-align: left;
-      white-space: nowrap;
-    }
-    .btn-enfant:hover {
-      background-color: #0056b3;
-    }
-    #chat-section {
-      display: none;
-      flex-direction: column;
-      border: 1px solid #ccc;
-      padding: 0;
-      height: 400px;
-      max-width: 600px;
-      box-sizing: border-box;
-    }
-    #chat-header {
-      background: #007BFF;
-      color: white;
-      padding: 10px;
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-    #btnRetour {
-      background: #0056b3;
-      border: none;
-      color: white;
-      padding: 6px 12px;
-      cursor: pointer;
-      border-radius: 3px;
-      font-weight: bold;
-    }
-    #chat-title {
-      flex-grow: 1;
-      text-align: center;
-      font-weight: bold;
-      font-size: 1.2em;
-      user-select: none;
-    }
-    #messages {
-      flex-grow: 1;
-      overflow-y: auto;
-      padding: 15px;
-      background: #f9f9f9;
-      white-space: pre-wrap;
-      font-size: 1em;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 600px; }
+    #container { display: flex; flex-direction: column; gap: 15px; }
+    #entry-section { display: flex; gap: 10px; }
+    #inputIdEnfant { flex-grow: 1; padding: 8px; font-size: 1em; }
+    button { padding: 8px 15px; font-size: 1em; cursor: pointer; }
+    #listeEnfants { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; display: flex; flex-direction: column; gap: 10px; }
+    .btn-enfant { background-color: #007BFF; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; text-align: left; }
+    .btn-enfant:hover { background-color: #0056b3; }
+    #chat-section { display: none; flex-direction: column; border: 1px solid #ccc; height: 400px; }
+    #chat-header { background: #007BFF; color: white; padding: 10px; display: flex; align-items: center; gap: 15px; }
+    #btnRetour { background: #0056b3; border: none; color: white; padding: 6px 12px; cursor: pointer; border-radius: 3px; font-weight: bold; }
+    #chat-title { flex-grow: 1; text-align: center; font-weight: bold; font-size: 1.2em; }
+    #messages { flex-grow: 1; overflow-y: auto; padding: 15px; background: #f9f9f9; white-space: pre-wrap; font-size: 1em; }
   </style>
 </head>
 <body>
@@ -118,51 +45,39 @@
   <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
   <script>
     const socket = io();
-
     const inputIdEnfant = document.getElementById('inputIdEnfant');
     const btnValiderId = document.getElementById('btnValiderId');
     const listeEnfants = document.getElementById('listeEnfants');
-
     const chatSection = document.getElementById('chat-section');
     const chatTitle = document.getElementById('chat-title');
     const messagesDiv = document.getElementById('messages');
     const btnRetour = document.getElementById('btnRetour');
 
-    // Stockage enfants validés : { id: nom }
     const enfantsValides = {};
-
-    // Stockage messages par enfant: { id: [messages] }
     const messagesParEnfant = {};
-
     let enfantSelectionne = null;
 
-    btnValiderId.addEventListener('click', () => {
+    btnValiderId.addEventListener('click', async () => {
       const id = inputIdEnfant.value.trim().toUpperCase();
-      if (!id) {
-        alert("Merci d'entrer l'ID de l'enfant.");
-        return;
-      }
-      if (enfantsValides[id]) {
-        alert("Cet enfant est déjà ajouté.");
-        inputIdEnfant.value = '';
-        return;
-      }
+      if (!id) return alert("Merci d'entrer l'ID de l'enfant.");
+      if (enfantsValides[id]) return alert("Cet enfant est déjà ajouté.");
 
-      fetch('/api/chercher_enfant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      })
-      .then(res => {
-        if (!res.ok) throw new Error("Enfant non trouvé");
-        return res.json();
-      })
-      .then(data => {
+      try {
+        const res = await fetch('/api/chercher_enfant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
         enfantsValides[id] = data.nom;
         ajouterBoutonEnfant(id, data.nom);
         inputIdEnfant.value = '';
-      })
-      .catch(() => alert("ID enfant invalide ou introuvable."));
+      } catch {
+        alert("ID enfant invalide ou introuvable.");
+      }
     });
 
     function ajouterBoutonEnfant(id, nom) {
@@ -178,7 +93,6 @@
       chatTitle.textContent = `${enfantsValides[id]} (${id})`;
       afficherMessages(id);
       chatSection.style.display = 'flex';
-      window.scrollTo(0, 0); // remonter en haut
     }
 
     btnRetour.addEventListener('click', () => {
@@ -189,8 +103,7 @@
 
     function afficherMessages(id) {
       messagesDiv.innerHTML = '';
-      if (!messagesParEnfant[id]) messagesParEnfant[id] = [];
-      messagesParEnfant[id].forEach(msg => {
+      (messagesParEnfant[id] || []).forEach(msg => {
         const p = document.createElement('p');
         p.textContent = `[${msg.emetteur}] ${msg.message}`;
         messagesDiv.appendChild(p);
@@ -198,23 +111,15 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Le parent ne peut **pas** envoyer de messages, donc suppression des fonctions d'envoi
-
-    // Réception messages serveur (de l'école)
     socket.on('nouveau_message', data => {
       if (!data.id_enfant || !data.message) return;
       const id = data.id_enfant;
       const msg = data.message;
       const emetteur = data.emetteur || 'école';
-
       if (!messagesParEnfant[id]) messagesParEnfant[id] = [];
       messagesParEnfant[id].push({ emetteur, message: msg });
-
-      if (id === enfantSelectionne) {
-        afficherMessages(id);
-      }
+      if (id === enfantSelectionne) afficherMessages(id);
     });
   </script>
 </body>
 </html>
-
