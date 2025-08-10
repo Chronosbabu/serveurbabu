@@ -1,32 +1,126 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Interface École</title>
-  <!-- Charger Socket.IO depuis le CDN sans integrity -->
-  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
-  <script src="/static/js/main_ecole.js"></script>
+<meta charset="UTF-8" />
+<title>Interface École</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  #inscription {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  #nomEnfant {
+    padding: 8px;
+    font-size: 1em;
+    flex-grow: 1;
+  }
+  button {
+    padding: 8px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+  }
+  #btnInscrire {
+    background-color: #28a745;
+    color: white;
+  }
+  #btnInscrire:hover {
+    background-color: #218838;
+  }
+  #listeEnfants {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .btn-enfant {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #007BFF;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.2em;
+  }
+  .btn-enfant small {
+    font-size: 0.8em;
+    opacity: 0.8;
+  }
+  .btn-enfant:hover {
+    background-color: #0056b3;
+  }
+</style>
 </head>
 <body>
-  <h1>Inscrire un enfant</h1>
+
+<h1>Interface École</h1>
+
+<div id="inscription">
   <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
   <button id="btnInscrire">Inscrire</button>
+</div>
 
-  <h2>Enfants inscrits</h2>
-  <ul id="listeEnfants"></ul>
+<h2>Enfants inscrits</h2>
+<div id="listeEnfants"></div>
 
-  <hr />
+<script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+<script>
+  const socket = io();
+  const nomEnfantInput = document.getElementById('nomEnfant');
+  const btnInscrire = document.getElementById('btnInscrire');
+  const listeEnfants = document.getElementById('listeEnfants');
 
-  <h2>Envoyer un message</h2>
-  <select id="selectEnfant">
-    <option value="">-- Choisir un enfant --</option>
-  </select><br/><br/>
+  // Fonction pour créer un ID unique
+  function genererId(nom) {
+    return nom.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000);
+  }
 
-  <textarea id="inputMessage" placeholder="Écrire un message..."></textarea><br/>
-  <button id="btnEnvoyerMessage">Envoyer</button>
+  // Inscription d'un enfant
+  btnInscrire.addEventListener('click', () => {
+    const nom = nomEnfantInput.value.trim();
+    if (!nom) {
+      alert("Entrez un nom d'enfant");
+      return;
+    }
+    const id = genererId(nom);
 
-  <h3>Messages reçus</h3>
-  <div id="messages" style="border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto;"></div>
+    // Émettre au serveur
+    socket.emit('inscrire_enfant', { nom, id });
+
+    // Ajouter dans la liste
+    ajouterEnfant(nom, id);
+
+    nomEnfantInput.value = '';
+  });
+
+  // Ajouter un enfant dans l'interface
+  function ajouterEnfant(nom, id) {
+    const btn = document.createElement('div');
+    btn.className = 'btn-enfant';
+    btn.innerHTML = `${nom}<small>${id}</small>`;
+    btn.addEventListener('click', () => {
+      const message = prompt(`Message pour ${nom} :`);
+      if (message && message.trim()) {
+        socket.emit('envoyer_message', {
+          id_enfant: id,
+          message,
+          emetteur: 'ecole'
+        });
+      }
+    });
+    listeEnfants.appendChild(btn);
+  }
+
+  // Si besoin, réception d'un enfant inscrit depuis le serveur
+  socket.on('enfant_inscrit', data => {
+    ajouterEnfant(data.nom, data.id);
+  });
+</script>
 </body>
 </html>
-
