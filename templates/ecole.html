@@ -39,12 +39,6 @@
       flex-direction: column;
       gap: 10px;
     }
-    #rechercheEnfant {
-      padding: 6px;
-      width: 70%;
-      margin-bottom: 10px;
-      font-size: 1em;
-    }
     label {
       font-size: 0.9em;
       color: #333;
@@ -101,8 +95,10 @@
     <button id="btnInscrire">Inscrire</button>
   </div>
 
-  <input type="text" id="rechercheEnfant" placeholder="Rechercher un enfant..." />
-  <label><input type="checkbox" id="selectTout" /> Tout sélectionner</label>
+  <div style="margin-bottom: 10px;">
+    <input type="text" id="rechercheEnfant" placeholder="Rechercher un enfant..." />
+    <label><input type="checkbox" id="selectTout" /> Tout sélectionner</label>
+  </div>
 
   <h2>Enfants inscrits</h2>
   <ul id="listeEnfants"></ul>

@@ -6,32 +6,11 @@ window.onload = function() {
   const btnInscrire = document.getElementById('btnInscrire');
   const nomEnfantInput = document.getElementById('nomEnfant');
   const listeEnfants = document.getElementById('listeEnfants');
-
-  // Création et insertion du champ recherche et checkbox général + zone message
-  const filtreDiv = document.createElement('div');
-  filtreDiv.style.margin = '15px 0';
-  filtreDiv.innerHTML = `
-    <input type="text" id="rechercheEnfant" placeholder="Rechercher un enfant..." style="padding:6px; width: 70%;" />
-    <label style="margin-left:10px;">
-      <input type="checkbox" id="selectTout" /> Tout sélectionner
-    </label>
-  `;
-  listeEnfants.parentNode.insertBefore(filtreDiv, listeEnfants);
-
-  // Zone message, cachée au départ
-  const zoneMessageDiv = document.createElement('div');
-  zoneMessageDiv.style.marginTop = '15px';
-  zoneMessageDiv.style.display = 'none';
-  zoneMessageDiv.innerHTML = `
-    <textarea id="messageEnfants" placeholder="Écrire un message pour les enfants sélectionnés..." rows="3" style="width:100%; padding:8px;"></textarea><br/>
-    <button id="btnEnvoyerMessage" style="margin-top:8px;">Envoyer le message</button>
-  `;
-  listeEnfants.parentNode.appendChild(zoneMessageDiv);
-
   const inputRecherche = document.getElementById('rechercheEnfant');
   const checkboxSelectTout = document.getElementById('selectTout');
   const textareaMessage = document.getElementById('messageEnfants');
   const btnEnvoyerMessage = document.getElementById('btnEnvoyerMessage');
+  const zoneMessageDiv = document.getElementById('zoneMessage'); // Assure-toi que cette div existe dans le HTML
 
   let enfants = []; // tableau {id, nom}
 
@@ -138,7 +117,6 @@ window.onload = function() {
 
     alert("Message envoyé aux enfants sélectionnés.");
     textareaMessage.value = '';
-    // Décocher tous
     checkboxSelectTout.checked = false;
     coches.forEach(cb => cb.checked = false);
     majZoneMessage();
@@ -175,5 +153,4 @@ window.onload = function() {
     .catch(() => alert("Erreur lors de l'inscription."));
   });
 };
-
 
