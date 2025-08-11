@@ -6,15 +6,20 @@ window.onload = function() {
   const btnInscrire = document.getElementById('btnInscrire');
   const nomEnfantInput = document.getElementById('nomEnfant');
   const listeEnfants = document.getElementById('listeEnfants');
+
   const inputRecherche = document.getElementById('rechercheEnfant');
   const checkboxSelectTout = document.getElementById('selectTout');
+
+  // Nouveau bouton en haut + modale
+  const btnEnvoyerMessageTop = document.getElementById('btnEnvoyerMessageTop');
+  const modalMessage = document.getElementById('modalMessage');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const btnEnvoyerModal = document.getElementById('btnEnvoyerModal');
+  const btnFermerModal = document.getElementById('btnFermerModal');
   const textareaMessage = document.getElementById('messageEnfants');
-  const btnEnvoyerMessage = document.getElementById('btnEnvoyerMessage');
-  const zoneMessageDiv = document.getElementById('zoneMessage'); // Assure-toi que cette div existe dans le HTML
 
   let enfants = []; // tableau {id, nom}
 
-  // Rafraîchir affichage enfants selon filtre et checkbox
   function afficherEnfants() {
     const filtre = inputRecherche.value.toLowerCase();
     listeEnfants.innerHTML = '';
@@ -22,29 +27,21 @@ window.onload = function() {
     enfants.forEach(({id, nom}) => {
       if (nom.toLowerCase().includes(filtre) || id.toLowerCase().includes(filtre)) {
         const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.alignItems = 'center';
-        li.style.justifyContent = 'space-between';
-        li.style.padding = '8px 12px';
-        li.style.border = '1px solid #007BFF';
-        li.style.borderRadius = '6px';
-        li.style.backgroundColor = '#f0f4ff';
+        li.style.listStyle = 'none';
+
+        const divEnfant = document.createElement('div');
+        divEnfant.classList.add('enfant-btn');
 
         const divNom = document.createElement('div');
         divNom.style.flexGrow = '1';
 
         const spanNom = document.createElement('span');
         spanNom.textContent = nom;
-        spanNom.style.fontWeight = 'bold';
-        spanNom.style.color = '#003366';
-        spanNom.style.fontSize = '1.1em';
+        spanNom.classList.add('enfant-nom');
 
         const spanId = document.createElement('small');
         spanId.textContent = id.toLowerCase();
-        spanId.style.display = 'block';
-        spanId.style.fontStyle = 'italic';
-        spanId.style.color = '#555';
-        spanId.style.marginTop = '3px';
+        spanId.classList.add('enfant-id');
 
         divNom.appendChild(spanNom);
         divNom.appendChild(spanId);
@@ -55,50 +52,56 @@ window.onload = function() {
         checkbox.dataset.id = id;
 
         checkbox.addEventListener('change', () => {
-          majZoneMessage();
+          majBoutonEnvoyer();
           majCheckboxTout();
         });
 
-        li.appendChild(divNom);
-        li.appendChild(checkbox);
+        divEnfant.appendChild(divNom);
+        divEnfant.appendChild(checkbox);
 
+        li.appendChild(divEnfant);
         listeEnfants.appendChild(li);
       }
     });
+
+    majBoutonEnvoyer();
   }
 
-  // Met à jour la zone message selon sélection enfants
-  function majZoneMessage() {
-    const coches = document.querySelectorAll('.chk-enfant:checked');
-    if (coches.length > 0) {
-      zoneMessageDiv.style.display = 'block';
-    } else {
-      zoneMessageDiv.style.display = 'none';
-      textareaMessage.value = '';
-    }
-  }
-
-  // Met à jour checkbox « tout sélectionner » selon sélection enfants
   function majCheckboxTout() {
     const total = document.querySelectorAll('.chk-enfant').length;
     const coches = document.querySelectorAll('.chk-enfant:checked').length;
     checkboxSelectTout.checked = (total > 0 && total === coches);
   }
 
-  // Clic sur checkbox tout sélectionner
   checkboxSelectTout.addEventListener('change', () => {
     const cocher = checkboxSelectTout.checked;
-    document.querySelectorAll('.chk-enfant').forEach(cb => {
-      cb.checked = cocher;
-    });
-    majZoneMessage();
+    document.querySelectorAll('.chk-enfant').forEach(cb => cb.checked = cocher);
+    majBoutonEnvoyer();
   });
 
-  // Filtrage dynamique
   inputRecherche.addEventListener('input', afficherEnfants);
 
-  // Envoyer message aux enfants sélectionnés
-  btnEnvoyerMessage.addEventListener('click', () => {
+  function majBoutonEnvoyer() {
+    const nbSelectionnes = document.querySelectorAll('.chk-enfant:checked').length;
+    btnEnvoyerMessageTop.disabled = (nbSelectionnes === 0);
+  }
+
+  btnEnvoyerMessageTop.addEventListener('click', () => {
+    if (btnEnvoyerMessageTop.disabled) return;
+    textareaMessage.value = '';
+    modalMessage.style.display = 'block';
+    modalOverlay.style.display = 'block';
+  });
+
+  btnFermerModal.addEventListener('click', fermerModal);
+  modalOverlay.addEventListener('click', fermerModal);
+
+  function fermerModal() {
+    modalMessage.style.display = 'none';
+    modalOverlay.style.display = 'none';
+  }
+
+  btnEnvoyerModal.addEventListener('click', () => {
     const message = textareaMessage.value.trim();
     if (!message) {
       alert("Écris un message.");
@@ -107,6 +110,7 @@ window.onload = function() {
     const coches = [...document.querySelectorAll('.chk-enfant:checked')];
     if (coches.length === 0) {
       alert("Sélectionne au moins un enfant.");
+      fermerModal();
       return;
     }
 
@@ -116,19 +120,14 @@ window.onload = function() {
     });
 
     alert("Message envoyé aux enfants sélectionnés.");
-    textareaMessage.value = '';
-    checkboxSelectTout.checked = false;
-    coches.forEach(cb => cb.checked = false);
-    majZoneMessage();
+    fermerModal();
   });
 
-  // Ajouter enfant dans tableau et afficher
   function ajouterEnfant(id, nom) {
     enfants.push({id, nom});
     afficherEnfants();
   }
 
-  // Inscription d'un enfant
   btnInscrire.addEventListener('click', () => {
     const nom = nomEnfantInput.value.trim();
     if (!nom) {
@@ -152,5 +151,7 @@ window.onload = function() {
     })
     .catch(() => alert("Erreur lors de l'inscription."));
   });
+
+  afficherEnfants();
 };
 
