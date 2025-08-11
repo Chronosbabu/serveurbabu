@@ -16,6 +16,7 @@
       display: flex;
       flex-direction: column;
       gap: 15px;
+      position: relative;
     }
     #entry-section {
       display: flex;
@@ -65,14 +66,20 @@
     .btn-enfant:hover {
       background-color: #0056b3;
     }
+    /* CHAT SECTION */
     #chat-section {
       display: none;
       flex-direction: column;
       border: 1px solid #ccc;
       padding: 0;
-      height: 400px;
-      max-width: 600px;
+      height: 100vh;        /* plein écran vertical */
+      width: 100vw;         /* plein écran horizontal */
       box-sizing: border-box;
+      position: fixed;      /* au-dessus de tout */
+      top: 0;
+      left: 0;
+      background: white;
+      z-index: 1000;
     }
     #chat-header {
       background: #007BFF;
@@ -107,6 +114,13 @@
       font-size: 1em;
     }
 
+    /* Quand chat est ouvert, le reste est un peu transparent et non cliquable */
+    #container.chat-ouvert > :not(#chat-section) {
+      opacity: 0.3;
+      pointer-events: none;
+      user-select: none;
+    }
+
     /* Adaptation mobile */
     @media (max-width: 480px) {
       #entry-section {
@@ -116,8 +130,8 @@
         width: 100%;
       }
       #chat-section {
-        height: 300px;
-        max-width: 100%;
+        height: 100vh;
+        max-width: 100vw;
       }
       #messages {
         font-size: 0.9em;
@@ -159,6 +173,7 @@
     const chatTitle = document.getElementById('chat-title');
     const messagesDiv = document.getElementById('messages');
     const btnRetour = document.getElementById('btnRetour');
+    const container = document.getElementById('container');
 
     // Stockage enfants validés : { id: nom }
     const enfantsValides = {};
@@ -201,7 +216,9 @@
       const btn = document.createElement('button');
       btn.textContent = `${nom} (${id})`;
       btn.classList.add('btn-enfant');
-      btn.addEventListener('click', () => ouvrirChat(id));
+      btn.addEventListener('click', () => {
+        ouvrirChat(id);
+      });
       listeEnfants.appendChild(btn);
     }
 
@@ -211,12 +228,14 @@
       afficherMessages(id);
       chatSection.style.display = 'flex';
       window.scrollTo(0, 0); // remonter en haut
+      container.classList.add('chat-ouvert'); // Ajout classe pour style
     }
 
     btnRetour.addEventListener('click', () => {
       enfantSelectionne = null;
       chatSection.style.display = 'none';
       messagesDiv.innerHTML = '';
+      container.classList.remove('chat-ouvert'); // Retire la classe
     });
 
     function afficherMessages(id) {
