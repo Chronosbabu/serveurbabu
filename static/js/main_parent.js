@@ -15,8 +15,8 @@ window.onload = function () {
   // Stocker enfants validés ici
   const enfantsValides = {};
 
-  // Variable pour savoir si on est en mode "chat"
-  let enChat = false;
+  // Variable pour savoir si on est dans la "fenêtre chat"
+  let chatOuvert = false;
 
   // Valider un ID enfant et l'ajouter à la liste
   btnValider.addEventListener("click", function () {
@@ -66,7 +66,6 @@ window.onload = function () {
       alert("Merci d'écrire un message.");
       return;
     }
-    // Pour simplifier, on envoie au premier enfant validé
     const ids = Object.keys(enfantsValides);
     if (ids.length === 0) {
       alert("Merci de valider d'abord l'ID d'un enfant.");
@@ -75,7 +74,7 @@ window.onload = function () {
     const idEnfant = ids[0];
 
     socket.emit("envoyer_message", {
-      id_enfant: idEnfant, // cohérent avec le code serveur
+      id_enfant: idEnfant,
       message: message,
       emetteur: "parent",
       destinataire: "ecole"
@@ -84,7 +83,49 @@ window.onload = function () {
     inputMessage.value = "";
   });
 
-  // Afficher les messages reçus en temps réel
+  // Fonction pour fermer la fenêtre chat (à appeler dans retour)
+  function fermerChat() {
+    chatOuvert = false;
+    // Ici il faut cacher la fenêtre chat et réinitialiser selon ton code HTML
+    // Par exemple:
+    document.getElementById("chat-section").style.display = "none";
+    messagesDiv.innerHTML = "";
+    // Et enlever la classe ou styles éventuels sur container si tu en as
+    document.getElementById("container").classList.remove("chat-ouvert");
+  }
+
+  // Ajoute la gestion bouton retour formulaire (à adapter si tu as un bouton retour)
+  const btnRetourForm = document.getElementById("btnRetour");
+  if (btnRetourForm) {
+    btnRetourForm.addEventListener("click", () => {
+      if (chatOuvert) {
+        fermerChat();
+        history.back();
+      }
+    });
+  }
+
+  // Gestion bouton physique retour Android via popstate
+  window.addEventListener("popstate", (event) => {
+    if (chatOuvert) {
+      fermerChat();
+      // empêche d'aller plus loin dans l'historique
+      history.pushState(null, null, window.location.href);
+    }
+  });
+
+  // Quand on ouvre la fenêtre chat, il faut pushState dans l'historique pour gérer retour
+  function ouvrirChat(idEnfant) {
+    chatOuvert = true;
+    // Afficher la fenêtre chat, charger les messages etc.
+    document.getElementById("chat-section").style.display = "flex";
+    // Ajouter classe si besoin
+    document.getElementById("container").classList.add("chat-ouvert");
+    // Ajouter un état dans l'historique
+    history.pushState({ chatOpen: true }, "");
+  }
+
+  // Réception messages serveur en temps réel
   socket.on("nouveau_message", function (data) {
     if (!data.message) return;
     const p = document.createElement("p");
@@ -101,34 +142,7 @@ window.onload = function () {
     alert("Erreur: " + data.msg);
   });
 
-  // Gérer bouton retour physique Android (ou équivalent)
-  window.addEventListener("popstate", function (event) {
-    if (enChat) {
-      // Si on est dans le chat, revenir à la liste et bloquer la navigation historique
-      event.preventDefault();
-      retourFenetrePrincipale();
-      history.pushState(null, null, location.href); // Bloque la sortie de la page
-    }
-  });
-
-  // Pour simuler historique et permettre interception du bouton retour
-  history.pushState(null, null, location.href);
-
-  // Fonction retour à la fenêtre principale
-  function retourFenetrePrincipale() {
-    enChat = false;
-    document.getElementById("chat-section").style.display = "none";
-    messagesDiv.innerHTML = "";
-  }
-
-  // Modifier la fonction qui ouvre le chat pour activer ce mode
-  function ouvrirChat(id) {
-    enChat = true;
-    // Ton code pour afficher la fenêtre chat ici (ou à adapter)
-    // ...
-  }
-
-  // Tu peux remplacer l'ancien ouvrirChat par celui-ci dans ton code
-
+  // Expose ouvrirChat pour que tu l'utilises ailleurs dans ton code
+  window.ouvrirChat = ouvrirChat;
 };
 
