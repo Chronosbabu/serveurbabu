@@ -15,6 +15,9 @@ window.onload = function () {
   // Stocker enfants validés ici
   const enfantsValides = {};
 
+  // Variable pour savoir si on est en mode "chat"
+  let enChat = false;
+
   // Valider un ID enfant et l'ajouter à la liste
   btnValider.addEventListener("click", function () {
     const idEnfant = document.getElementById("inputIdEnfant").value.trim();
@@ -97,6 +100,35 @@ window.onload = function () {
   socket.on("erreur", function (data) {
     alert("Erreur: " + data.msg);
   });
-};
 
+  // Gérer bouton retour physique Android (ou équivalent)
+  window.addEventListener("popstate", function (event) {
+    if (enChat) {
+      // Si on est dans le chat, revenir à la liste et bloquer la navigation historique
+      event.preventDefault();
+      retourFenetrePrincipale();
+      history.pushState(null, null, location.href); // Bloque la sortie de la page
+    }
+  });
+
+  // Pour simuler historique et permettre interception du bouton retour
+  history.pushState(null, null, location.href);
+
+  // Fonction retour à la fenêtre principale
+  function retourFenetrePrincipale() {
+    enChat = false;
+    document.getElementById("chat-section").style.display = "none";
+    messagesDiv.innerHTML = "";
+  }
+
+  // Modifier la fonction qui ouvre le chat pour activer ce mode
+  function ouvrirChat(id) {
+    enChat = true;
+    // Ton code pour afficher la fenêtre chat ici (ou à adapter)
+    // ...
+  }
+
+  // Tu peux remplacer l'ancien ouvrirChat par celui-ci dans ton code
+
+};
 

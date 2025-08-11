@@ -2,15 +2,15 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Ajout important -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> 
   <title>Interface Parent - Suivi Enfant</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px auto; /* centré horizontalement */
+      margin: 20px auto;
       max-width: 600px;
-      box-sizing: border-box; /* pour padding/border dans la largeur */
-      padding: 0 10px; /* un peu de marge latérale sur petit écran */
+      box-sizing: border-box;
+      padding: 0 10px;
     }
     #container {
       display: flex;
@@ -21,13 +21,13 @@
     #entry-section {
       display: flex;
       gap: 10px;
-      flex-wrap: wrap; /* pour que sur mobile ce soit vertical */
+      flex-wrap: wrap;
     }
     #inputIdEnfant {
       flex-grow: 1;
       padding: 8px;
       font-size: 1em;
-      min-width: 150px; /* pour éviter trop petit */
+      min-width: 150px;
       box-sizing: border-box;
     }
     button {
@@ -50,7 +50,7 @@
       border: 1px solid #ccc;
       padding: 5px;
       display: flex;
-      flex-direction: column; /* vertical */
+      flex-direction: column;
       gap: 10px;
     }
     .btn-enfant {
@@ -66,16 +66,17 @@
     .btn-enfant:hover {
       background-color: #0056b3;
     }
+
     /* CHAT SECTION */
     #chat-section {
       display: none;
       flex-direction: column;
       border: 1px solid #ccc;
       padding: 0;
-      height: 100vh;        /* plein écran vertical */
-      width: 100vw;         /* plein écran horizontal */
+      height: 100vh;
+      width: 100vw;
       box-sizing: border-box;
-      position: fixed;      /* au-dessus de tout */
+      position: fixed;
       top: 0;
       left: 0;
       background: white;
@@ -114,7 +115,7 @@
       font-size: 1em;
     }
 
-    /* Quand chat est ouvert, le reste est un peu transparent et non cliquable */
+    /* Quand chat est ouvert, le reste est transparent et non cliquable */
     #container.chat-ouvert > :not(#chat-section) {
       opacity: 0.3;
       pointer-events: none;
@@ -175,13 +176,10 @@
     const btnRetour = document.getElementById('btnRetour');
     const container = document.getElementById('container');
 
-    // Stockage enfants validés : { id: nom }
     const enfantsValides = {};
-
-    // Stockage messages par enfant: { id: [messages] }
     const messagesParEnfant = {};
-
     let enfantSelectionne = null;
+    let enChat = false;
 
     btnValiderId.addEventListener('click', () => {
       const id = inputIdEnfant.value.trim().toUpperCase();
@@ -216,9 +214,7 @@
       const btn = document.createElement('button');
       btn.textContent = `${nom} (${id})`;
       btn.classList.add('btn-enfant');
-      btn.addEventListener('click', () => {
-        ouvrirChat(id);
-      });
+      btn.addEventListener('click', () => ouvrirChat(id));
       listeEnfants.appendChild(btn);
     }
 
@@ -227,16 +223,24 @@
       chatTitle.textContent = `${enfantsValides[id]} (${id})`;
       afficherMessages(id);
       chatSection.style.display = 'flex';
-      window.scrollTo(0, 0); // remonter en haut
-      container.classList.add('chat-ouvert'); // Ajout classe pour style
+      window.scrollTo(0, 0);
+      container.classList.add('chat-ouvert');
+      enChat = true;
+      history.pushState(null, null, location.href);
     }
 
     btnRetour.addEventListener('click', () => {
+      retourFenetrePrincipale();
+      history.pushState(null, null, location.href);
+    });
+
+    function retourFenetrePrincipale() {
       enfantSelectionne = null;
       chatSection.style.display = 'none';
       messagesDiv.innerHTML = '';
-      container.classList.remove('chat-ouvert'); // Retire la classe
-    });
+      container.classList.remove('chat-ouvert');
+      enChat = false;
+    }
 
     function afficherMessages(id) {
       messagesDiv.innerHTML = '';
@@ -249,9 +253,15 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Le parent ne peut **pas** envoyer de messages, donc suppression des fonctions d'envoi
+    // Gestion du bouton retour physique
+    window.addEventListener('popstate', function(event) {
+      if (enChat) {
+        retourFenetrePrincipale();
+        history.pushState(null, null, location.href);
+      }
+    });
 
-    // Réception messages serveur (de l'école)
+    // Réception messages serveur
     socket.on('nouveau_message', data => {
       if (!data.id_enfant || !data.message) return;
       const id = data.id_enfant;
