@@ -66,8 +66,6 @@
     .btn-enfant:hover {
       background-color: #0056b3;
     }
-
-    /* CHAT SECTION */
     #chat-section {
       display: none;
       flex-direction: column;
@@ -114,15 +112,11 @@
       white-space: pre-wrap;
       font-size: 1em;
     }
-
-    /* Quand chat est ouvert, le reste est transparent et non cliquable */
     #container.chat-ouvert > :not(#chat-section) {
       opacity: 0.3;
       pointer-events: none;
       user-select: none;
     }
-
-    /* Adaptation mobile */
     @media (max-width: 480px) {
       #entry-section {
         flex-direction: column;
@@ -179,7 +173,6 @@
     const enfantsValides = {};
     const messagesParEnfant = {};
     let enfantSelectionne = null;
-    let enChat = false;
 
     btnValiderId.addEventListener('click', () => {
       const id = inputIdEnfant.value.trim().toUpperCase();
@@ -214,7 +207,9 @@
       const btn = document.createElement('button');
       btn.textContent = `${nom} (${id})`;
       btn.classList.add('btn-enfant');
-      btn.addEventListener('click', () => ouvrirChat(id));
+      btn.addEventListener('click', () => {
+        ouvrirChat(id);
+      });
       listeEnfants.appendChild(btn);
     }
 
@@ -225,21 +220,22 @@
       chatSection.style.display = 'flex';
       window.scrollTo(0, 0);
       container.classList.add('chat-ouvert');
-      enChat = true;
-      history.pushState(null, null, location.href);
+      // Ajouter un état dans l'historique pour intercepter bouton retour physique
+      history.pushState({ chatOpen: true }, "");
     }
 
     btnRetour.addEventListener('click', () => {
-      retourFenetrePrincipale();
-      history.pushState(null, null, location.href);
+      fermerChat();
+      // Retirer l'état de l'historique
+      history.back();
     });
 
-    function retourFenetrePrincipale() {
+    // Fonction pour fermer la fenêtre chat
+    function fermerChat() {
       enfantSelectionne = null;
       chatSection.style.display = 'none';
       messagesDiv.innerHTML = '';
       container.classList.remove('chat-ouvert');
-      enChat = false;
     }
 
     function afficherMessages(id) {
@@ -253,11 +249,11 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Gestion du bouton retour physique
+    // Gestion du bouton physique retour (Android, etc.)
     window.addEventListener('popstate', function(event) {
-      if (enChat) {
-        retourFenetrePrincipale();
-        history.pushState(null, null, location.href);
+      if (event.state && event.state.chatOpen) {
+        // On est en chat, fermer la fenêtre chat au lieu de revenir en arrière dans l'historique
+        fermerChat();
       }
     });
 
