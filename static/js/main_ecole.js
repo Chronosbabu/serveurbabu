@@ -7,16 +7,15 @@ window.onload = function() {
   const nomEnfantInput = document.getElementById('nomEnfant');
   const listeEnfants = document.getElementById('listeEnfants');
 
-  const inputRecherche = document.getElementById('rechercheEnfant');
-  const checkboxSelectTout = document.getElementById('selectTout');
-
-  // Nouveau bouton en haut + modale
   const btnEnvoyerMessageTop = document.getElementById('btnEnvoyerMessageTop');
   const modalMessage = document.getElementById('modalMessage');
   const modalOverlay = document.getElementById('modalOverlay');
   const btnEnvoyerModal = document.getElementById('btnEnvoyerModal');
   const btnFermerModal = document.getElementById('btnFermerModal');
   const textareaMessage = document.getElementById('messageEnfants');
+
+  const inputRecherche = document.getElementById('rechercheEnfant');
+  const checkboxSelectTout = document.getElementById('selectTout');
 
   let enfants = []; // tableau {id, nom}
 
@@ -63,7 +62,6 @@ window.onload = function() {
         listeEnfants.appendChild(li);
       }
     });
-
     majBoutonEnvoyer();
   }
 
@@ -75,7 +73,9 @@ window.onload = function() {
 
   checkboxSelectTout.addEventListener('change', () => {
     const cocher = checkboxSelectTout.checked;
-    document.querySelectorAll('.chk-enfant').forEach(cb => cb.checked = cocher);
+    document.querySelectorAll('.chk-enfant').forEach(cb => {
+      cb.checked = cocher;
+    });
     majBoutonEnvoyer();
   });
 
@@ -152,6 +152,7 @@ window.onload = function() {
     .catch(() => alert("Erreur lors de l'inscription."));
   });
 
+  // Initialiser affichage
   afficherEnfants();
 };
 

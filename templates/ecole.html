@@ -1,158 +1,170 @@
-console.log("JavaScript chargé - école");
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interface École</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px auto;
+      max-width: 600px;
+      box-sizing: border-box;
+    }
+    #inscription-section {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    #nomEnfant {
+      flex-grow: 1;
+      min-width: 150px;
+      padding: 8px;
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 1em;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      transition: background-color 0.3s ease;
+      flex-shrink: 0;
+    }
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
+    #btnEnvoyerMessageTop {
+      margin-bottom: 15px;
+    }
+    #listeEnfants {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    label {
+      font-size: 0.9em;
+      color: #333;
+      user-select: none;
+      margin-left: 8px;
+    }
+    .enfant-btn {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #f0f4ff;
+      border-radius: 6px;
+      padding: 10px 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid #007BFF;
+      transition: background-color 0.3s ease;
+      flex-wrap: wrap;
+    }
+    .enfant-btn:hover {
+      background-color: #d0e1ff;
+    }
+    .enfant-nom {
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #003366;
+    }
+    .enfant-id {
+      font-size: 0.8em;
+      color: #555;
+      font-style: italic;
+      text-transform: lowercase;
+      margin-top: 3px;
+    }
 
-const socket = io();
+    /* Boîte modale */
+    #modalMessage {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+    #modalMessage textarea {
+      width: 100%;
+      padding: 8px;
+      font-size: 1em;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+      resize: vertical;
+    }
+    #modalOverlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 999;
+    }
 
-window.onload = function() {
-  const btnInscrire = document.getElementById('btnInscrire');
-  const nomEnfantInput = document.getElementById('nomEnfant');
-  const listeEnfants = document.getElementById('listeEnfants');
-
-  const btnEnvoyerMessageTop = document.getElementById('btnEnvoyerMessageTop');
-  const modalMessage = document.getElementById('modalMessage');
-  const modalOverlay = document.getElementById('modalOverlay');
-  const btnEnvoyerModal = document.getElementById('btnEnvoyerModal');
-  const btnFermerModal = document.getElementById('btnFermerModal');
-  const textareaMessage = document.getElementById('messageEnfants');
-
-  const inputRecherche = document.getElementById('rechercheEnfant');
-  const checkboxSelectTout = document.getElementById('selectTout');
-
-  let enfants = []; // tableau {id, nom}
-
-  function afficherEnfants() {
-    const filtre = inputRecherche.value.toLowerCase();
-    listeEnfants.innerHTML = '';
-
-    enfants.forEach(({id, nom}) => {
-      if (nom.toLowerCase().includes(filtre) || id.toLowerCase().includes(filtre)) {
-        const li = document.createElement('li');
-        li.style.listStyle = 'none';
-
-        const divEnfant = document.createElement('div');
-        divEnfant.classList.add('enfant-btn');
-
-        const divNom = document.createElement('div');
-        divNom.style.flexGrow = '1';
-
-        const spanNom = document.createElement('span');
-        spanNom.textContent = nom;
-        spanNom.classList.add('enfant-nom');
-
-        const spanId = document.createElement('small');
-        spanId.textContent = id.toLowerCase();
-        spanId.classList.add('enfant-id');
-
-        divNom.appendChild(spanNom);
-        divNom.appendChild(spanId);
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.classList.add('chk-enfant');
-        checkbox.dataset.id = id;
-
-        checkbox.addEventListener('change', () => {
-          majBoutonEnvoyer();
-          majCheckboxTout();
-        });
-
-        divEnfant.appendChild(divNom);
-        divEnfant.appendChild(checkbox);
-
-        li.appendChild(divEnfant);
-        listeEnfants.appendChild(li);
+    /* Ajustements mobiles */
+    @media (max-width: 480px) {
+      body {
+        margin: 10px;
       }
-    });
-    majBoutonEnvoyer();
-  }
-
-  function majCheckboxTout() {
-    const total = document.querySelectorAll('.chk-enfant').length;
-    const coches = document.querySelectorAll('.chk-enfant:checked').length;
-    checkboxSelectTout.checked = (total > 0 && total === coches);
-  }
-
-  checkboxSelectTout.addEventListener('change', () => {
-    const cocher = checkboxSelectTout.checked;
-    document.querySelectorAll('.chk-enfant').forEach(cb => {
-      cb.checked = cocher;
-    });
-    majBoutonEnvoyer();
-  });
-
-  inputRecherche.addEventListener('input', afficherEnfants);
-
-  function majBoutonEnvoyer() {
-    const nbSelectionnes = document.querySelectorAll('.chk-enfant:checked').length;
-    btnEnvoyerMessageTop.disabled = (nbSelectionnes === 0);
-  }
-
-  btnEnvoyerMessageTop.addEventListener('click', () => {
-    if (btnEnvoyerMessageTop.disabled) return;
-    textareaMessage.value = '';
-    modalMessage.style.display = 'block';
-    modalOverlay.style.display = 'block';
-  });
-
-  btnFermerModal.addEventListener('click', fermerModal);
-  modalOverlay.addEventListener('click', fermerModal);
-
-  function fermerModal() {
-    modalMessage.style.display = 'none';
-    modalOverlay.style.display = 'none';
-  }
-
-  btnEnvoyerModal.addEventListener('click', () => {
-    const message = textareaMessage.value.trim();
-    if (!message) {
-      alert("Écris un message.");
-      return;
-    }
-    const coches = [...document.querySelectorAll('.chk-enfant:checked')];
-    if (coches.length === 0) {
-      alert("Sélectionne au moins un enfant.");
-      fermerModal();
-      return;
-    }
-
-    coches.forEach(cb => {
-      const id = cb.dataset.id;
-      socket.emit('envoyer_message', { id_enfant: id, message });
-    });
-
-    alert("Message envoyé aux enfants sélectionnés.");
-    fermerModal();
-  });
-
-  function ajouterEnfant(id, nom) {
-    enfants.push({id, nom});
-    afficherEnfants();
-  }
-
-  btnInscrire.addEventListener('click', () => {
-    const nom = nomEnfantInput.value.trim();
-    if (!nom) {
-      alert("Merci de saisir le nom de l’enfant.");
-      return;
-    }
-
-    fetch('/api/inscrire_enfant', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ nom })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.erreur) {
-        alert(data.erreur);
-        return;
+      #inscription-section {
+        flex-direction: column;
       }
-      ajouterEnfant(data.id, data.nom);
-      nomEnfantInput.value = '';
-    })
-    .catch(() => alert("Erreur lors de l'inscription."));
-  });
+      button {
+        width: 100%;
+      }
+      .enfant-btn {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
 
-  // Initialiser affichage
-  afficherEnfants();
-};
+  <!-- Charger Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.1/socket.io.min.js"></script>
+  <script src="/static/js/main_ecole.js"></script>
+</head>
+<body>
+
+  <h1>Inscrire un enfant</h1>
+  <div id="inscription-section">
+    <input type="text" id="nomEnfant" placeholder="Nom de l'enfant" />
+    <button id="btnInscrire">Inscrire</button>
+  </div>
+
+  <div style="margin-bottom: 10px;">
+    <input type="text" id="rechercheEnfant" placeholder="Rechercher un enfant..." />
+    <label><input type="checkbox" id="selectTout" /> Tout sélectionner</label>
+  </div>
+
+  <!-- Nouveau bouton envoyer message -->
+  <button id="btnEnvoyerMessageTop" disabled>Envoyer un message</button>
+
+  <h2>Enfants inscrits</h2>
+  <ul id="listeEnfants"></ul>
+
+  <!-- Boîte modale message -->
+  <div id="modalOverlay"></div>
+  <div id="modalMessage">
+    <textarea id="messageEnfants" placeholder="Écrire un message pour les enfants sélectionnés..." rows="4"></textarea><br/>
+    <button id="btnEnvoyerModal">Envoyer le message</button>
+    <button id="btnFermerModal" style="margin-left:10px; background:#999;">Annuler</button>
+  </div>
+
+</body>
+</html>
 
