@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Publications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h2>📢 Espace de Publication</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required>
+        <button type="submit">Publier</button>
+    </form>
+
+    <div class="scroll-box">
+        {% for post in posts %}
+            {% if post.type == "image" %}
+                <div class="post">
+                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
+                    <p>Publié le {{ post.date }}</p>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</body>
+</html>

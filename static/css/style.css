@@ -1,83 +1,29 @@
-/* Règle générale pour bien utiliser la largeur de l'écran */
 body {
-  margin: 10px;
-  max-width: 100%;
-  padding: 0 10px;
-  box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    text-align: center;
 }
 
-/* Assure que l’inscription s’adapte bien sur petits écrans */
-#inscription-section {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap; /* Permet de passer à la ligne sur mobile */
+form {
+    margin-bottom: 20px;
 }
 
-/* Input prend tout l’espace disponible sur mobile */
-#nomEnfant {
-  flex-grow: 1;
-  min-width: 150px; /* largeur minimale */
-  padding: 8px;
-  font-size: 1em;
-  box-sizing: border-box;
+.scroll-box {
+    border: 1px solid #ccc;
+    height: 400px;
+    overflow-y: scroll;
+    padding: 10px;
 }
 
-/* Bouton adapté sur mobile */
-button {
-  padding: 10px 15px;
-  font-size: 1em;
-  cursor: pointer;
-  border: none;
-  border-radius: 5px;
-  background-color: #007BFF;
-  color: white;
-  transition: background-color 0.3s ease;
-  min-width: 100px;
-  flex-shrink: 0;
+.post {
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
 }
 
-/* Recherches et liste en mode colonne sur petits écrans */
-#rechercheEnfant {
-  padding: 6px;
-  width: 100%;
-  max-width: 400px;
-  margin-bottom: 10px;
-  font-size: 1em;
-  box-sizing: border-box;
+.post img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
 }
 
-/* Label plus lisible */
-label {
-  font-size: 0.9em;
-  color: #333;
-  user-select: none;
-  display: inline-block;
-  margin-left: 8px;
-}
-
-/* Liste enfants s’adapte */
-#listeEnfants {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 500px;
-}
-
-/* Message textarea prend toute la largeur */
-#messageEnfants {
-  width: 100%;
-  padding: 8px;
-  font-size: 1em;
-  box-sizing: border-box;
-}
-
-/* Media query pour très petits écrans */
-@media (max-width: 400px) {
-  button {
-    min-width: 80px;
-    font-size: 0.9em;
-  }
-}
