@@ -2,17 +2,23 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Publications</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h2>📢 Espace de Publication</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
-        <button type="submit">Publier</button>
-    </form>
+    <header>
+        <h2>📢 Espace de Publication</h2>
+    </header>
 
-    <div class="scroll-box">
+    <section class="upload-section">
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" accept="image/*" required>
+            <button type="submit">Publier</button>
+        </form>
+    </section>
+
+    <main class="scroll-box">
         {% for post in posts %}
             {% if post.type == "image" %}
                 <div class="post">
@@ -21,6 +27,7 @@
                 </div>
             {% endif %}
         {% endfor %}
-    </div>
+    </main>
 </body>
 </html>
+
