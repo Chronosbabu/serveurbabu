@@ -34,7 +34,7 @@ header {
 
 /* SCROLLABLE POSTS */
 .scroll-box {
-    height: calc(100vh - 120px); /* occupe tout l'espace restant */
+    height: calc(100vh - 120px);
     overflow-y: auto;
     padding: 10px;
 }
@@ -45,7 +45,8 @@ header {
     padding-bottom: 10px;
 }
 
-.post img {
+.post img,
+.post video {
     width: 100%;
     height: auto;
     border-radius: 8px;

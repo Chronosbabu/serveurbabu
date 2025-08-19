@@ -38,9 +38,13 @@ def index():
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
         
+        # déterminer type
+        ext = file.filename.lower().split('.')[-1]
+        file_type = "video" if ext in ["mp4","webm","ogg"] else "image"
+        
         # enregistrer dans json
         posts = load_posts()
-        posts.insert(0, {"type": "image", "file": filename, "date": str(datetime.now())})
+        posts.insert(0, {"type": file_type, "file": filename, "date": str(datetime.now())})
         save_posts(posts)
         
         return redirect(url_for("index"))
@@ -53,7 +57,6 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == "__main__":
-    # ✅ Correction pour Render
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 

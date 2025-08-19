@@ -13,21 +13,40 @@
 
     <section class="upload-section">
         <form method="POST" enctype="multipart/form-data">
-            <input type="file" name="file" accept="image/*" required>
+            <input type="file" name="file" accept="image/*,video/*" required>
             <button type="submit">Publier</button>
         </form>
     </section>
 
     <main class="scroll-box">
         {% for post in posts %}
-            {% if post.type == "image" %}
-                <div class="post">
+            <div class="post">
+                {% if post.type == "image" %}
                     <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
-                    <p>Publié le {{ post.date }}</p>
-                </div>
-            {% endif %}
+                {% elif post.type == "video" %}
+                    <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
+                {% endif %}
+                <p>Publié le {{ post.date }}</p>
+            </div>
         {% endfor %}
     </main>
+
+<script>
+// Lecture automatique des vidéos quand elles sont visibles
+const videos = document.querySelectorAll('video');
+
+const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if(entry.isIntersecting){
+            entry.target.play();
+        } else {
+            entry.target.pause();
+        }
+    });
+}, {threshold: 0.5});
+
+videos.forEach(video => observer.observe(video));
+</script>
 </body>
 </html>
 
