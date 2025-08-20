@@ -6,6 +6,7 @@
     <title>Publications</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
 </head>
 <body>
 <div class="main-container">
@@ -33,7 +34,7 @@
 
     <main class="scroll-box" id="posts">
         {% for post in posts %}
-            <div class="post">
+            <div class="post" data-post-id="{{ post.id }}">
                 <div class="user-info">
                     {% if post.avatar %}
                         <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
@@ -57,6 +58,11 @@
                     <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
                 {% endif %}
 
+                <div class="post-actions">
+                    <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
+                    <span class="like-count">{{ post.likes }}</span>
+                </div>
+
                 <p class="date">Publié le {{ post.date }}</p>
             </div>
         {% endfor %}
@@ -67,9 +73,11 @@
 const postsContainer = document.getElementById('posts');
 const socket = io();
 
+// Socket pour nouveaux posts
 socket.on('new_post', (post) => {
     const div = document.createElement('div');
     div.className = 'post';
+    div.dataset.postId = post.id;
     div.innerHTML = `
         <div class="user-info">
             ${post.avatar
@@ -88,6 +96,10 @@ socket.on('new_post', (post) => {
         ${post.type === 'image'
             ? `<img src="/uploads/${post.file}" alt="image" class="post-image">`
             : `<video src="/uploads/${post.file}" controls muted loop></video>`}
+        <div class="post-actions">
+            <button class="like-btn">❤️</button>
+            <span class="like-count">0</span>
+        </div>
         <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(div);
@@ -102,17 +114,6 @@ socket.on('new_post', (post) => {
         }, { threshold: 0.6 });
         observer.observe(video);
     }
-});
-
-// Auto-play/pause pour les vidéos existantes
-document.querySelectorAll('video').forEach(video => {
-    const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) entry.target.play();
-            else entry.target.pause();
-        });
-    }, { threshold: 0.6 });
-    observer.observe(video);
 });
 </script>
 </body>
