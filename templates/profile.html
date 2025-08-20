@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profil — {{ profile_user.username }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+<div class="main-container">
+    <header>
+        <h2>👤 Profil de {{ profile_user.username }}</h2>
+        <p>
+            <a href="{{ url_for('index') }}">← Retour au fil</a>
+            {% if current_username %}
+                | Connecté : <a class="username-link" href="{{ url_for('profile', username=current_username) }}">{{ current_username }}</a>
+            {% endif %}
+        </p>
+    </header>
+
+    <div class="profile-header">
+        {% if profile_user.avatar %}
+            <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar" class="profile-avatar" />
+        {% else %}
+            <div class="profile-avatar-fallback">{{ profile_user.username[:1]|upper }}</div>
+        {% endif %}
+        <div class="profile-meta">
+            <h1>@{{ profile_user.username }}</h1>
+            <p>{{ profile_user.bio if profile_user.bio else "Aucune bio pour le moment." }}</p>
+        </div>
+    </div>
+
+    <div class="profile-section-title">Publications de {{ profile_user.username }}</div>
+
+    <main class="scroll-box profile-posts" id="profile-posts">
+        {% if posts|length == 0 %}
+            <p style="color:#6b7280;">Aucune publication pour l’instant.</p>
+        {% else %}
+            {% for post in posts %}
+                <div class="post">
+                    <div class="user-info">
+                        {% if profile_user.avatar %}
+                            <span class="avatar-link">
+                                <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar" class="avatar-post" />
+                            </span>
+                        {% else %}
+                            <span class="avatar-link">
+                                <div class="avatar-fallback">{{ profile_user.username[:1]|upper }}</div>
+                            </span>
+                        {% endif %}
+                        <p class="username">{{ profile_user.username }}</p>
+                    </div>
+
+                    <p class="description">{{ post.description }}</p>
+
+                    {% if post.type == "image" %}
+                        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+                    {% elif post.type == "video" %}
+                        <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
+                    {% endif %}
+
+                    <p class="date">Publié le {{ post.date }}</p>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </main>
+</div>
+
+<script>
+// (Optionnel) on pourrait écouter les nouveaux posts pour ce profil,
+// mais ici on affiche l'historique statique du profil.
+</script>
+</body>
+</html>

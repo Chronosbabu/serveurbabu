@@ -1,26 +1,32 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Publications</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 <div class="main-container">
     <header>
         <h2>📢 Espace de Publication</h2>
-        <p>Connecté en tant que : {{ username }} | <a href="{{ url_for('logout') }}">Se déconnecter</a></p>
+        <p>
+            Connecté en tant que :
+            <a class="username-link" href="{{ url_for('profile', username=username) }}">{{ username }}</a>
+            | <a href="{{ url_for('logout') }}">Se déconnecter</a>
+        </p>
         {% if avatar %}
-            <img src="{{ url_for('avatar_file', filename=avatar) }}" alt="avatar" class="avatar-header">
+            <a href="{{ url_for('profile', username=username) }}" class="avatar-link">
+                <img src="{{ url_for('avatar_file', filename=avatar) }}" alt="avatar" class="avatar-header" />
+            </a>
         {% endif %}
     </header>
 
     <section class="upload-section">
         <form method="POST" enctype="multipart/form-data">
-            <textarea name="description" placeholder="Écrivez une description..." required></textarea><br>
-            <input type="file" name="file" accept="image/*,video/*" required>
+            <textarea name="description" placeholder="Écrivez une description..." required></textarea><br />
+            <input type="file" name="file" accept="image/*,video/*" required />
             <button type="submit">Publier</button>
         </form>
     </section>
@@ -30,16 +36,27 @@
             <div class="post">
                 <div class="user-info">
                     {% if post.avatar %}
-                        <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post">
+                        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+                            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+                        </a>
+                    {% else %}
+                        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+                            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+                        </a>
                     {% endif %}
-                    <p class="username">{{ post.username }}</p>
+                    <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+                        <p class="username">{{ post.username }}</p>
+                    </a>
                 </div>
+
                 <p class="description">{{ post.description }}</p>
+
                 {% if post.type == "image" %}
-                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image">
+                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
                 {% elif post.type == "video" %}
                     <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
                 {% endif %}
+
                 <p class="date">Publié le {{ post.date }}</p>
             </div>
         {% endfor %}
@@ -55,36 +72,46 @@ socket.on('new_post', (post) => {
     div.className = 'post';
     div.innerHTML = `
         <div class="user-info">
-            ${post.avatar ? `<img src="/avatars/${post.avatar}" alt="avatar" class="avatar-post">` : ''}
-            <p class="username">${post.username}</p>
+            ${post.avatar
+                ? `<a class="avatar-link" href="/profile/${post.username}">
+                        <img src="/avatars/${post.avatar}" alt="avatar" class="avatar-post" />
+                   </a>`
+                : `<a class="avatar-link" href="/profile/${post.username}">
+                        <div class="avatar-fallback">${(post.username || '').charAt(0).toUpperCase()}</div>
+                   </a>`
+            }
+            <a class="username-link" href="/profile/${post.username}">
+                <p class="username">${post.username}</p>
+            </a>
         </div>
         <p class="description">${post.description}</p>
-        ${post.type === 'image' 
-            ? `<img src="/uploads/${post.file}" alt="image" class="post-image">` 
+        ${post.type === 'image'
+            ? `<img src="/uploads/${post.file}" alt="image" class="post-image">`
             : `<video src="/uploads/${post.file}" controls muted loop></video>`}
         <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(div);
 
     const video = div.querySelector('video');
-    if(video){
+    if (video) {
         const observer = new IntersectionObserver(entries => {
             entries.forEach(entry => {
-                if(entry.isIntersecting) entry.target.play();
+                if (entry.isIntersecting) entry.target.play();
                 else entry.target.pause();
             });
-        }, {threshold: 0.6});
+        }, { threshold: 0.6 });
         observer.observe(video);
     }
 });
 
+// Auto-play/pause pour les vidéos existantes
 document.querySelectorAll('video').forEach(video => {
     const observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
-            if(entry.isIntersecting) entry.target.play();
+            if (entry.isIntersecting) entry.target.play();
             else entry.target.pause();
         });
-    }, {threshold: 0.6});
+    }, { threshold: 0.6 });
     observer.observe(video);
 });
 </script>
