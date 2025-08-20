@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Profil — {{ profile_user.username }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Profil — {{ profile_user.username }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 <div class="main-container">
@@ -38,7 +38,7 @@
             <p style="color:#6b7280;">Aucune publication pour l’instant.</p>
         {% else %}
             {% for post in posts %}
-                <div class="post">
+                <div class="post" data-post-id="{{ post.id }}">
                     <div class="user-info">
                         {% if profile_user.avatar %}
                             <span class="avatar-link">
@@ -60,6 +60,11 @@
                         <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
                     {% endif %}
 
+                    <div class="post-actions">
+                        <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
+                        <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+                    </div>
+
                     <p class="date">Publié le {{ post.date }}</p>
                 </div>
             {% endfor %}
@@ -68,8 +73,23 @@
 </div>
 
 <script>
-// (Optionnel) on pourrait écouter les nouveaux posts pour ce profil,
-// mais ici on affiche l'historique statique du profil.
+function updateLike(button) {
+    const countSpan = button.nextElementSibling;
+    let count = parseInt(countSpan.textContent) || 0;
+    if (button.classList.contains('liked')) {
+        button.classList.remove('liked');
+        count--;
+    } else {
+        button.classList.add('liked');
+        count++;
+    }
+    countSpan.textContent = count;
+}
+
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => updateLike(btn));
+});
 </script>
 </body>
 </html>
+

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Publications</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Publications</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
 </head>
 <body>
 <div class="main-container">
@@ -34,37 +34,37 @@
 
     <main class="scroll-box" id="posts">
         {% for post in posts %}
-            <div class="post" data-post-id="{{ post.id }}">
-                <div class="user-info">
-                    {% if post.avatar %}
-                        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-                            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
-                        </a>
-                    {% else %}
-                        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-                            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
-                        </a>
-                    {% endif %}
-                    <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-                        <p class="username">{{ post.username }}</p>
-                    </a>
-                </div>
-
-                <p class="description">{{ post.description }}</p>
-
-                {% if post.type == "image" %}
-                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-                {% elif post.type == "video" %}
-                    <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
+        <div class="post" data-post-id="{{ post.id }}">
+            <div class="user-info">
+                {% if post.avatar %}
+                <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+                    <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+                </a>
+                {% else %}
+                <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+                    <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+                </a>
                 {% endif %}
-
-                <div class="post-actions">
-                    <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
-                    <span class="like-count">{{ post.likes }}</span>
-                </div>
-
-                <p class="date">Publié le {{ post.date }}</p>
+                <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+                    <p class="username">{{ post.username }}</p>
+                </a>
             </div>
+
+            <p class="description">{{ post.description }}</p>
+
+            {% if post.type == "image" %}
+            <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+            {% elif post.type == "video" %}
+            <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
+            {% endif %}
+
+            <div class="post-actions">
+                <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
+                <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+            </div>
+
+            <p class="date">Publié le {{ post.date }}</p>
+        </div>
         {% endfor %}
     </main>
 </div>
@@ -73,22 +73,40 @@
 const postsContainer = document.getElementById('posts');
 const socket = io();
 
+// Gestion des likes
+function updateLike(button) {
+    const countSpan = button.nextElementSibling;
+    let count = parseInt(countSpan.textContent) || 0;
+    if (button.classList.contains('liked')) {
+        button.classList.remove('liked');
+        count--;
+    } else {
+        button.classList.add('liked');
+        count++;
+    }
+    countSpan.textContent = count;
+}
+
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => updateLike(btn));
+});
+
 // Socket pour nouveaux posts
 socket.on('new_post', (post) => {
     const div = document.createElement('div');
     div.className = 'post';
-    div.dataset.postId = post.id;
+    div.dataset.postId = post.id || "";
     div.innerHTML = `
         <div class="user-info">
             ${post.avatar
-                ? `<a class="avatar-link" href="/profile/${post.username}">
+                ? `<a class="avatar-link" href="${post.username ? '/profile/' + post.username : '#'}">
                         <img src="/avatars/${post.avatar}" alt="avatar" class="avatar-post" />
                    </a>`
-                : `<a class="avatar-link" href="/profile/${post.username}">
+                : `<a class="avatar-link" href="${post.username ? '/profile/' + post.username : '#'}">
                         <div class="avatar-fallback">${(post.username || '').charAt(0).toUpperCase()}</div>
                    </a>`
             }
-            <a class="username-link" href="/profile/${post.username}">
+            <a class="username-link" href="${post.username ? '/profile/' + post.username : '#'}">
                 <p class="username">${post.username}</p>
             </a>
         </div>
@@ -103,6 +121,8 @@ socket.on('new_post', (post) => {
         <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(div);
+
+    div.querySelector('.like-btn').addEventListener('click', () => updateLike(div.querySelector('.like-btn')));
 
     const video = div.querySelector('video');
     if (video) {
