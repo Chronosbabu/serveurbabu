@@ -11,6 +11,9 @@
 <header>
     <h2>📢 Espace de Publication</h2>
     <p>Connecté en tant que : {{ username }} | <a href="{{ url_for('logout') }}">Se déconnecter</a></p>
+    {% if avatar %}
+        <img src="{{ url_for('avatar_file', filename=avatar) }}" alt="avatar" class="avatar-header">
+    {% endif %}
 </header>
 
 <section class="upload-section">
@@ -24,7 +27,12 @@
 <main class="scroll-box" id="posts">
     {% for post in posts %}
         <div class="post">
-            <p class="username">{{ post.username }}</p>
+            <div class="user-info">
+                {% if post.avatar %}
+                    <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post">
+                {% endif %}
+                <p class="username">{{ post.username }}</p>
+            </div>
             <p class="description">{{ post.description }}</p>
             {% if post.type == "image" %}
                 <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
@@ -44,7 +52,10 @@ socket.on('new_post', (post) => {
     const div = document.createElement('div');
     div.className = 'post';
     div.innerHTML = `
-        <p class="username">${post.username}</p>
+        <div class="user-info">
+            ${post.avatar ? `<img src="/avatars/${post.avatar}" alt="avatar" class="avatar-post">` : ''}
+            <p class="username">${post.username}</p>
+        </div>
         <p class="description">${post.description}</p>
         ${post.type === 'image' 
             ? `<img src="/uploads/${post.file}" alt="image">` 
