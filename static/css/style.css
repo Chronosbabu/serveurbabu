@@ -7,6 +7,7 @@
 
 html, body {
     height: 100%;
+    width: 100%;
     font-family: Arial, sans-serif;
     background-color: #fff;
 }
@@ -14,15 +15,20 @@ html, body {
 body {
     display: flex;
     justify-content: center;
+    align-items: center;
 }
 
+/* CONTENEUR PRINCIPAL */
 .main-container {
     display: flex;
     flex-direction: column;
     width: 100%;
     max-width: 500px;
-    height: 100vh;
+    min-height: 100vh;
+    background-color: #f9f9f9;
     padding: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
 }
 
 /* HEADER */
@@ -31,6 +37,7 @@ header {
     text-align: center;
     background-color: #f0f0f0;
     flex-shrink: 0;
+    border-radius: 8px;
 }
 
 header p {
@@ -39,8 +46,8 @@ header p {
 }
 
 .avatar-header {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
     display: block;
@@ -54,15 +61,18 @@ header p {
     background-color: #fafafa;
     border-bottom: 1px solid #ddd;
     flex-shrink: 0;
+    border-radius: 8px;
 }
 
 .upload-section textarea {
-    width: 90%;
+    width: 100%;
     min-height: 60px;
     margin: 5px 0;
-    padding: 6px;
+    padding: 8px;
     font-size: 1rem;
     resize: vertical;
+    border-radius: 5px;
+    border: 1px solid #ccc;
 }
 
 .upload-section form input,
@@ -70,14 +80,14 @@ header p {
     padding: 8px;
     margin: 5px 0;
     font-size: 1rem;
+    width: 100%;
+    border-radius: 5px;
 }
 
 /* AVATAR DANS LES POSTS */
 .avatar-post {
-    width: 50px;
-    height: 50px;
-    max-width: 50px;
-    max-height: 50px;
+    width: 35px;
+    height: 35px;
     border-radius: 50%;
     object-fit: cover;
     display: inline-block;
@@ -97,6 +107,9 @@ header p {
     border-bottom: 1px solid #ddd;
     padding-bottom: 15px;
     text-align: left;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .post .user-info {
@@ -119,7 +132,7 @@ header p {
 .post video {
     width: 100%;
     max-height: 300px;
-    object-fit: contain;
+    object-fit: cover;
     display: block;
     margin: 0 auto;
     border-radius: 8px;
@@ -135,16 +148,16 @@ header p {
 /* RESPONSIVE */
 @media (max-width: 600px) {
     .upload-section textarea {
-        width: 95%;
+        width: 100%;
     }
     .upload-section form input,
     .upload-section form button {
-        width: 90%;
+        width: 100%;
     }
     .avatar-post,
     .avatar-header {
-        width: 40px;
-        height: 40px;
+        width: 30px;
+        height: 30px;
     }
     .post img.post-image,
     .post video {
