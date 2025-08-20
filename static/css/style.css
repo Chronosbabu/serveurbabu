@@ -47,6 +47,15 @@ header p {
     font-size: 1rem;
 }
 
+/* AVATAR */
+.post .avatar {
+    width: 50px;          /* petite taille */
+    height: 50px;         /* même hauteur que largeur */
+    border-radius: 50%;   /* rond */
+    object-fit: cover;    /* ajuste l’image */
+    margin-bottom: 8px;
+}
+
 /* SCROLLABLE POSTS */
 .scroll-box {
     height: calc(100vh - 160px);
@@ -75,7 +84,7 @@ header p {
 .post img,
 .post video {
     width: 100%;
-    max-height: 80vh;
+    max-height: 50vh;      /* limite la taille pour ne pas écraser les autres éléments */
     object-fit: contain;
     display: block;
     margin: 0 auto;
@@ -97,6 +106,14 @@ header p {
     .upload-section form input,
     .upload-section form button {
         width: 90%;
+    }
+    .post img,
+    .post video {
+        max-height: 40vh;
+    }
+    .post .avatar {
+        width: 40px;
+        height: 40px;
     }
 }
 
