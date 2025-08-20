@@ -1,22 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Publications</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Publications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 <header>
     <h2>📢 Espace de Publication</h2>
-    <div class="user-info">
-        Connecté comme: {{ user.username }}
-        {% if user.avatar %}
-        <img class="avatar-small" src="/avatars/{{ user.avatar }}">
-        {% endif %}
-        <a href="{{ url_for('logout') }}">Déconnexion</a>
-    </div>
+    <p>Connecté en tant que : {{ username }} | <a href="{{ url_for('logout') }}">Se déconnecter</a></p>
 </header>
 
 <section class="upload-section">
@@ -28,34 +22,29 @@
 </section>
 
 <main class="scroll-box" id="posts">
-{% for post in posts %}
-    <div class="post">
-        <div class="profile">
-            {% if post.avatar %}<img class="avatar" src="/avatars/{{ post.avatar }}" alt="avatar">{% endif %}
-            <span class="username">{{ post.username }}</span>
+    {% for post in posts %}
+        <div class="post">
+            <p class="username">{{ post.username }}</p>
+            <p class="description">{{ post.description }}</p>
+            {% if post.type == "image" %}
+                <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
+            {% elif post.type == "video" %}
+                <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
+            {% endif %}
+            <p class="date">Publié le {{ post.date }}</p>
         </div>
-        <p class="description">{{ post.description }}</p>
-        {% if post.type == "image" %}
-            <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
-        {% elif post.type == "video" %}
-            <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
-        {% endif %}
-        <p class="date">Publié le {{ post.date }}</p>
-    </div>
-{% endfor %}
+    {% endfor %}
 </main>
 
 <script>
 const postsContainer = document.getElementById('posts');
 const socket = io();
+
 socket.on('new_post', (post) => {
     const div = document.createElement('div');
     div.className = 'post';
     div.innerHTML = `
-        <div class="profile">
-            ${post.avatar ? `<img class="avatar" src="/avatars/${post.avatar}">` : ''}
-            <span class="username">${post.username}</span>
-        </div>
+        <p class="username">${post.username}</p>
         <p class="description">${post.description}</p>
         ${post.type === 'image' 
             ? `<img src="/uploads/${post.file}" alt="image">` 
@@ -63,15 +52,27 @@ socket.on('new_post', (post) => {
         <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(div);
+
     const video = div.querySelector('video');
     if(video){
         const observer = new IntersectionObserver(entries => {
             entries.forEach(entry => {
-                entry.isIntersecting ? entry.target.play() : entry.target.pause();
+                if(entry.isIntersecting) entry.target.play();
+                else entry.target.pause();
             });
         }, {threshold: 0.6});
         observer.observe(video);
     }
+});
+
+document.querySelectorAll('video').forEach(video => {
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if(entry.isIntersecting) entry.target.play();
+            else entry.target.pause();
+        });
+    }, {threshold: 0.6});
+    observer.observe(video);
 });
 </script>
 </body>

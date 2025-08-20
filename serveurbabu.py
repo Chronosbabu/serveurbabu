@@ -8,132 +8,101 @@ app.secret_key = "secret_key_here"
 
 # Dossiers pour les fichiers
 UPLOAD_FOLDER = os.path.join("data", "uploads")
-AVATAR_FOLDER = os.path.join("data", "avatars")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(AVATAR_FOLDER, exist_ok=True)
+DATA_FILE = os.path.join("data", "posts.json")
+USER_FILE = os.path.join("data", "users.json")
 
-POSTS_FILE = os.path.join("data", "posts.json")
-USERS_FILE = os.path.join("data", "users.json")
+os.makedirs("data", exist_ok=True)
 
-# Création des fichiers JSON s'ils n'existent pas
-for f, default in [(POSTS_FILE, []), (USERS_FILE, [])]:
-    if not os.path.exists(f):
-        with open(f, "w") as file:
-            json.dump(default, file)
+# Créer fichiers si inexistants
+for file_path, default in [(DATA_FILE, []), (USER_FILE, [])]:
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump(default, f)
 
 socketio = SocketIO(app)
 
 # Fonctions utilitaires
 def load_posts():
-    try:
-        with open(POSTS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return []
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
 
 def save_posts(posts):
-    with open(POSTS_FILE, "w") as f:
+    with open(DATA_FILE, "w") as f:
         json.dump(posts, f, indent=4)
 
 def load_users():
-    try:
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return []
+    with open(USER_FILE, "r") as f:
+        return json.load(f)
 
 def save_users(users):
-    with open(USERS_FILE, "w") as f:
+    with open(USER_FILE, "w") as f:
         json.dump(users, f, indent=4)
 
-def hash_password(pwd):
-    return hashlib.sha256(pwd.encode()).hexdigest()
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-def current_user():
-    user_id = session.get("user_id")
-    if user_id is not None:
-        for u in load_users():
-            if u["id"] == user_id:
-                return u
-    return None
-
-# Routes
-@app.route("/register", methods=["GET","POST"])
+# Routes utilisateurs
+@app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        avatar_file = request.files.get("avatar")
-
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
         if not username or not password:
-            return "Nom ou mot de passe vide!"
-
+            return redirect(request.url)
         users = load_users()
         if any(u["username"] == username for u in users):
-            return "Nom déjà utilisé!"
-
-        avatar_name = ""
-        if avatar_file and avatar_file.filename:
-            avatar_name = datetime.now().strftime("%Y%m%d%H%M%S_") + avatar_file.filename
-            avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_name))
-
-        user_id = max([u["id"] for u in users], default=0) + 1
-        users.append({
-            "id": user_id,
-            "username": username,
-            "password": hash_password(password),
-            "avatar": avatar_name
-        })
+            return "Nom d'utilisateur déjà pris !"
+        users.append({"username": username, "password": hash_password(password)})
         save_users(users)
-        session["user_id"] = user_id
-        return redirect(url_for("index"))
-
+        return redirect(url_for("login"))
     return render_template("register.html")
 
-@app.route("/login", methods=["GET","POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        for u in load_users():
-            if u["username"] == username and u["password"] == hash_password(password):
-                session["user_id"] = u["id"]
-                return redirect(url_for("index"))
-        return "Identifiants invalides!"
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
+        users = load_users()
+        user = next((u for u in users if u["username"] == username and u["password"] == hash_password(password)), None)
+        if user:
+            session["username"] = username
+            return redirect(url_for("index"))
+        return "Nom ou mot de passe incorrect !"
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
-    session.pop("user_id", None)
+    session.pop("username", None)
     return redirect(url_for("login"))
 
+# Route principale
 @app.route("/", methods=["GET", "POST"])
 def index():
-    user = current_user()
-    if not user:
+    if "username" not in session:
         return redirect(url_for("login"))
 
     if request.method == "POST":
         description = request.form.get("description", "").strip()
-        file = request.files.get("file")
-
-        if not file or not file.filename or not description:
+        if "file" not in request.files or not description:
             return redirect(request.url)
-
+        file = request.files["file"]
+        if file.filename == "":
+            return redirect(request.url)
         filename = datetime.now().strftime("%Y%m%d%H%M%S_") + file.filename
-        file.save(os.path.join(UPLOAD_FOLDER, filename))
+        path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(path)
+
         ext = file.filename.lower().split('.')[-1]
         file_type = "video" if ext in ["mp4", "webm", "ogg"] else "image"
 
         posts = load_posts()
         new_post = {
-            "user_id": user["id"],
-            "username": user["username"],
-            "avatar": user["avatar"],
+            "username": session["username"],
             "type": file_type,
             "file": filename,
             "description": description,
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "date": str(datetime.now())
         }
         posts.insert(0, new_post)
         save_posts(posts)
@@ -141,15 +110,11 @@ def index():
         return redirect(url_for("index"))
 
     posts = load_posts()
-    return render_template("style.html", posts=posts, user=user)
+    return render_template("style.html", posts=posts, username=session["username"])
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
-
-@app.route("/avatars/<filename>")
-def uploaded_avatar(filename):
-    return send_from_directory(AVATAR_FOLDER, filename)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
