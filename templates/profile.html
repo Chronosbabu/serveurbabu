@@ -6,6 +6,7 @@
 <title>Profil — {{ profile_user.username }}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/style.js') }}"></script>
 </head>
 <body>
 <div class="main-container">
@@ -71,25 +72,6 @@
         {% endif %}
     </main>
 </div>
-
-<script>
-function updateLike(button) {
-    const countSpan = button.nextElementSibling;
-    let count = parseInt(countSpan.textContent) || 0;
-    if (button.classList.contains('liked')) {
-        button.classList.remove('liked');
-        count--;
-    } else {
-        button.classList.add('liked');
-        count++;
-    }
-    countSpan.textContent = count;
-}
-
-document.querySelectorAll('.like-btn').forEach(btn => {
-    btn.addEventListener('click', () => updateLike(btn));
-});
-</script>
 </body>
 </html>
 

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO
 import os, json, hashlib
 from datetime import datetime
@@ -77,7 +77,6 @@ def register():
             "username": username,
             "password": hash_password(password),
             "avatar": avatar_filename,
-            # champs extensibles pour le profil
             "bio": "",
             "created_at": datetime.now().isoformat()
         })
@@ -130,11 +129,14 @@ def index():
 
         posts = load_posts()
         new_post = {
+            "id": len(posts) + 1,
             "username": session["username"],
             "avatar": session.get("avatar"),
             "type": file_type,
             "file": filename,
             "description": description,
+            "likes": 0,
+            "liked_by": [],
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         posts.insert(0, new_post)
@@ -143,25 +145,47 @@ def index():
         return redirect(url_for("index"))
 
     posts = load_posts()
+    # Marquer si l'utilisateur a liké les posts
+    for p in posts:
+        p['liked_by_user'] = session["username"] in p.get("liked_by", [])
     return render_template("style.html",
                            posts=posts,
                            username=session["username"],
                            avatar=session.get("avatar"))
 
+# --- Like route ---
+@app.route("/like/<int:post_id>", methods=["POST"])
+def like_post(post_id):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        return jsonify({"error": "Post non trouvé"}), 404
+
+    username = session["username"]
+    if username in post.get("liked_by", []):
+        post["liked_by"].remove(username)
+    else:
+        post.setdefault("liked_by", []).append(username)
+    post["likes"] = len(post["liked_by"])
+    save_posts(posts)
+    return jsonify({"likes": post["likes"], "liked": username in post.get("liked_by", [])})
+
 # --- Page profil ---
 @app.route("/profile/<username>")
 def profile(username):
-    """Page publique du profil : infos du compte + toutes ses publications."""
     user = get_user(username)
     if not user:
         abort(404)
 
     posts = load_posts()
     user_posts = [p for p in posts if p.get("username") == user["username"]]
+    for p in user_posts:
+        p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
     return render_template("profile.html",
                            profile_user=user,
                            posts=user_posts,
-                           # qui est connecté ?
                            current_username=session.get("username"),
                            current_avatar=session.get("avatar"))
 

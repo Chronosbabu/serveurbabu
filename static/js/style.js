@@ -1,18 +1,24 @@
+
 document.addEventListener('DOMContentLoaded', () => {
-    function toggleLike(button) {
+    async function toggleLike(button) {
         const post = button.closest('.post');
+        const postId = post.dataset.postId;
         const countEl = post.querySelector('.like-count');
-        let count = parseInt(countEl.textContent);
-        if (button.classList.contains('liked')) {
-            button.classList.remove('liked');
-            count--;
-        } else {
-            button.classList.add('liked');
-            count++;
+
+        try {
+            const res = await fetch(`/like/${postId}`, { method: 'POST' });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            countEl.textContent = data.likes;
+            if (data.liked) {
+                button.classList.add('liked');
+            } else {
+                button.classList.remove('liked');
+            }
+        } catch (err) {
+            console.error("Erreur like:", err);
         }
-        countEl.textContent = count;
-        // Ici, tu peux ajouter un fetch pour mettre à jour le serveur
-        // fetch(`/like/${post.dataset.postId}`, { method: 'POST' });
     }
 
     document.querySelectorAll('.like-btn').forEach(btn => {
@@ -33,5 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    observer.observe(document.getElementById('posts'), { childList: true });
+    const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
+    if(postsContainer){
+        observer.observe(postsContainer, { childList: true });
+    }
 });
