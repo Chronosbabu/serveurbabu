@@ -13,6 +13,7 @@
 
     <section class="upload-section">
         <form method="POST" enctype="multipart/form-data">
+            <textarea name="description" placeholder="Écrivez une description..." required></textarea><br>
             <input type="file" name="file" accept="image/*,video/*" required>
             <button type="submit">Publier</button>
         </form>
@@ -21,12 +22,13 @@
     <main class="scroll-box">
         {% for post in posts %}
             <div class="post">
+                <p class="description">{{ post.description }}</p>
                 {% if post.type == "image" %}
                     <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
                 {% elif post.type == "video" %}
                     <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
                 {% endif %}
-                <p>Publié le {{ post.date }}</p>
+                <p class="date">Publié le {{ post.date }}</p>
             </div>
         {% endfor %}
     </main>
@@ -43,7 +45,7 @@ const observer = new IntersectionObserver(entries => {
             entry.target.pause();
         }
     });
-}, {threshold: 0.5});
+}, {threshold: 0.6});
 
 videos.forEach(video => observer.observe(video));
 </script>

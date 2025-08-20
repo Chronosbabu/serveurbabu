@@ -27,28 +27,35 @@ def save_posts(posts):
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        if "file" not in request.files:
+        description = request.form.get("description", "").strip()
+        if "file" not in request.files or not description:
             return redirect(request.url)
+
         file = request.files["file"]
         if file.filename == "":
             return redirect(request.url)
-        
+
         # sauver fichier
         filename = datetime.now().strftime("%Y%m%d%H%M%S_") + file.filename
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
-        
+
         # déterminer type
         ext = file.filename.lower().split('.')[-1]
-        file_type = "video" if ext in ["mp4","webm","ogg"] else "image"
-        
+        file_type = "video" if ext in ["mp4", "webm", "ogg"] else "image"
+
         # enregistrer dans json
         posts = load_posts()
-        posts.insert(0, {"type": file_type, "file": filename, "date": str(datetime.now())})
+        posts.insert(0, {
+            "type": file_type,
+            "file": filename,
+            "description": description,
+            "date": str(datetime.now())
+        })
         save_posts(posts)
-        
+
         return redirect(url_for("index"))
-    
+
     posts = load_posts()
     return render_template("style.html", posts=posts)
 
