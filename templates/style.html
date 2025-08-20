@@ -5,74 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Publications</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-<header>
-    <h2>📢 Espace de Publication</h2>
-</header>
+    <header>
+        <h2>📢 Espace de Publication</h2>
+    </header>
 
-<section class="upload-section">
-    <form method="POST" enctype="multipart/form-data">
-        <textarea name="description" placeholder="Écrivez une description..." required></textarea><br>
-        <input type="file" name="file" accept="image/*,video/*" required>
-        <button type="submit">Publier</button>
-    </form>
-</section>
+    <section class="upload-section">
+        <form method="POST" enctype="multipart/form-data">
+            <textarea name="description" placeholder="Écrivez une description..." required></textarea><br>
+            <input type="file" name="file" accept="image/*,video/*" required>
+            <button type="submit">Publier</button>
+        </form>
+    </section>
 
-<main class="scroll-box" id="posts">
-    {% for post in posts %}
-        <div class="post">
-            <p class="description">{{ post.description }}</p>
-            {% if post.type == "image" %}
-                <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
-            {% elif post.type == "video" %}
-                <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
-            {% endif %}
-            <p class="date">Publié le {{ post.date }}</p>
-        </div>
-    {% endfor %}
-</main>
+    <main class="scroll-box" id="posts">
+        {% for post in posts %}
+            <div class="post">
+                <p class="description">{{ post.description }}</p>
+                {% if post.type == "image" %}
+                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
+                {% elif post.type == "video" %}
+                    <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
+                {% endif %}
+                <p class="date">Publié le {{ post.date }}</p>
+            </div>
+        {% endfor %}
+    </main>
 
 <script>
-// lecture automatique des vidéos visibles
+const postsContainer = document.getElementById('posts');
+const socket = io();
+
+// ajouter nouvelle publication en temps réel
+socket.on('new_post', (post) => {
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.innerHTML = `
+        <p class="description">${post.description}</p>
+        ${post.type === 'image' 
+            ? `<img src="/uploads/${post.file}" alt="image">` 
+            : `<video src="/uploads/${post.file}" controls muted loop></video>`}
+        <p class="date">Publié le ${post.date}</p>
+    `;
+    postsContainer.prepend(div);
+
+    // observer vidéo pour lecture auto
+    const video = div.querySelector('video');
+    if(video){
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) entry.target.play();
+                else entry.target.pause();
+            });
+        }, {threshold: 0.6});
+        observer.observe(video);
+    }
+});
+
+// observer vidéos existantes
+const videos = document.querySelectorAll('video');
 const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
-        if(entry.isIntersecting){
-            entry.target.play();
-        } else {
-            entry.target.pause();
-        }
+        if(entry.isIntersecting) entry.target.play();
+        else entry.target.pause();
     });
 }, {threshold: 0.6});
 
-function observeVideos() {
-    document.querySelectorAll('video').forEach(video => observer.observe(video));
-}
-observeVideos();
-
-// fetch périodique pour charger les nouvelles publications
-async function fetchPosts() {
-    const res = await fetch('/get_posts');
-    const posts = await res.json();
-    const container = document.getElementById('posts');
-    container.innerHTML = ""; // vider avant d'ajouter
-    posts.forEach(post => {
-        const div = document.createElement('div');
-        div.className = "post";
-        let media = '';
-        if(post.type === "image") {
-            media = `<img src="/uploads/${post.file}" alt="image">`;
-        } else if(post.type === "video") {
-            media = `<video src="/uploads/${post.file}" controls muted loop></video>`;
-        }
-        div.innerHTML = `<p class="description">${post.description}</p>${media}<p class="date">Publié le ${post.date}</p>`;
-        container.appendChild(div);
-    });
-    observeVideos(); // observer nouvelles vidéos
-}
-
-// vérifier toutes les 5 secondes
-setInterval(fetchPosts, 5000);
+videos.forEach(video => observer.observe(video));
 </script>
 </body>
 </html>
