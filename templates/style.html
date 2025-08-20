@@ -8,41 +8,43 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-<header>
-    <h2>📢 Espace de Publication</h2>
-    <p>Connecté en tant que : {{ username }} | <a href="{{ url_for('logout') }}">Se déconnecter</a></p>
-    {% if avatar %}
-        <img src="{{ url_for('avatar_file', filename=avatar) }}" alt="avatar" class="avatar-header">
-    {% endif %}
-</header>
+<div class="main-container">
+    <header>
+        <h2>📢 Espace de Publication</h2>
+        <p>Connecté en tant que : {{ username }} | <a href="{{ url_for('logout') }}">Se déconnecter</a></p>
+        {% if avatar %}
+            <img src="{{ url_for('avatar_file', filename=avatar) }}" alt="avatar" class="avatar-header">
+        {% endif %}
+    </header>
 
-<section class="upload-section">
-    <form method="POST" enctype="multipart/form-data">
-        <textarea name="description" placeholder="Écrivez une description..." required></textarea><br>
-        <input type="file" name="file" accept="image/*,video/*" required>
-        <button type="submit">Publier</button>
-    </form>
-</section>
+    <section class="upload-section">
+        <form method="POST" enctype="multipart/form-data">
+            <textarea name="description" placeholder="Écrivez une description..." required></textarea><br>
+            <input type="file" name="file" accept="image/*,video/*" required>
+            <button type="submit">Publier</button>
+        </form>
+    </section>
 
-<main class="scroll-box" id="posts">
-    {% for post in posts %}
-        <div class="post">
-            <div class="user-info">
-                {% if post.avatar %}
-                    <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post">
+    <main class="scroll-box" id="posts">
+        {% for post in posts %}
+            <div class="post">
+                <div class="user-info">
+                    {% if post.avatar %}
+                        <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post">
+                    {% endif %}
+                    <p class="username">{{ post.username }}</p>
+                </div>
+                <p class="description">{{ post.description }}</p>
+                {% if post.type == "image" %}
+                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image">
+                {% elif post.type == "video" %}
+                    <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
                 {% endif %}
-                <p class="username">{{ post.username }}</p>
+                <p class="date">Publié le {{ post.date }}</p>
             </div>
-            <p class="description">{{ post.description }}</p>
-            {% if post.type == "image" %}
-                <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
-            {% elif post.type == "video" %}
-                <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
-            {% endif %}
-            <p class="date">Publié le {{ post.date }}</p>
-        </div>
-    {% endfor %}
-</main>
+        {% endfor %}
+    </main>
+</div>
 
 <script>
 const postsContainer = document.getElementById('posts');
@@ -58,7 +60,7 @@ socket.on('new_post', (post) => {
         </div>
         <p class="description">${post.description}</p>
         ${post.type === 'image' 
-            ? `<img src="/uploads/${post.file}" alt="image">` 
+            ? `<img src="/uploads/${post.file}" alt="image" class="post-image">` 
             : `<video src="/uploads/${post.file}" controls muted loop></video>`}
         <p class="date">Publié le ${post.date}</p>
     `;

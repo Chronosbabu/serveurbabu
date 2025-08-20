@@ -9,6 +9,15 @@ html, body {
     height: 100%;
     font-family: Arial, sans-serif;
     background-color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.main-container {
+    width: 100%;
+    max-width: 500px;
+    padding: 10px;
 }
 
 /* HEADER */
@@ -21,6 +30,15 @@ header {
 header p {
     margin-top: 5px;
     font-size: 0.9rem;
+}
+
+.avatar-header {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    margin: 5px auto 0 auto;
 }
 
 /* SECTION UPLOAD */
@@ -47,16 +65,17 @@ header p {
     font-size: 1rem;
 }
 
-/* AVATAR */
-.post .avatar {
-    width: 50px;            
-    height: 50px;           
-    max-width: 50px;        /* force la largeur maximale */
-    max-height: 50px;       /* force la hauteur maximale */
-    border-radius: 50%;     
-    object-fit: cover;      
-    display: block;
-    margin: 0 auto 8px auto;
+/* AVATAR DANS LES POSTS */
+.avatar-post {
+    width: 50px;
+    height: 50px;
+    max-width: 50px;
+    max-height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 10px;
 }
 
 /* SCROLLABLE POSTS */
@@ -70,25 +89,30 @@ header p {
     margin-bottom: 20px;
     border-bottom: 1px solid #ddd;
     padding-bottom: 15px;
-    text-align: center;
+    text-align: left;
+}
+
+.post .user-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
 }
 
 .post .username {
     font-weight: bold;
     color: #333;
-    margin-bottom: 5px;
 }
 
 .post .description {
-    font-weight: bold;
+    font-weight: normal;
     margin-bottom: 10px;
 }
 
-.post img,
+.post img.post-image,
 .post video {
     width: 100%;
-    max-height: 50vh;
-    object-fit: contain;
+    max-height: 300px;
+    object-fit: cover;
     display: block;
     margin: 0 auto;
     border-radius: 8px;
@@ -110,15 +134,14 @@ header p {
     .upload-section form button {
         width: 90%;
     }
-    .post img,
-    .post video {
-        max-height: 40vh;
-    }
-    .post .avatar {
+    .avatar-post,
+    .avatar-header {
         width: 40px;
         height: 40px;
-        max-width: 40px;
-        max-height: 40px;
+    }
+    .post img.post-image,
+    .post video {
+        max-height: 200px;
     }
 }
 
