@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
 import os
 import json
 from datetime import datetime
@@ -62,6 +62,12 @@ def index():
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# route pour récupérer les nouveaux posts (AJAX)
+@app.route("/get_posts")
+def get_posts():
+    posts = load_posts()
+    return jsonify(posts)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
