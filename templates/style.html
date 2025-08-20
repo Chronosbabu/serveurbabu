@@ -61,7 +61,6 @@
             <div class="post-actions">
                 <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
                 <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-                <button class="comment-btn">💬</button>
             </div>
 
             <p class="date">Publié le {{ post.date }}</p>
@@ -70,17 +69,73 @@
     </main>
 </div>
 
-<!-- Modal Commentaires -->
-<div class="comment-modal hidden" id="comment-modal">
-    <div class="comment-content">
-        <span class="close-btn" id="close-comment">×</span>
-        <h3>Commentaires</h3>
-        <div class="comments-list" id="comments-list"></div>
-        <textarea id="new-comment" placeholder="Écrire un commentaire..."></textarea>
-        <button id="submit-comment">Commenter</button>
-    </div>
-</div>
+<script>
+const postsContainer = document.getElementById('posts');
+const socket = io();
 
+// Gestion des likes
+function updateLike(button) {
+    const countSpan = button.nextElementSibling;
+    let count = parseInt(countSpan.textContent) || 0;
+    if (button.classList.contains('liked')) {
+        button.classList.remove('liked');
+        count--;
+    } else {
+        button.classList.add('liked');
+        count++;
+    }
+    countSpan.textContent = count;
+}
+
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => updateLike(btn));
+});
+
+// Socket pour nouveaux posts
+socket.on('new_post', (post) => {
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.dataset.postId = post.id || "";
+    div.innerHTML = `
+        <div class="user-info">
+            ${post.avatar
+                ? `<a class="avatar-link" href="${post.username ? '/profile/' + post.username : '#'}">
+                        <img src="/avatars/${post.avatar}" alt="avatar" class="avatar-post" />
+                   </a>`
+                : `<a class="avatar-link" href="${post.username ? '/profile/' + post.username : '#'}">
+                        <div class="avatar-fallback">${(post.username || '').charAt(0).toUpperCase()}</div>
+                   </a>`
+            }
+            <a class="username-link" href="${post.username ? '/profile/' + post.username : '#'}">
+                <p class="username">${post.username}</p>
+            </a>
+        </div>
+        <p class="description">${post.description}</p>
+        ${post.type === 'image'
+            ? `<img src="/uploads/${post.file}" alt="image" class="post-image">`
+            : `<video src="/uploads/${post.file}" controls muted loop></video>`}
+        <div class="post-actions">
+            <button class="like-btn">❤️</button>
+            <span class="like-count">0</span>
+        </div>
+        <p class="date">Publié le ${post.date}</p>
+    `;
+    postsContainer.prepend(div);
+
+    div.querySelector('.like-btn').addEventListener('click', () => updateLike(div.querySelector('.like-btn')));
+
+    const video = div.querySelector('video');
+    if (video) {
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.play();
+                else entry.target.pause();
+            });
+        }, { threshold: 0.6 });
+        observer.observe(video);
+    }
+});
+</script>
 </body>
 </html>
 

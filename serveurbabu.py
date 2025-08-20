@@ -137,7 +137,6 @@ def index():
             "description": description,
             "likes": 0,
             "liked_by": [],
-            "comments": [],
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         posts.insert(0, new_post)
@@ -172,30 +171,6 @@ def like_post(post_id):
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
     return jsonify({"likes": post["likes"], "liked": username in post.get("liked_by", [])})
-
-# --- Comments route ---
-@app.route("/comment/<int:post_id>", methods=["POST"])
-def comment_post(post_id):
-    if "username" not in session:
-        return jsonify({"error": "Non connecté"}), 401
-    comment_text = (request.json.get("comment") or "").strip()
-    if not comment_text:
-        return jsonify({"error": "Commentaire vide"}), 400
-
-    posts = load_posts()
-    post = next((p for p in posts if p["id"] == post_id), None)
-    if not post:
-        return jsonify({"error": "Post non trouvé"}), 404
-
-    new_comment = {
-        "username": session["username"],
-        "avatar": session.get("avatar"),
-        "text": comment_text,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    post.setdefault("comments", []).append(new_comment)
-    save_posts(posts)
-    return jsonify(new_comment)
 
 # --- Page profil ---
 @app.route("/profile/<username>")
