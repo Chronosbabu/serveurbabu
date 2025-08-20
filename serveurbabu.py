@@ -10,6 +10,7 @@ UPLOAD_FOLDER = os.path.join("data", "uploads")
 AVATAR_FOLDER = os.path.join("data", "avatars")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
 DATA_FILE = os.path.join("data", "posts.json")
 USER_FILE = os.path.join("data", "users.json")
@@ -133,6 +134,6 @@ def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))  # Render détecte automatiquement PORT
     socketio.run(app, host="0.0.0.0", port=port)
 
