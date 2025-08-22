@@ -44,7 +44,7 @@ header a:hover { text-decoration: underline; }
     object-fit: cover; display: block; margin: 10px auto 0 auto;
 }
 
-/* SECTION UPLOAD */
+/* SECTION UPLOAD (page fil) */
 .upload-section {
     padding: 14px;
     text-align: center;
@@ -87,7 +87,7 @@ a.avatar-link, a.username-link {
 }
 a.username-link:hover { text-decoration: underline; }
 
-/* POSTS */
+/* POSTS (fil & profil) */
 .avatar-post, .profile-avatar {
     width: 44px; height: 44px; border-radius: 50%;
     object-fit: cover; display: inline-block; vertical-align: middle;
@@ -131,7 +131,7 @@ a.username-link:hover { text-decoration: underline; }
     padding: 12px 16px; color: #111827;
 }
 
-/* --- COMMENTAIRES --- */
+/* --- COMMENTAIRES (page comments.html) --- */
 .comment {
     display: flex;
     align-items: flex-start;
@@ -156,12 +156,14 @@ a.username-link:hover { text-decoration: underline; }
 .comment-content p { margin-bottom: 4px; color: #111; }
 .comment-content small { font-size: 0.8rem; color: #6b7280; }
 
+/* Zone scrollable pour les messages uniquement */
 .comments-box {
     flex: 1 1 auto;
     overflow-y: auto;
     padding: 16px;
 }
 
+/* Formulaire FIXE en bas (ne scrolle pas) */
 .comment-form {
     position: fixed;
     bottom: 10px;
@@ -205,84 +207,46 @@ a.username-link:hover { text-decoration: underline; }
 }
 .comment-form button:hover { background: #1e40af; }
 
-/* RESPONSIVE */
-@media (max-width: 600px) {
-    .main-container { width: 100%; border-radius: 0; box-shadow: none; }
-    .upload-section textarea { width: 96%; }
-    .upload-section form input, .upload-section form button { width: 92%; }
-    .avatar-post, .avatar-header, .profile-avatar, .avatar-comment { width: 40px; height: 40px; }
-    .post img.post-image, .post video { max-height: 260px; }
-}
-
-/* --- PAGE RECHERCHE --- */
-.search-section {
-    padding: 16px;
-    background: #f9fafb;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-shrink: 0;
-}
-
-.search-section input {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-    font-size: 1rem;
-}
-
-.search-section button {
-    padding: 10px 16px;
-    background-color: #2563eb;
-    color: #fff;
-    font-weight: bold;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-}
-.search-section button:hover { background-color: #1e40af; }
-
-.users-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.user-item {
+/* USERS LIST (page search.html) */
+.users-list .user-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    background: #f3f4f6;
-    border-radius: 8px;
-    transition: background 0.2s;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
 }
-.user-item:hover { background: #e5e7eb; }
-
-.avatar-user {
+.users-list .user-item .avatar-user {
     width: 44px;
     height: 44px;
     border-radius: 50%;
     object-fit: cover;
-    border: 1px solid #d1d5db;
 }
-.avatar-fallback {
-    display: inline-flex;
+.users-list .user-item .avatar-fallback {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
     align-items: center;
     justify-content: center;
     background: #e5e7eb;
     color: #374151;
     font-weight: 700;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
 }
-
-.username-link {
-    font-weight: bold;
+.users-list .user-item .username-link {
+    font-weight: 600;
     color: #111827;
     text-decoration: none;
 }
-.username-link:hover { text-decoration: underline; }
+.users-list .user-item .username-link:hover {
+    text-decoration: underline;
+}
+
+/* RESPONSIVE */
+@media (max-width: 600px) {
+    .main-container { width: 100%; border-radius: 0; box-shadow: none; }
+    .upload-section textarea { width: 96%; }
+    .upload-section form input, .upload-section form button { width: 92%; }
+    .avatar-post, .avatar-header, .profile-avatar, .avatar-comment, .users-list .user-item .avatar-user { width: 40px; height: 40px; }
+    .post img.post-image, .post video { max-height: 260px; }
+}
 
