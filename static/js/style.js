@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             countEl.textContent = data.likes;
 
-            // --- Gestion apparence bouton like/love ---
+            // --- Gestion apparence bouton like/love pour CE bouton seulement ---
             if (data.liked) button.classList.add('liked');
             else button.classList.remove('liked');
 
@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Ajout des listeners aux posts existants ---
     document.querySelectorAll('.post').forEach(post => {
         const likeBtn = post.querySelector('.like-btn');
         if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
@@ -74,8 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (post) {
             const countEl = post.querySelector('.like-count');
             countEl.textContent = data.likes;
+
+            // --- Appliquer liked seulement si le like vient de CE client ---
             const btn = post.querySelector('.like-btn');
-            if (btn) data.liked ? btn.classList.add('liked') : btn.classList.remove('liked');
+            if (btn && btn.dataset.userId === data.user_id) {
+                data.liked ? btn.classList.add('liked') : btn.classList.remove('liked');
+            }
         }
     });
 
@@ -87,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const commentEl = document.createElement('div');
                 commentEl.classList.add('comment');
                 commentEl.innerHTML = `
-                    <img src="${data.avatar ? '/avatars/' + data.avatar : '/avatars/default.png'}" class="avatar-comment">
+                    <img src="${data.avatar ? '/avatars/' + data.avatar : '/avatars/default.png'}" class="comment-avatar">
                     <span class="comment-content"><strong>${data.username}</strong>: ${data.content}</span>
                 `;
                 commentsList.appendChild(commentEl);
