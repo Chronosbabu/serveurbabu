@@ -17,13 +17,12 @@ body {
 .main-container {
     display: flex;
     flex-direction: column;
-    /* IMPORTANT: hauteur fixe à la fenêtre - padding body (10px top + 10px bottom) */
     height: calc(100vh - 20px);
     width: min(100%, 640px);
     background-color: #fff;
     border-radius: 12px;
     box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    overflow: hidden; /* empêche que le body scrolle, seul le contenu interne scrolle */
+    overflow: hidden;
 }
 
 /* HEADER */
@@ -32,7 +31,7 @@ header {
     text-align: center;
     background-color: #ffffff;
     border-bottom: 1px solid #eaeaea;
-    flex-shrink: 0; /* ne pas rétrécir */
+    flex-shrink: 0;
 }
 
 header h2 { font-size: 1.2rem; margin-bottom: 6px; }
@@ -45,50 +44,7 @@ header a:hover { text-decoration: underline; }
     object-fit: cover; display: block; margin: 10px auto 0 auto;
 }
 
-/* SECTION UPLOAD (page fil) */
-.upload-section {
-    padding: 14px;
-    text-align: center;
-    background-color: #fafafa;
-    border-bottom: 1px solid #eaeaea;
-    flex-shrink: 0;
-}
-
-.upload-section textarea {
-    width: 95%;
-    min-height: 64px;
-    margin: 6px 0;
-    padding: 10px;
-    font-size: 1rem;
-    resize: vertical;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: #fff;
-}
-
-.upload-section form input,
-.upload-section form button {
-    padding: 10px;
-    margin: 6px 0;
-    font-size: 1rem;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-}
-
-.upload-section form button {
-    background-color: #16a34a;
-    color: #fff; cursor: pointer; border: none;
-    font-weight: 600; padding: 10px 16px;
-}
-.upload-section form button:hover { background-color: #15803d; }
-
-a.avatar-link, a.username-link {
-    display: inline-flex; align-items: center;
-    text-decoration: none; color: inherit;
-}
-a.username-link:hover { text-decoration: underline; }
-
-/* POSTS (fil & profil) */
+/* POSTS */
 .avatar-post, .profile-avatar {
     width: 44px; height: 44px; border-radius: 50%;
     object-fit: cover; display: inline-block; vertical-align: middle;
@@ -118,100 +74,39 @@ a.username-link:hover { text-decoration: underline; }
 .post-actions .like-btn.liked { color: #e0245e; }
 .post-actions .like-count { font-size: 0.95rem; color: #555; }
 
-/* PROFILE HEADER */
-.profile-header {
-    display: flex; align-items: center; padding: 16px;
-    border-bottom: 1px solid #eaeaea; gap: 12px;
-}
-.profile-meta h1 { font-size: 1rem; font-weight: bold; margin-bottom: 4px; }
-.profile-meta p { font-size: 0.9rem; color: #4b5563; line-height: 1.3; }
-
-/* SECTION TITLES */
-.profile-section-title {
-    font-weight: bold; font-size: 1rem;
-    padding: 12px 16px; color: #111827;
-}
-
-/* --- COMMENTAIRES (page comments.html) --- */
-.comment {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 14px;
-}
-
-.avatar-comment {
-    width: 40px; height: 40px; border-radius: 50%;
-    object-fit: cover; flex-shrink: 0; border: 1px solid #ddd;
-    display: block;
-}
-
-.comment-content {
-    flex: 1;
-    background: #f9fafb;
-    padding: 8px 12px;
-    border-radius: 8px;
-    text-align: left;
-    overflow-wrap: anywhere;
-}
+/* COMMENTAIRES */
+.comment { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.avatar-comment { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #ddd; display: block; }
+.comment-content { flex: 1; background: #f9fafb; padding: 8px 12px; border-radius: 8px; text-align: left; overflow-wrap: anywhere; }
 .comment-content p { margin-bottom: 4px; color: #111; }
 .comment-content small { font-size: 0.8rem; color: #6b7280; }
 
-/* Zone scrollable pour les messages uniquement */
 .comments-box {
     flex: 1 1 auto;
     overflow-y: auto;
     padding: 16px;
-    /* pas de margin-bottom ni de hauteur auto, c'est cette zone qui scrolle */
 }
 
-/* Formulaire FIXE en bas (ne scrolle pas) */
 .comment-form {
-    /* pas de sticky ici : on le fixe via la hauteur de .main-container */
-    position: relative;
-    bottom: auto; left: 0;
-    width: 100%;
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(min(100%, 640px) - 20px);
     background: #fff;
     border-top: 1px solid #ddd;
     padding: 10px;
-    flex-shrink: 0; /* ne pas rétrécir */
+    flex-shrink: 0;
+    z-index: 10;
 }
 
-.comment-form form {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.comment-form textarea {
-    flex: 1;
-    resize: none;
-    min-height: 44px;
-    max-height: 120px;
-    padding: 8px;
-    font-size: 0.95rem;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    overflow-y: auto;
-}
-
-.comment-form button {
-    padding: 10px 14px;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 6px;
-    background: #2563eb;
-    color: #fff;
-    cursor: pointer;
-    font-weight: bold;
-}
+.comment-form form { display: flex; gap: 8px; align-items: center; }
+.comment-form textarea { flex: 1; resize: none; min-height: 44px; max-height: 120px; padding: 8px; font-size: 0.95rem; border-radius: 6px; border: 1px solid #ccc; overflow-y: auto; }
+.comment-form button { padding: 10px 14px; font-size: 0.95rem; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; font-weight: bold; }
 .comment-form button:hover { background: #1e40af; }
 
-/* RESPONSIVE */
 @media (max-width: 600px) {
     .main-container { width: 100%; border-radius: 0; box-shadow: none; }
-    .upload-section textarea { width: 96%; }
-    .upload-section form input, .upload-section form button { width: 92%; }
     .avatar-post, .avatar-header, .profile-avatar, .avatar-comment { width: 40px; height: 40px; }
     .post img.post-image, .post video { max-height: 260px; }
 }
