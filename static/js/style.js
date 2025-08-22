@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             countEl.textContent = data.likes;
 
-            // --- Gestion apparence bouton like/love pour CE bouton seulement ---
+            // --- Apparence bouton pour CE client seulement ---
             if (data.liked) button.classList.add('liked');
             else button.classList.remove('liked');
 
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const countEl = post.querySelector('.like-count');
             countEl.textContent = data.likes;
 
-            // --- Appliquer liked seulement si le like vient de CE client ---
+            // --- Changer l'apparence seulement si c'est CE client ---
             const btn = post.querySelector('.like-btn');
             if (btn && btn.dataset.userId === data.user_id) {
                 data.liked ? btn.classList.add('liked') : btn.classList.remove('liked');
