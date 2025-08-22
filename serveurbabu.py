@@ -137,6 +137,7 @@ def index():
             "description": description,
             "likes": 0,
             "liked_by": [],
+            "comments": [],
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         posts.insert(0, new_post)
@@ -145,7 +146,6 @@ def index():
         return redirect(url_for("index"))
 
     posts = load_posts()
-    # Marquer si l'utilisateur a liké les posts
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
     return render_template("style.html",
@@ -171,6 +171,34 @@ def like_post(post_id):
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
     return jsonify({"likes": post["likes"], "liked": username in post.get("liked_by", [])})
+
+# --- Page commentaires ---
+@app.route("/comments/<int:post_id>", methods=["GET", "POST"])
+def comments(post_id):
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        abort(404)
+
+    if request.method == "POST":
+        content = (request.form.get("comment") or "").strip()
+        if content:
+            post.setdefault("comments", []).append({
+                "username": session["username"],
+                "avatar": session.get("avatar"),
+                "content": content,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            save_posts(posts)
+        return redirect(url_for("comments", post_id=post_id))
+
+    return render_template("comments.html",
+                           post=post,
+                           username=session["username"],
+                           avatar=session.get("avatar"))
 
 # --- Page profil ---
 @app.route("/profile/<username>")
