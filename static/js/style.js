@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Gestion des likes ---
     async function toggleLike(button) {
         const post = button.closest('.post');
         const postId = post.dataset.postId;
@@ -24,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => toggleLike(btn));
     });
 
-    // Pour les posts ajoutés dynamiquement
+    // --- Observer pour les posts ajoutés dynamiquement ---
     const observer = new MutationObserver(mutations => {
         mutations.forEach(m => {
             m.addedNodes.forEach(node => {
@@ -76,6 +77,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('video').forEach(video => {
         setupVideoObserver(video);
     });
-});
 
+    // --- Sauvegarde et restauration du scroll ---
+    const SCROLL_KEY = "scrollPosition";
+
+    // Restaurer le scroll quand on revient sur la page
+    if (sessionStorage.getItem(SCROLL_KEY)) {
+        window.scrollTo(0, parseInt(sessionStorage.getItem(SCROLL_KEY), 10));
+    }
+
+    // Sauvegarder le scroll avant de quitter/naviguer
+    window.addEventListener("beforeunload", () => {
+        sessionStorage.setItem(SCROLL_KEY, window.scrollY);
+    });
+});
 
