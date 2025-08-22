@@ -148,7 +148,6 @@ def index():
 def like_post(post_id):
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
-
     posts = load_posts()
     post = next((p for p in posts if p["id"] == post_id), None)
     if not post:
@@ -165,11 +164,68 @@ def like_post(post_id):
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
 
-    # --- Envoi SocketIO : compteur à tous, liked seulement pour ce user ---
+    # --- Correction : on envoie l'utilisateur qui a liké ---
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
 
-# ... reste des routes comments, profile, search, uploads, avatars inchangé ...
+# --- Les autres routes restent inchangées ---
+@app.route("/comments/<int:post_id>", methods=["GET", "POST"])
+def comments(post_id):
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        abort(404)
+
+    if request.method == "POST":
+        content = (request.form.get("comment") or "").strip()
+        if content:
+            comment_data = {
+                "username": session["username"],
+                "avatar": session.get("avatar"),
+                "content": content,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            post.setdefault("comments", []).append(comment_data)
+            save_posts(posts)
+            socketio.emit('new_comment', {"post_id": post_id, **comment_data})
+        return redirect(url_for("comments", post_id=post_id))
+
+    return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
+
+@app.route("/profile/<username>")
+def profile(username):
+    user = get_user(username)
+    if not user:
+        abort(404)
+
+    posts = load_posts()
+    user_posts = [p for p in posts if p.get("username") == user["username"]]
+    for p in user_posts:
+        p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))
+    return render_template("profile.html", profile_user=user, posts=user_posts,
+                           current_username=session.get("username"), current_avatar=session.get("avatar"))
+
+@app.route("/search", methods=["GET"])
+def search_users():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    query = (request.args.get("q") or "").strip().lower()
+    users = load_users()
+    if query:
+        users = [u for u in users if query in u["username"].lower()]
+    return render_template("search.html", users=users, current_username=session["username"])
+
+@app.route("/uploads/<filename>")
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route("/avatars/<filename>")
+def avatar_file(filename):
+    return send_from_directory(AVATAR_FOLDER, filename)
 
 # --- SocketIO events ---
 @socketio.on('send_comment')
