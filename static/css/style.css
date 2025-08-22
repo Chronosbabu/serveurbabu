@@ -39,55 +39,93 @@ header p { font-size: 0.95rem; color: #444; }
 header a { color: #2563eb; text-decoration: none; }
 header a:hover { text-decoration: underline; }
 
-.avatar-header {
-    width: 48px; height: 48px; border-radius: 50%;
-    object-fit: cover; display: block; margin: 10px auto 0 auto;
-}
-
-/* SECTION UPLOAD (page fil) */
-.upload-section {
-    padding: 14px;
+/* SEARCH SECTION */
+.search-section {
+    padding: 12px 16px;
     text-align: center;
-    background-color: #fafafa;
     border-bottom: 1px solid #eaeaea;
+    background-color: #fafafa;
     flex-shrink: 0;
 }
 
-.upload-section textarea {
-    width: 95%;
-    min-height: 64px;
-    margin: 6px 0;
-    padding: 10px;
-    font-size: 1rem;
-    resize: vertical;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: #fff;
+.search-section form {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
 }
 
-.upload-section form input,
-.upload-section form button {
-    padding: 10px;
-    margin: 6px 0;
+.search-section input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
     font-size: 1rem;
     border-radius: 8px;
     border: 1px solid #d1d5db;
 }
 
-.upload-section form button {
-    background-color: #16a34a;
-    color: #fff; cursor: pointer; border: none;
-    font-weight: 600; padding: 10px 16px;
+.search-section button {
+    padding: 10px 16px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    background-color: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
 }
-.upload-section form button:hover { background-color: #15803d; }
+.search-section button:hover { background-color: #1e40af; }
 
-a.avatar-link, a.username-link {
-    display: inline-flex; align-items: center;
-    text-decoration: none; color: inherit;
+/* USERS LIST */
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
-a.username-link:hover { text-decoration: underline; }
 
-/* POSTS (fil & profil) */
+.user-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.user-item:hover { background-color: #f3f4f6; }
+
+.avatar-user {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e5e7eb;
+    color: #374151;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+
+.username-link {
+    font-weight: 500;
+    color: #111827;
+    text-decoration: none;
+}
+.username-link:hover { text-decoration: underline; }
+
+/* RESTE DU STYLE EXISTANT POUR POSTS, COMMENTAIRES, PROFILE, ETC. */
+
+/* POSTS, COMMENTS, PROFILE STYLES déjà existants et inchangés */
+
 .avatar-post, .profile-avatar {
     width: 44px; height: 44px; border-radius: 50%;
     object-fit: cover; display: inline-block; vertical-align: middle;
