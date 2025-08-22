@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', () => {
     async function toggleLike(button) {
         const post = button.closest('.post');
@@ -43,4 +44,3 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(postsContainer, { childList: true });
     }
 });
-
