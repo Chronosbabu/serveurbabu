@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
     async function toggleLike(button) {
         const post = button.closest('.post');
@@ -34,13 +33,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (likeBtn) {
                         likeBtn.addEventListener('click', () => toggleLike(likeBtn));
                     }
+
+                    // Gérer la lecture/pause des vidéos pour les nouveaux posts
+                    const video = node.querySelector('video');
+                    if (video) {
+                        setupVideoObserver(video);
+                    }
                 }
             });
         });
     });
 
     const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
-    if(postsContainer){
+    if (postsContainer) {
         observer.observe(postsContainer, { childList: true });
     }
+
+    // --- Gestion des vidéos ---
+    function setupVideoObserver(video) {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Pause toutes les autres vidéos
+                    document.querySelectorAll('video').forEach(v => {
+                        if (v !== video) {
+                            v.pause();
+                        }
+                    });
+                    // Lire seulement si visible
+                    video.play().catch(err => console.log("Lecture vidéo bloquée:", err));
+                } else {
+                    // Arrêter dès qu'on sort du viewport
+                    video.pause();
+                }
+            });
+        }, { threshold: 0.6 }); // la vidéo doit être au moins à 60% visible
+
+        io.observe(video);
+    }
+
+    // Initialiser les vidéos déjà présentes dans la page
+    document.querySelectorAll('video').forEach(video => {
+        setupVideoObserver(video);
+    });
 });
+
+
