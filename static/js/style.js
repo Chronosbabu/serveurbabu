@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const currentUsername = document.body.dataset.username; // Assurez-vous de passer le username dans body
+    const currentUsername = document.body.dataset.username; // username du client
 
     async function toggleLike(button) {
         const post = button.closest('.post');
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             countEl.textContent = data.likes;
 
             const btn = post.querySelector('.like-btn');
-            // --- Ne changer la couleur que pour l'utilisateur qui a cliqué ---
+            // Ne changer la couleur que pour l'utilisateur qui a cliqué
             if (btn && data.user === currentUsername) {
                 btn.classList.toggle('liked');
             }
@@ -57,37 +57,43 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ------------------ Gestion des vidéos ------------------
-    const allVideos = new Set(); // Stocke toutes les vidéos
+    const allVideos = new Set(); 
     document.querySelectorAll('.post video').forEach(video => allVideos.add(video));
 
     function stopAllVideosExcept(currentVideo) {
         allVideos.forEach(video => {
             if (video !== currentVideo) {
                 video.pause();
-                video.currentTime = 0; // Optionnel : remettre au début
+                video.currentTime = 0;
             }
         });
     }
 
     function handleVideoVisibility() {
         const posts = document.querySelectorAll('.post');
+        let videoToPlay = null;
+
         posts.forEach(post => {
             const video = post.querySelector('video');
             if (video) {
                 const rect = post.getBoundingClientRect();
-                if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
-                    // Vidéo visible à l'écran
-                    stopAllVideosExcept(video);
-                    video.play();
+                const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+                if (fullyVisible && !videoToPlay) {
+                    videoToPlay = video;
                 } else {
                     video.pause();
                 }
             }
         });
+
+        if (videoToPlay) {
+            stopAllVideosExcept(videoToPlay);
+            if (videoToPlay.paused) videoToPlay.play();
+        }
     }
 
     window.addEventListener('scroll', handleVideoVisibility);
     window.addEventListener('resize', handleVideoVisibility);
-    handleVideoVisibility(); // Vérification au chargement initial
+    handleVideoVisibility(); // initial check
 });
-
