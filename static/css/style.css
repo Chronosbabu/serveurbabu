@@ -207,46 +207,86 @@ a.username-link:hover { text-decoration: underline; }
 }
 .comment-form button:hover { background: #1e40af; }
 
-/* USERS LIST (page search.html) */
-.users-list .user-item {
+/* --- PAGE RECHERCHE UTILISATEURS --- */
+.search-section {
+    padding: 16px;
+    border-bottom: 1px solid #eaeaea;
+    background: #fafafa;
+    display: flex;
+    justify-content: center;
+}
+
+.search-section input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 1rem;
+    max-width: 400px;
+    margin-right: 8px;
+}
+
+.search-section button {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    background-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+.search-section button:hover { background-color: #1e40af; }
+
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.user-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid #eee;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    transition: background 0.2s;
 }
-.users-list .user-item .avatar-user {
-    width: 44px;
-    height: 44px;
+.user-item:hover { background: #e5e7eb; }
+
+.avatar-user {
+    width: 44px; height: 44px;
     border-radius: 50%;
     object-fit: cover;
+    border: 1px solid #ccc;
 }
-.users-list .user-item .avatar-fallback {
-    width: 44px;
-    height: 44px;
+
+.avatar-fallback {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     background: #e5e7eb;
     color: #374151;
-    font-weight: 700;
+    font-weight: bold;
+    font-size: 1rem;
+    border: 1px solid #ccc;
 }
-.users-list .user-item .username-link {
+
+.username-link {
     font-weight: 600;
     color: #111827;
     text-decoration: none;
 }
-.users-list .user-item .username-link:hover {
-    text-decoration: underline;
-}
+.username-link:hover { text-decoration: underline; }
 
 /* RESPONSIVE */
 @media (max-width: 600px) {
     .main-container { width: 100%; border-radius: 0; box-shadow: none; }
     .upload-section textarea { width: 96%; }
     .upload-section form input, .upload-section form button { width: 92%; }
-    .avatar-post, .avatar-header, .profile-avatar, .avatar-comment, .users-list .user-item .avatar-user { width: 40px; height: 40px; }
+    .avatar-post, .avatar-header, .profile-avatar, .avatar-comment, .avatar-user { width: 40px; height: 40px; }
     .post img.post-image, .post video { max-height: 260px; }
+    .search-section input[type="text"] { max-width: 70%; }
 }
 
