@@ -10,9 +10,12 @@
 <div class="main-container">
     <header>
         <h2>💬 Commentaires</h2>
-        <p><a href="{{ url_for('index') }}">⬅ Retour aux publications</a></p>
+        <p>
+            <a href="{{ url_for('index') }}">⬅ Retour aux publications</a>
+        </p>
     </header>
 
+    <!-- Seule cette zone scrolle -->
     <main class="scroll-box comments-box" id="commentsBox">
         {% if post.comments|length == 0 %}
             <p style="color:#6b7280;">Aucun commentaire pour l’instant.</p>
@@ -22,7 +25,9 @@
                 {% if comment.avatar %}
                 <img src="{{ url_for('avatar_file', filename=comment.avatar) }}" alt="avatar" class="avatar-comment" />
                 {% else %}
-                <div class="avatar-fallback">{{ comment.username[:1]|upper }}</div>
+                <div class="avatar-fallback" style="width:40px;height:40px;margin-right:10px;border:1px solid #ddd;">
+                    {{ comment.username[:1]|upper }}
+                </div>
                 {% endif %}
                 <div class="comment-content">
                     <p><strong>{{ comment.username }}</strong></p>
@@ -34,6 +39,7 @@
         {% endif %}
     </main>
 
+    <!-- Cette section reste FIXE en bas -->
     <section class="comment-form">
         <form method="POST">
             <textarea name="comment" placeholder="Écrire un commentaire..." required></textarea>
