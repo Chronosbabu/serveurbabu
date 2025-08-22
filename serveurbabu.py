@@ -1,12 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 import os, json, hashlib
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
 
-# Dossiers
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 UPLOAD_FOLDER = os.path.join(DATA_DIR, "uploads")
@@ -16,11 +15,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Fichiers JSON
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 
-# Créer fichiers si inexistants
 for file_path, default in [(DATA_FILE, []), (USER_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
@@ -52,14 +49,13 @@ def get_user(username):
     users = load_users()
     return next((u for u in users if u.get("username") == username), None)
 
-# --- Auth / Users ---
+# --- Routes ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = (request.form.get("password") or "").strip()
         avatar_file = request.files.get("avatar")
-
         if not username or not password:
             return "Nom d'utilisateur et mot de passe requis.", 400
 
@@ -70,8 +66,7 @@ def register():
         avatar_filename = None
         if avatar_file and avatar_file.filename:
             avatar_filename = datetime.now().strftime("%Y%m%d%H%M%S_") + avatar_file.filename
-            avatar_path = os.path.join(AVATAR_FOLDER, avatar_filename)
-            avatar_file.save(avatar_path)
+            avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_filename))
 
         users.append({
             "username": username,
@@ -105,7 +100,6 @@ def logout():
     session.pop("avatar", None)
     return redirect(url_for("login"))
 
-# --- Flux principal ---
 @app.route("/", methods=["GET", "POST"])
 def index():
     if "username" not in session:
@@ -121,8 +115,7 @@ def index():
             return redirect(request.url)
 
         filename = datetime.now().strftime("%Y%m%d%H%M%S_") + file.filename
-        path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(path)
+        file.save(os.path.join(UPLOAD_FOLDER, filename))
 
         ext = file.filename.lower().rsplit('.', 1)[-1] if '.' in file.filename else ""
         file_type = "video" if ext in ["mp4", "webm", "ogg"] else "image"
@@ -148,13 +141,9 @@ def index():
     posts = load_posts()
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
-        p['comments_count'] = len(p.get("comments", []))  # Ajout du comptage
-    return render_template("style.html",
-                           posts=posts,
-                           username=session["username"],
-                           avatar=session.get("avatar"))
+        p['comments_count'] = len(p.get("comments", []))
+    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
-# --- Like route ---
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
     if "username" not in session:
@@ -171,9 +160,9 @@ def like_post(post_id):
         post.setdefault("liked_by", []).append(username)
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
+    socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "liked": username in post.get("liked_by", [])})
     return jsonify({"likes": post["likes"], "liked": username in post.get("liked_by", [])})
 
-# --- Page commentaires ---
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
     if "username" not in session:
@@ -187,21 +176,19 @@ def comments(post_id):
     if request.method == "POST":
         content = (request.form.get("comment") or "").strip()
         if content:
-            post.setdefault("comments", []).append({
+            comment_data = {
                 "username": session["username"],
                 "avatar": session.get("avatar"),
                 "content": content,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
+            }
+            post.setdefault("comments", []).append(comment_data)
             save_posts(posts)
+            socketio.emit('new_comment', {"post_id": post_id, **comment_data})
         return redirect(url_for("comments", post_id=post_id))
 
-    return render_template("comments.html",
-                           post=post,
-                           username=session["username"],
-                           avatar=session.get("avatar"))
+    return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
 
-# --- Page profil ---
 @app.route("/profile/<username>")
 def profile(username):
     user = get_user(username)
@@ -212,26 +199,20 @@ def profile(username):
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     for p in user_posts:
         p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
-        p['comments_count'] = len(p.get("comments", []))  # Ajout du comptage
-    return render_template("profile.html",
-                           profile_user=user,
-                           posts=user_posts,
-                           current_username=session.get("username"),
-                           current_avatar=session.get("avatar"))
+        p['comments_count'] = len(p.get("comments", []))
+    return render_template("profile.html", profile_user=user, posts=user_posts,
+                           current_username=session.get("username"), current_avatar=session.get("avatar"))
 
-# --- Page recherche utilisateurs ---
 @app.route("/search", methods=["GET"])
 def search_users():
     if "username" not in session:
         return redirect(url_for("login"))
-
     query = (request.args.get("q") or "").strip().lower()
     users = load_users()
     if query:
         users = [u for u in users if query in u["username"].lower()]
     return render_template("search.html", users=users, current_username=session["username"])
 
-# --- Static medias ---
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
@@ -239,6 +220,29 @@ def uploaded_file(filename):
 @app.route("/avatars/<filename>")
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
+
+# --- SocketIO events ---
+@socketio.on('send_comment')
+def handle_send_comment(data):
+    if "username" not in session:
+        return
+    post_id = data.get('post_id')
+    content = data.get('content')
+    if not post_id or not content:
+        return
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        return
+    comment_data = {
+        "username": session["username"],
+        "avatar": session.get("avatar"),
+        "content": content,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    post.setdefault("comments", []).append(comment_data)
+    save_posts(posts)
+    emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
