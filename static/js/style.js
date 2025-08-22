@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const currentUsername = document.body.dataset.username; // username du client
+    const currentUsername = document.body.dataset.username; // Assurez-vous de passer le username dans body
 
+    // ------------------ Gestion des likes ------------------
     async function toggleLike(button) {
         const post = button.closest('.post');
         const postId = post.dataset.postId;
@@ -49,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
             countEl.textContent = data.likes;
 
             const btn = post.querySelector('.like-btn');
-            // Ne changer la couleur que pour l'utilisateur qui a cliqué
+            // --- Ne changer la couleur que pour l'utilisateur qui a cliqué ---
             if (btn && data.user === currentUsername) {
                 btn.classList.toggle('liked');
             }
@@ -57,43 +58,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ------------------ Gestion des vidéos ------------------
-    const allVideos = new Set(); 
+    const allVideos = new Set(); // Stocke toutes les vidéos
     document.querySelectorAll('.post video').forEach(video => allVideos.add(video));
 
     function stopAllVideosExcept(currentVideo) {
         allVideos.forEach(video => {
             if (video !== currentVideo) {
                 video.pause();
-                video.currentTime = 0;
+                video.currentTime = 0; // Optionnel : remettre au début
             }
         });
     }
 
     function handleVideoVisibility() {
         const posts = document.querySelectorAll('.post');
-        let videoToPlay = null;
-
         posts.forEach(post => {
             const video = post.querySelector('video');
             if (video) {
                 const rect = post.getBoundingClientRect();
                 const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-                if (fullyVisible && !videoToPlay) {
-                    videoToPlay = video;
+                if (fullyVisible) {
+                    stopAllVideosExcept(video);
+                    video.play();
                 } else {
                     video.pause();
                 }
             }
         });
-
-        if (videoToPlay) {
-            stopAllVideosExcept(videoToPlay);
-            if (videoToPlay.paused) videoToPlay.play();
-        }
     }
+
+    // Gérer les nouvelles vidéos ajoutées dynamiquement
+    observer.observe(postsContainer, { childList: true, subtree: true });
+    observer.callback = mutations => {
+        mutations.forEach(m => {
+            m.addedNodes.forEach(node => {
+                if (node.nodeType === 1) {
+                    const video = node.querySelector('video');
+                    if (video) allVideos.add(video);
+                }
+            });
+        });
+    };
 
     window.addEventListener('scroll', handleVideoVisibility);
     window.addEventListener('resize', handleVideoVisibility);
-    handleVideoVisibility(); // initial check
+    handleVideoVisibility(); // Vérification au chargement initial
 });
+
