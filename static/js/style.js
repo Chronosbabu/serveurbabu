@@ -13,19 +13,17 @@ document.addEventListener('DOMContentLoaded', () => {
             countEl.textContent = data.likes;
 
             // --- Gestion apparence bouton like/love ---
-            if (data.liked) {
-                button.classList.add('liked');
-            } else {
-                button.classList.remove('liked');
-            }
+            if (data.liked) button.classList.add('liked');
+            else button.classList.remove('liked');
 
         } catch (err) {
             console.error("Erreur like:", err);
         }
     }
 
-    document.querySelectorAll('.like-btn').forEach(btn => {
-        btn.addEventListener('click', () => toggleLike(btn));
+    document.querySelectorAll('.post').forEach(post => {
+        const likeBtn = post.querySelector('.like-btn');
+        if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
     });
 
     // --- Observer pour posts ajoutés dynamiquement ---
@@ -34,12 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
             m.addedNodes.forEach(node => {
                 if (node.classList && node.classList.contains('post')) {
                     const likeBtn = node.querySelector('.like-btn');
-                    if (likeBtn) {
-                        likeBtn.addEventListener('click', () => toggleLike(likeBtn));
-                    }
+                    if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
 
                     const video = node.querySelector('video');
                     if (video) setupVideoObserver(video);
+
+                    const commentForm = node.querySelector('.comment-form');
+                    if (commentForm) setupCommentForm(commentForm);
                 }
             });
         });
@@ -60,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { threshold: 0.6 });
         io.observe(video);
     }
-
     document.querySelectorAll('video').forEach(video => setupVideoObserver(video));
 
     // --- Sauvegarde/restauration scroll ---
@@ -77,10 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const countEl = post.querySelector('.like-count');
             countEl.textContent = data.likes;
             const btn = post.querySelector('.like-btn');
-            if (btn) {
-                if (data.liked) btn.classList.add('liked');
-                else btn.classList.remove('liked');
-            }
+            if (btn) data.liked ? btn.classList.add('liked') : btn.classList.remove('liked');
         }
     });
 
@@ -103,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.querySelectorAll('.comment-form').forEach(form => {
+    function setupCommentForm(form) {
         form.addEventListener('submit', e => {
             e.preventDefault();
             const post = form.closest('.post');
@@ -115,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('send_comment', { post_id: postId, content });
             input.value = '';
         });
-    });
+    }
+
+    document.querySelectorAll('.comment-form').forEach(form => setupCommentForm(form));
 });
 
