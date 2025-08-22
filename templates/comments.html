@@ -15,7 +15,8 @@
         </p>
     </header>
 
-    <main class="scroll-box">
+    <!-- Zone scrollable des commentaires -->
+    <main class="scroll-box comments-box">
         {% for comment in post.comments %}
         <div class="comment">
             {% if comment.avatar %}
@@ -32,12 +33,14 @@
         {% endfor %}
     </main>
 
+    <!-- Formulaire fixé en bas -->
     <section class="comment-form">
         <form method="POST">
-            <textarea name="comment" placeholder="Écrire un commentaire..." required></textarea><br />
+            <textarea name="comment" placeholder="Écrire un commentaire..." required></textarea>
             <button type="submit">Commenter</button>
         </form>
     </section>
 </div>
 </body>
 </html>
+

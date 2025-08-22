@@ -152,12 +152,88 @@ a.username-link:hover { text-decoration: underline; }
     color: #111827;
 }
 
+/* --- COMMENTAIRES --- */
+.comment {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.avatar-comment {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid #ddd;
+}
+
+.comment-content {
+    flex: 1;
+    background: #f9fafb;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-align: left;
+}
+.comment-content p { margin-bottom: 4px; color: #111; }
+.comment-content small { font-size: 0.8rem; color: #6b7280; }
+
+/* boîte de commentaires scrollable */
+.comments-box {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 16px;
+    margin-bottom: 70px; /* espace pour le formulaire fixe */
+}
+
+/* formulaire fixé en bas */
+.comment-form {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border-top: 1px solid #ddd;
+    padding: 10px;
+    flex-shrink: 0;
+}
+
+.comment-form form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.comment-form textarea {
+    flex: 1;
+    resize: none;
+    min-height: 40px;
+    max-height: 80px;
+    padding: 8px;
+    font-size: 0.95rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.comment-form button {
+    padding: 8px 14px;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 6px;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+}
+.comment-form button:hover { background: #1e40af; }
+
 /* RESPONSIVE */
 @media (max-width: 600px) {
     .main-container { width: 100%; border-radius: 0; box-shadow: none; }
     .upload-section textarea { width: 96%; }
     .upload-section form input, .upload-section form button { width: 92%; }
-    .avatar-post, .avatar-header, .profile-avatar { width: 40px; height: 40px; }
+    .avatar-post, .avatar-header, .profile-avatar, .avatar-comment { width: 40px; height: 40px; }
     .post img.post-image, .post video { max-height: 260px; }
 }
 
