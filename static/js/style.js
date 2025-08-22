@@ -11,11 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await res.json();
             countEl.textContent = data.likes;
+
+            // --- Gestion apparence bouton like/love ---
             if (data.liked) {
                 button.classList.add('liked');
             } else {
                 button.classList.remove('liked');
             }
+
         } catch (err) {
             console.error("Erreur like:", err);
         }
@@ -25,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => toggleLike(btn));
     });
 
-    // --- Observer pour les posts ajoutés dynamiquement ---
+    // --- Observer pour posts ajoutés dynamiquement ---
     const observer = new MutationObserver(mutations => {
         mutations.forEach(m => {
             m.addedNodes.forEach(node => {
@@ -35,56 +38,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         likeBtn.addEventListener('click', () => toggleLike(likeBtn));
                     }
 
-                    // Gérer la lecture/pause des vidéos pour les nouveaux posts
                     const video = node.querySelector('video');
-                    if (video) {
-                        setupVideoObserver(video);
-                    }
+                    if (video) setupVideoObserver(video);
                 }
             });
         });
     });
 
     const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
-    if (postsContainer) {
-        observer.observe(postsContainer, { childList: true });
-    }
+    if (postsContainer) observer.observe(postsContainer, { childList: true });
 
-    // --- Gestion des vidéos ---
+    // --- Gestion vidéos ---
     function setupVideoObserver(video) {
-        const io = new IntersectionObserver((entries) => {
+        const io = new IntersectionObserver(entries => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    document.querySelectorAll('video').forEach(v => {
-                        if (v !== video) v.pause();
-                    });
+                    document.querySelectorAll('video').forEach(v => { if (v !== video) v.pause(); });
                     video.play().catch(err => console.log("Lecture vidéo bloquée:", err));
-                } else {
-                    video.pause();
-                }
+                } else video.pause();
             });
         }, { threshold: 0.6 });
-
         io.observe(video);
     }
 
-    document.querySelectorAll('video').forEach(video => {
-        setupVideoObserver(video);
-    });
+    document.querySelectorAll('video').forEach(video => setupVideoObserver(video));
 
-    // --- Sauvegarde et restauration du scroll ---
+    // --- Sauvegarde/restauration scroll ---
     const SCROLL_KEY = "scrollPosition";
-    if (sessionStorage.getItem(SCROLL_KEY)) {
-        window.scrollTo(0, parseInt(sessionStorage.getItem(SCROLL_KEY), 10));
-    }
-    window.addEventListener("beforeunload", () => {
-        sessionStorage.setItem(SCROLL_KEY, window.scrollY);
-    });
+    if (sessionStorage.getItem(SCROLL_KEY)) window.scrollTo(0, parseInt(sessionStorage.getItem(SCROLL_KEY), 10));
+    window.addEventListener("beforeunload", () => { sessionStorage.setItem(SCROLL_KEY, window.scrollY); });
 
     // --- SocketIO pour likes et commentaires en temps réel ---
     const socket = io();
 
-    // Mise à jour en temps réel d'un like
     socket.on('update_like', data => {
         const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
         if (post) {
@@ -98,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Mise à jour en temps réel des commentaires
     socket.on('new_comment', data => {
         const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
         if (post) {
@@ -112,14 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 commentsList.appendChild(commentEl);
 
-                // Mettre à jour le compteur de commentaires
                 const counter = post.querySelector('.comment-count');
                 if (counter) counter.textContent = parseInt(counter.textContent || "0") + 1;
             }
         }
     });
 
-    // Envoi d'un commentaire via SocketIO
     document.querySelectorAll('.comment-form').forEach(form => {
         form.addEventListener('submit', e => {
             e.preventDefault();
@@ -129,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const content = input.value.trim();
             if (!content) return;
 
-            socket.emit('send_comment', { post_id: postId, content: content });
+            socket.emit('send_comment', { post_id: postId, content });
             input.value = '';
         });
     });

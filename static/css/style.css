@@ -111,10 +111,24 @@ a.username-link:hover { text-decoration: underline; }
 /* POST ACTIONS */
 .post-actions { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
 .post-actions .like-btn {
-    cursor: pointer; background: none; border: none;
-    font-size: 1.2rem; color: #555; transition: color 0.2s;
+    cursor: pointer;
+    background: white;
+    border: 2px solid black;
+    font-size: 1.2rem;
+    color: black;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
 }
-.post-actions .like-btn.liked { color: #e0245e; }
+.post-actions .like-btn.liked {
+    background-color: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
+}
 .post-actions .like-count { font-size: 0.95rem; color: #555; }
 
 /* PROFILE HEADER */
