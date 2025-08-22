@@ -217,6 +217,18 @@ def profile(username):
                            current_username=session.get("username"),
                            current_avatar=session.get("avatar"))
 
+# --- Page recherche utilisateurs ---
+@app.route("/search", methods=["GET"])
+def search_users():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    query = (request.args.get("q") or "").strip().lower()
+    users = load_users()
+    if query:
+        users = [u for u in users if query in u["username"].lower()]
+    return render_template("search.html", users=users, current_username=session["username"])
+
 # --- Static medias ---
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):

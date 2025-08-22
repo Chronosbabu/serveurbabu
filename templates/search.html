@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Recherche d'utilisateurs</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+<div class="main-container">
+    <header>
+        <h2>🔍 Recherche d'utilisateurs</h2>
+        <p>
+            <a href="{{ url_for('index') }}">⬅ Retour aux publications</a>
+            | Connecté : <a href="{{ url_for('profile', username=current_username) }}">{{ current_username }}</a>
+        </p>
+    </header>
+
+    <section class="search-section">
+        <form method="GET">
+            <input type="text" name="q" placeholder="Rechercher un utilisateur..." value="{{ request.args.get('q', '') }}" />
+            <button type="submit">Rechercher</button>
+        </form>
+    </section>
+
+    <main class="scroll-box users-list">
+        {% if users|length == 0 %}
+            <p style="color:#6b7280;">Aucun utilisateur trouvé.</p>
+        {% else %}
+            {% for user in users %}
+            <div class="user-item">
+                {% if user.avatar %}
+                    <a href="{{ url_for('profile', username=user.username) }}">
+                        <img src="{{ url_for('avatar_file', filename=user.avatar) }}" alt="avatar" class="avatar-user" />
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('profile', username=user.username) }}">
+                        <div class="avatar-fallback">{{ user.username[:1]|upper }}</div>
+                    </a>
+                {% endif %}
+                <a class="username-link" href="{{ url_for('profile', username=user.username) }}">
+                    {{ user.username }}
+                </a>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </main>
+</div>
+</body>
+</html>
