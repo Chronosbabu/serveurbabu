@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const currentUsername = document.body.dataset.username; // injecté via template
+
     // --- Gestion des likes ---
     async function toggleLike(button) {
         const post = button.closest('.post');
@@ -21,13 +23,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Ajout des listeners aux posts existants ---
     document.querySelectorAll('.post').forEach(post => {
         const likeBtn = post.querySelector('.like-btn');
         if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
     });
 
-    // --- Observer pour posts ajoutés dynamiquement ---
+    // --- Observer posts dynamiques ---
     const observer = new MutationObserver(mutations => {
         mutations.forEach(m => {
             m.addedNodes.forEach(node => {
@@ -62,44 +63,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.querySelectorAll('video').forEach(video => setupVideoObserver(video));
 
-    // --- Sauvegarde/restauration scroll ---
-    const SCROLL_KEY = "scrollPosition";
-    if (sessionStorage.getItem(SCROLL_KEY)) window.scrollTo(0, parseInt(sessionStorage.getItem(SCROLL_KEY), 10));
-    window.addEventListener("beforeunload", () => { sessionStorage.setItem(SCROLL_KEY, window.scrollY); });
-
-    // --- SocketIO pour likes et commentaires en temps réel ---
+    // --- SocketIO ---
     const socket = io();
 
     socket.on('update_like', data => {
         const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-        if (post) {
-            const countEl = post.querySelector('.like-count');
-            countEl.textContent = data.likes;
+        if (!post) return;
 
-            // --- Changer l'apparence seulement si c'est CE client ---
+        const countEl = post.querySelector('.like-count');
+        countEl.textContent = data.likes;
+
+        // --- Apparence bouton seulement pour CE client ---
+        if (data.user === currentUsername) {
             const btn = post.querySelector('.like-btn');
-            if (btn && btn.dataset.userId === data.user_id) {
-                data.liked ? btn.classList.add('liked') : btn.classList.remove('liked');
-            }
+            if (btn) btn.classList.toggle('liked');
         }
     });
 
     socket.on('new_comment', data => {
         const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-        if (post) {
-            const commentsList = post.querySelector('.comments-list');
-            if (commentsList) {
-                const commentEl = document.createElement('div');
-                commentEl.classList.add('comment');
-                commentEl.innerHTML = `
-                    <img src="${data.avatar ? '/avatars/' + data.avatar : '/avatars/default.png'}" class="comment-avatar">
-                    <span class="comment-content"><strong>${data.username}</strong>: ${data.content}</span>
-                `;
-                commentsList.appendChild(commentEl);
+        if (!post) return;
 
-                const counter = post.querySelector('.comment-count');
-                if (counter) counter.textContent = parseInt(counter.textContent || "0") + 1;
-            }
+        const commentsList = post.querySelector('.comments-list');
+        if (commentsList) {
+            const commentEl = document.createElement('div');
+            commentEl.classList.add('comment');
+            commentEl.innerHTML = `
+                <img src="${data.avatar ? '/avatars/' + data.avatar : '/avatars/default.png'}" class="comment-avatar">
+                <span class="comment-content"><strong>${data.username}</strong>: ${data.content}</span>
+            `;
+            commentsList.appendChild(commentEl);
+
+            const counter = post.querySelector('.comment-count');
+            if (counter) counter.textContent = parseInt(counter.textContent || "0") + 1;
         }
     });
 
