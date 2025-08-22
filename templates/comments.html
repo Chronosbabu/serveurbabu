@@ -15,25 +15,31 @@
         </p>
     </header>
 
-    <!-- Zone scrollable des commentaires -->
-    <main class="scroll-box comments-box">
-        {% for comment in post.comments %}
-        <div class="comment">
-            {% if comment.avatar %}
-            <img src="{{ url_for('avatar_file', filename=comment.avatar) }}" alt="avatar" class="avatar-comment" />
-            {% else %}
-            <div class="avatar-fallback">{{ comment.username[:1]|upper }}</div>
-            {% endif %}
-            <div class="comment-content">
-                <p><strong>{{ comment.username }}</strong></p>
-                <p>{{ comment.content }}</p>
-                <small>{{ comment.date }}</small>
+    <!-- Seule cette zone scrolle -->
+    <main class="scroll-box comments-box" id="commentsBox">
+        {% if post.comments|length == 0 %}
+            <p style="color:#6b7280;">Aucun commentaire pour l’instant.</p>
+        {% else %}
+            {% for comment in post.comments %}
+            <div class="comment">
+                {% if comment.avatar %}
+                <img src="{{ url_for('avatar_file', filename=comment.avatar) }}" alt="avatar" class="avatar-comment" />
+                {% else %}
+                <div class="avatar-fallback" style="width:40px;height:40px;margin-right:10px;border:1px solid #ddd;">
+                    {{ comment.username[:1]|upper }}
+                </div>
+                {% endif %}
+                <div class="comment-content">
+                    <p><strong>{{ comment.username }}</strong></p>
+                    <p>{{ comment.content }}</p>
+                    <small>{{ comment.date }}</small>
+                </div>
             </div>
-        </div>
-        {% endfor %}
+            {% endfor %}
+        {% endif %}
     </main>
 
-    <!-- Formulaire fixé en bas -->
+    <!-- Cette section reste FIXE en bas -->
     <section class="comment-form">
         <form method="POST">
             <textarea name="comment" placeholder="Écrire un commentaire..." required></textarea>
