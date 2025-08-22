@@ -148,6 +148,7 @@ def index():
     posts = load_posts()
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))  # Ajout du comptage
     return render_template("style.html",
                            posts=posts,
                            username=session["username"],
@@ -211,6 +212,7 @@ def profile(username):
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     for p in user_posts:
         p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))  # Ajout du comptage
     return render_template("profile.html",
                            profile_user=user,
                            posts=user_posts,

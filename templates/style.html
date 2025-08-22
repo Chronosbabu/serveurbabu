@@ -62,7 +62,9 @@
             <div class="post-actions">
                 <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
                 <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-                <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">💬 Commentaires</a>
+                <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+                    💬 Commentaires ({{ post.comments_count if post.comments_count else 0 }})
+                </a>
             </div>
 
             <p class="date">Publié le {{ post.date }}</p>
@@ -97,7 +99,7 @@ socket.on('new_post', function(post) {
         <div class="post-actions">
             <button class="like-btn">❤️</button>
             <span class="like-count">0</span>
-            <a href="/comments/${post.id}" class="comment-btn">💬 Commentaires</a>
+            <a href="/comments/${post.id}" class="comment-btn">💬 Commentaires (0)</a>
         </div>
         <p class="date">Publié le ${post.date}</p>
     `;
