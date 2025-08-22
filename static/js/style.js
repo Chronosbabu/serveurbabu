@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             countEl.textContent = data.likes;
 
-            // --- Gestion apparence bouton like/love ---
-            if (data.liked) button.classList.add('liked');
+            // --- Appliquer le like uniquement au bouton du compte courant ---
+            if (data.user_liked) button.classList.add('liked');
             else button.classList.remove('liked');
 
         } catch (err) {
@@ -74,8 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (post) {
             const countEl = post.querySelector('.like-count');
             countEl.textContent = data.likes;
-            const btn = post.querySelector('.like-btn');
-            if (btn) data.liked ? btn.classList.add('liked') : btn.classList.remove('liked');
+
+            // --- Appliquer seulement si c'est le compte courant ---
+            const btn = post.querySelector('.like-btn[data-user-id]');
+            if (btn && btn.dataset.userId === data.user_id) {
+                data.user_liked ? btn.classList.add('liked') : btn.classList.remove('liked');
+            }
         }
     });
 
