@@ -55,4 +55,39 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // ------------------ Gestion des vidéos ------------------
+    const allVideos = new Set(); // Stocke toutes les vidéos
+    document.querySelectorAll('.post video').forEach(video => allVideos.add(video));
+
+    function stopAllVideosExcept(currentVideo) {
+        allVideos.forEach(video => {
+            if (video !== currentVideo) {
+                video.pause();
+                video.currentTime = 0; // Optionnel : remettre au début
+            }
+        });
+    }
+
+    function handleVideoVisibility() {
+        const posts = document.querySelectorAll('.post');
+        posts.forEach(post => {
+            const video = post.querySelector('video');
+            if (video) {
+                const rect = post.getBoundingClientRect();
+                if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+                    // Vidéo visible à l'écran
+                    stopAllVideosExcept(video);
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            }
+        });
+    }
+
+    window.addEventListener('scroll', handleVideoVisibility);
+    window.addEventListener('resize', handleVideoVisibility);
+    handleVideoVisibility(); // Vérification au chargement initial
 });
+
