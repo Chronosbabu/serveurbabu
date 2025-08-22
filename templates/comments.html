@@ -23,14 +23,18 @@
             {% for comment in post.comments %}
             <div class="comment">
                 {% if comment.avatar %}
-                <img src="{{ url_for('avatar_file', filename=comment.avatar) }}" alt="avatar" class="avatar-comment" />
+                <a href="{{ url_for('profile', username=comment.username) }}">
+                    <img src="{{ url_for('avatar_file', filename=comment.avatar) }}" alt="avatar" class="avatar-comment" />
+                </a>
                 {% else %}
-                <div class="avatar-fallback" style="width:40px;height:40px;margin-right:10px;border:1px solid #ddd;">
-                    {{ comment.username[:1]|upper }}
-                </div>
+                <a href="{{ url_for('profile', username=comment.username) }}">
+                    <div class="avatar-fallback" style="width:40px;height:40px;margin-right:10px;border:1px solid #ddd;">
+                        {{ comment.username[:1]|upper }}
+                    </div>
+                </a>
                 {% endif %}
                 <div class="comment-content">
-                    <p><strong>{{ comment.username }}</strong></p>
+                    <p><strong><a href="{{ url_for('profile', username=comment.username) }}">{{ comment.username }}</a></strong></p>
                     <p>{{ comment.content }}</p>
                     <small>{{ comment.date }}</small>
                 </div>
