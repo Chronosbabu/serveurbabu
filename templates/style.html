@@ -8,6 +8,20 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
+<style>
+/* Simple style pour le bouton like */
+.like-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #ff4d6d; /* couleur du cœur */
+    padding: 0;
+}
+.like-btn i {
+    pointer-events: none;
+}
+</style>
 </head>
 <body data-username="{{ username }}">
 <div class="main-container">
@@ -61,8 +75,8 @@
             {% endif %}
 
             <div class="post-actions">
-                <!-- bouton like vide par défaut -->
-                <button class="like-btn"></button>
+                <!-- bouton like avec icône -->
+                <button class="like-btn"><i class="fa-regular fa-heart"></i></button>
                 <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
                 <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
                     <i class="fa-regular fa-comment"></i>
@@ -78,6 +92,17 @@
 
 <script>
 const socket = io();
+
+function toggleLike(button) {
+    const icon = button.querySelector('i');
+    if (icon.classList.contains('fa-regular')) {
+        icon.classList.remove('fa-regular');
+        icon.classList.add('fa-solid');
+    } else {
+        icon.classList.remove('fa-solid');
+        icon.classList.add('fa-regular');
+    }
+}
 
 socket.on('new_post', function(post) {
     const postsContainer = document.getElementById('posts');
@@ -99,7 +124,7 @@ socket.on('new_post', function(post) {
             ? `<img src="/uploads/${post.file}" alt="image" class="post-image" />`
             : `<video src="/uploads/${post.file}" controls muted loop></video>`}
         <div class="post-actions">
-            <button class="like-btn"></button>
+            <button class="like-btn"><i class="fa-regular fa-heart"></i></button>
             <span class="like-count">0</span>
             <a href="/comments/${post.id}" class="comment-btn">
                 <i class="fa-regular fa-comment"></i>
