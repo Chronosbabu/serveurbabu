@@ -111,19 +111,20 @@ a.username-link:hover { text-decoration: underline; }
 /* POST ACTIONS */
 .post-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 
+/* Bouton like vide par défaut, rouge seulement si liked */
 .post-actions .like-btn {
     cursor: pointer;
     background: none;
     border: none;
     font-size: 1.4rem;
-    color: #333;
+    color: #333; /* couleur par défaut */
     display: flex;
     align-items: center;
     justify-content: center;
     transition: color 0.3s ease;
 }
 .post-actions .like-btn.liked {
-    color: red;
+    color: red; /* rouge uniquement quand liked */
 }
 .post-actions .like-count { font-size: 0.95rem; color: #555; }
 
