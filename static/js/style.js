@@ -28,14 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
   });
 
-  const observer = new MutationObserver(mutations => {
+  // ------------------ MUTATION OBSERVER (ajout de posts dynamiques) ------------------
+  const mutationObserver = new MutationObserver(mutations => {
     mutations.forEach(m => {
       m.addedNodes.forEach(node => {
         if (node.classList && node.classList.contains('post')) {
+          // gestion du bouton like
           const likeBtn = node.querySelector('.like-btn');
           if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
 
-          // --- vidéos ajoutées dynamiquement
+          // gestion des vidéos ajoutées dynamiquement
           const vids = node.querySelectorAll('video');
           vids.forEach(v => observeVideo(v));
         }
@@ -44,8 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
-  if (postsContainer) observer.observe(postsContainer, { childList: true, subtree: true });
+  if (postsContainer) mutationObserver.observe(postsContainer, { childList: true, subtree: true });
 
+  // ------------------ SOCKET.IO : mise à jour des likes en temps réel ------------------
   const socket = io();
   socket.on('update_like', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
@@ -60,14 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ------------------ GESTION DES VIDÉOS ------------------
+  // ------------------ INTERSECTION OBSERVER : gestion des vidéos ------------------
   const videos = new Set();
   let current = null;
 
   function observeVideo(vid) {
     if (!videos.has(vid)) {
       videos.add(vid);
-      io.observe(vid);
+      intersectionObserver.observe(vid);
       vid.pause(); // arrêt par défaut
       vid.addEventListener('play', () => {
         videos.forEach(v => { if (v !== vid && !v.paused) v.pause(); });
@@ -76,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  const io = new IntersectionObserver((entries) => {
+  const intersectionObserver = new IntersectionObserver((entries) => {
     entries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
 
     let best = null;
@@ -99,8 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
 
+  // appliquer à toutes les vidéos existantes
   document.querySelectorAll('.post video').forEach(observeVideo);
 
+  // quand on quitte l’onglet ou la fenêtre
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       videos.forEach(v => v.pause());
@@ -112,6 +117,5 @@ document.addEventListener('DOMContentLoaded', () => {
     current = null;
   });
 });
-
 
 
