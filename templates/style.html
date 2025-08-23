@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Publications</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
 </head>
@@ -63,7 +64,8 @@
                 <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
                 <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
                 <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-                    💬 Commentaires ({{ post.comments_count if post.comments_count else 0 }})
+                    <i class="fa-regular fa-comment"></i>
+                    <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
                 </a>
             </div>
 
@@ -76,7 +78,6 @@
 <script>
 const socket = io();
 
-// Mise à jour en temps réel pour les nouveaux posts
 socket.on('new_post', function(post) {
     const postsContainer = document.getElementById('posts');
     const postDiv = document.createElement('div');
@@ -90,22 +91,24 @@ socket.on('new_post', function(post) {
     postDiv.innerHTML = `
         <div class="user-info">
             ${avatarHtml}
-            <a class="username-link" href="/profile/${post.username}">
-                <p class="username">${post.username}</p>
-            </a>
+            <a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a>
         </div>
         <p class="description">${post.description}</p>
-        ${post.type === 'image' ? `<img src="/uploads/${post.file}" alt="image" class="post-image" />` : `<video src="/uploads/${post.file}" controls muted loop></video>`}
+        ${post.type === 'image'
+            ? `<img src="/uploads/${post.file}" alt="image" class="post-image" />`
+            : `<video src="/uploads/${post.file}" controls muted loop></video>`}
         <div class="post-actions">
             <button class="like-btn">❤️</button>
             <span class="like-count">0</span>
-            <a href="/comments/${post.id}" class="comment-btn">💬 Commentaires (0)</a>
+            <a href="/comments/${post.id}" class="comment-btn">
+                <i class="fa-regular fa-comment"></i>
+                <span class="comment-count">0</span>
+            </a>
         </div>
         <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(postDiv);
 
-    // Activer le like sur le post ajouté dynamiquement
     const likeBtn = postDiv.querySelector('.like-btn');
     likeBtn.addEventListener('click', () => toggleLike(likeBtn));
 });

@@ -109,7 +109,8 @@ a.username-link:hover { text-decoration: underline; }
 .post .date { margin-top: 8px; font-size: 0.9rem; color: #6b7280; }
 
 /* POST ACTIONS */
-.post-actions { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+.post-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
+
 .post-actions .like-btn {
     cursor: pointer;
     background: white;
@@ -130,6 +131,24 @@ a.username-link:hover { text-decoration: underline; }
     color: #fff;
 }
 .post-actions .like-count { font-size: 0.95rem; color: #555; }
+
+/* Bouton commentaire style TikTok/Facebook */
+.post-actions .comment-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #333;
+    text-decoration: none;
+}
+.post-actions .comment-btn i {
+    font-size: 1.2rem;
+}
+.post-actions .comment-count {
+    font-size: 0.95rem;
+    color: #555;
+}
 
 /* PROFILE HEADER */
 .profile-header {
@@ -170,14 +189,12 @@ a.username-link:hover { text-decoration: underline; }
 .comment-content p { margin-bottom: 4px; color: #111; }
 .comment-content small { font-size: 0.8rem; color: #6b7280; }
 
-/* Zone scrollable pour les messages uniquement */
 .comments-box {
     flex: 1 1 auto;
     overflow-y: auto;
     padding: 16px;
 }
 
-/* Formulaire FIXE en bas (ne scrolle pas) */
 .comment-form {
     position: fixed;
     bottom: 10px;
