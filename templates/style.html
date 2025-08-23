@@ -61,7 +61,8 @@
             {% endif %}
 
             <div class="post-actions">
-                <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
+                <!-- Suppression de la classe 'liked' au départ -->
+                <button class="like-btn">❤️</button>
                 <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
                 <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
                     <i class="fa-regular fa-comment"></i>
