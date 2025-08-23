@@ -7,34 +7,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const postId = post.dataset.postId;
     const countEl = post.querySelector('.like-count');
 
-    // toggle visuel immédiat pour fluidité UX
-    const liked = button.classList.toggle('liked');
-
-    // on met à jour le compteur localement
-    let currentCount = parseInt(countEl.textContent || "0");
-    countEl.textContent = liked ? currentCount + 1 : Math.max(currentCount - 1, 0);
-
     try {
-      // envoi requête serveur pour sauvegarder
-      const res = await fetch(`/like/${postId}`, { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: currentUsername })
-      });
-      if (!res.ok) throw new Error("Échec requête like");
+      const res = await fetch(`/like/${postId}`, { method: 'POST' });
+      if (!res.ok) return;
 
       const data = await res.json();
-      // synchronisation compteur réel serveur
       countEl.textContent = data.likes;
 
-      // synchronisation visuelle (si serveur indique que le client a like ou pas)
+      // Apparence bouton seulement pour CE client
       if (data.liked) button.classList.add('liked');
       else button.classList.remove('liked');
     } catch (err) {
       console.error("Erreur like:", err);
-      // rollback visuel en cas d'erreur
-      button.classList.toggle('liked');
-      countEl.textContent = parseInt(countEl.textContent || "0") - (liked ? 1 : 0);
     }
   }
 
@@ -48,12 +32,15 @@ document.addEventListener('DOMContentLoaded', () => {
     mutations.forEach(m => {
       m.addedNodes.forEach(node => {
         if (node.classList && node.classList.contains('post')) {
+          // gestion du bouton like
           const likeBtn = node.querySelector('.like-btn');
           if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
 
+          // gestion des vidéos ajoutées dynamiquement
           const vids = node.querySelectorAll('video');
           vids.forEach(v => observeVideo(v));
 
+          // gestion des formulaires de commentaires dynamiques
           const commentForm = node.querySelector('.comment-form');
           if (commentForm) bindCommentForm(commentForm);
         }
@@ -75,10 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
       countEl.textContent = data.likes;
 
       const btn = post.querySelector('.like-btn');
-      if (btn) {
-        if (data.user === currentUsername) {
-          btn.classList.toggle('liked', data.liked);
-        }
+      if (btn && data.user === currentUsername) {
+        btn.classList.toggle('liked');
       }
     }
   });
@@ -87,9 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('new_comment', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if (post) {
+      // mettre à jour compteur
       const countEl = post.querySelector('.comment-count');
       if (countEl) countEl.textContent = parseInt(countEl.textContent || "0") + 1;
 
+      // ajouter visuellement dans la liste si elle existe
       const list = post.querySelector('.comments-list');
       if (list) {
         const li = document.createElement('li');
@@ -99,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---- formulaire commentaire ----
+  // ---- fonction pour binder un formulaire commentaire ----
   function bindCommentForm(form) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -113,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // appliquer aux formulaires déjà présents
   document.querySelectorAll('.comment-form').forEach(bindCommentForm);
 
   // ------------------ INTERSECTION OBSERVER : gestion des vidéos ------------------
@@ -123,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!videos.has(vid)) {
       videos.add(vid);
       intersectionObserver.observe(vid);
-      vid.pause();
+      vid.pause(); // arrêt par défaut
       vid.addEventListener('play', () => {
         videos.forEach(v => { if (v !== vid && !v.paused) v.pause(); });
         current = vid;
@@ -154,8 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
 
+  // appliquer à toutes les vidéos existantes
   document.querySelectorAll('.post video').forEach(observeVideo);
 
+  // quand on quitte l’onglet ou la fenêtre
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       videos.forEach(v => v.pause());

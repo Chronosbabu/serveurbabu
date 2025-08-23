@@ -44,7 +44,7 @@ header a:hover { text-decoration: underline; }
     object-fit: cover; display: block; margin: 10px auto 0 auto;
 }
 
-/* SECTION UPLOAD */
+/* SECTION UPLOAD (page fil) */
 .upload-section {
     padding: 14px;
     text-align: center;
@@ -87,7 +87,7 @@ a.avatar-link, a.username-link {
 }
 a.username-link:hover { text-decoration: underline; }
 
-/* POSTS */
+/* POSTS (fil & profil) */
 .avatar-post, .profile-avatar {
     width: 44px; height: 44px; border-radius: 50%;
     object-fit: cover; display: inline-block; vertical-align: middle;
@@ -111,13 +111,13 @@ a.username-link:hover { text-decoration: underline; }
 /* POST ACTIONS */
 .post-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 
-/* Bouton like : vide par défaut, devient rouge quand liked */
 .post-actions .like-btn {
     cursor: pointer;
-    background: none;
-    border: none;
+    background: white;
+    border: 2px solid black;
     font-size: 1.2rem;
     color: black;
+    border-radius: 50%;
     width: 32px;
     height: 32px;
     display: flex;
@@ -126,9 +126,10 @@ a.username-link:hover { text-decoration: underline; }
     transition: all 0.3s ease;
 }
 .post-actions .like-btn.liked {
-    color: red;
+    background-color: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
 }
-
 .post-actions .like-count { font-size: 0.95rem; color: #555; }
 
 /* Bouton commentaire style TikTok/Facebook */
@@ -163,7 +164,7 @@ a.username-link:hover { text-decoration: underline; }
     padding: 12px 16px; color: #111827;
 }
 
-/* --- COMMENTAIRES --- */
+/* --- COMMENTAIRES (page comments.html) --- */
 .comment {
     display: flex;
     align-items: flex-start;
