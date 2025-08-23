@@ -112,7 +112,7 @@ def index():
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 # --- Nouvelle route pour créer un post ---
-@app.route("/add_post", methods=["GET", "POST"])
+@app.route("new_post/", methods=["GET", "POST"])
 def add_post():
     if "username" not in session:
         return redirect(url_for("login"))
