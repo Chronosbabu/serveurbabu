@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const likeBtn = node.querySelector('.like-btn');
           if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
 
-          // gestion des vidéos ajoutées dynamiquement
+          // gestion des vidéos ajoutées dynamiques
           const vids = node.querySelectorAll('video');
           vids.forEach(v => observeVideo(v));
 
