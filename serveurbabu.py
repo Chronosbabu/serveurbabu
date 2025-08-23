@@ -18,8 +18,9 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
+MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
-for file_path, default in [(DATA_FILE, []), (USER_FILE, [])]:
+for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -43,6 +44,14 @@ def save_users(users):
     with open(USER_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
+def load_messages():
+    with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_messages(messages):
+    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -50,7 +59,7 @@ def get_user(username):
     users = load_users()
     return next((u for u in users if u.get("username") == username), None)
 
-# --- Routes ---
+# --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -112,7 +121,6 @@ def index():
         p['comments_count'] = len(p.get("comments", []))
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
-# --- Nouvelle route pour créer un post avec texte + fichiers ---
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
     if "username" not in session:
@@ -172,7 +180,6 @@ def like_post(post_id):
 
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
-
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
 
@@ -234,7 +241,53 @@ def uploaded_file(filename):
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
-# --- SocketIO events ---
+# --- Routes Messages ---
+@app.route("/conversations")
+def conversations():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    messages = load_messages()
+    user_conversations = []
+    for u, conv in messages.items():
+        if session["username"] in [u.split("_")[0], u.split("_")[1]]:
+            other = u.replace(session["username"], "").replace("_", "")
+            last_msg = conv[-1]["text"] if conv else ""
+            user_conversations.append({"username": other, "last_msg": last_msg})
+    return render_template("conversations.html", conversations=user_conversations)
+
+@app.route("/chat/<username>")
+def chat(username):
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    messages = load_messages()
+    key1 = f"{session['username']}_{username}"
+    key2 = f"{username}_{session['username']}"
+    conv = messages.get(key1) or messages.get(key2) or []
+    return render_template("chat.html", chat_user=username, messages=conv)
+
+# --- SocketIO Messages ---
+@socketio.on("send_message")
+def handle_send_message(data):
+    sender = session.get("username")
+    receiver = data.get("receiver")
+    text = data.get("text")
+    if not sender or not receiver or not text:
+        return
+    messages = load_messages()
+    key1 = f"{sender}_{receiver}"
+    key2 = f"{receiver}_{sender}"
+    if key1 in messages:
+        messages[key1].append({"sender": sender, "text": text, "date": datetime.now().isoformat()})
+    elif key2 in messages:
+        messages[key2].append({"sender": sender, "text": text, "date": datetime.now().isoformat()})
+    else:
+        messages[key1] = [{"sender": sender, "text": text, "date": datetime.now().isoformat()}]
+    save_messages(messages)
+    emit("new_message", {"sender": sender, "text": text}, room=receiver)
+
+# --- SocketIO Comments existants ---
 @socketio.on('send_comment')
 def handle_send_comment(data):
     if "username" not in session:
@@ -260,3 +313,4 @@ def handle_send_comment(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #f0f2f5;
+        }
+        .header {
+            background: #007BFF;
+            color: #fff;
+            padding: 15px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .chat-box {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        .message {
+            max-width: 70%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            clear: both;
+        }
+        .message.sent {
+            background: #007BFF;
+            color: #fff;
+            margin-left: auto;
+        }
+        .message.received {
+            background: #e4e6eb;
+            color: #000;
+            margin-right: auto;
+        }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            background: #fff;
+            border-top: 1px solid #ccc;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+        .input-area button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: #007BFF;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Chat avec <span id="chatUser">Utilisateur</span></div>
+    <div class="chat-box" id="chatBox">
+        <!-- Messages dynamiques ici -->
+    </div>
+    <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Écris un message...">
+        <button onclick="sendMessage()">Envoyer</button>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatUser = urlParams.get('user');
+        document.getElementById('chatUser').textContent = chatUser;
+
+        const chatBox = document.getElementById('chatBox');
+
+        // Exemple de messages
+        const messages = [
+            {type: 'received', text: 'Salut!'},
+            {type: 'sent', text: 'Bonjour!'},
+            {type: 'received', text: 'Comment ça va?'}
+        ];
+
+        function renderMessages() {
+            chatBox.innerHTML = '';
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${msg.type}`;
+                div.textContent = msg.text;
+                chatBox.appendChild(div);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if (text === '') return;
+            messages.push({type: 'sent', text});
+            input.value = '';
+            renderMessages();
+        }
+
+        renderMessages();
+    </script>
+</body>
+</html>
