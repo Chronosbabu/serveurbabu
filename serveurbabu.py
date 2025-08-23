@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_from_
 from flask_socketio import SocketIO, emit
 import os, json, hashlib
 from datetime import datetime
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -65,7 +66,7 @@ def register():
 
         avatar_filename = None
         if avatar_file and avatar_file.filename:
-            avatar_filename = datetime.now().strftime("%Y%m%d%H%M%S_") + avatar_file.filename
+            avatar_filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
             avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_filename))
 
         users.append({
@@ -111,7 +112,7 @@ def index():
         p['comments_count'] = len(p.get("comments", []))
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
-# --- Nouvelle route pour créer un post ---
+# --- Nouvelle route pour créer un post avec texte + fichiers ---
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
     if "username" not in session:
@@ -119,16 +120,26 @@ def add_post():
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
-        if not content:
-            return redirect(request.url)
+        media_file = request.files.get("media")
+        filename = None
+        media_type = "text"
+
+        if media_file and media_file.filename:
+            filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
+            media_file.save(os.path.join(UPLOAD_FOLDER, filename))
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                media_type = "image"
+            elif ext in [".mp4", ".mov", ".avi", ".webm"]:
+                media_type = "video"
 
         posts = load_posts()
         new_post = {
             "id": len(posts) + 1,
             "username": session["username"],
             "avatar": session.get("avatar"),
-            "type": "text",
-            "file": None,
+            "type": media_type,
+            "file": filename,
             "description": content,
             "likes": 0,
             "liked_by": [],
