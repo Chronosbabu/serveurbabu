@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username; // username du client
 
@@ -40,6 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
           // gestion des vidéos ajoutées dynamiquement
           const vids = node.querySelectorAll('video');
           vids.forEach(v => observeVideo(v));
+
+          // gestion des formulaires de commentaires dynamiques
+          const commentForm = node.querySelector('.comment-form');
+          if (commentForm) bindCommentForm(commentForm);
         }
       });
     });
@@ -48,8 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
   if (postsContainer) mutationObserver.observe(postsContainer, { childList: true, subtree: true });
 
-  // ------------------ SOCKET.IO : mise à jour des likes en temps réel ------------------
+  // ------------------ SOCKET.IO ------------------
   const socket = io();
+
+  // ---- likes en temps réel ----
   socket.on('update_like', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if (post) {
@@ -62,6 +67,41 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // ---- commentaires en temps réel ----
+  socket.on('new_comment', data => {
+    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+    if (post) {
+      // mettre à jour compteur
+      const countEl = post.querySelector('.comment-count');
+      if (countEl) countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+
+      // ajouter visuellement dans la liste si elle existe
+      const list = post.querySelector('.comments-list');
+      if (list) {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${data.username}</strong>: ${data.content}`;
+        list.appendChild(li);
+      }
+    }
+  });
+
+  // ---- fonction pour binder un formulaire commentaire ----
+  function bindCommentForm(form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input[name="comment"]');
+      const content = input.value.trim();
+      if (content) {
+        const postId = form.dataset.postId;
+        socket.emit('send_comment', { post_id: parseInt(postId), content });
+        input.value = "";
+      }
+    });
+  }
+
+  // appliquer aux formulaires déjà présents
+  document.querySelectorAll('.comment-form').forEach(bindCommentForm);
 
   // ------------------ INTERSECTION OBSERVER : gestion des vidéos ------------------
   const videos = new Set();
