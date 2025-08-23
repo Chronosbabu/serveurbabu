@@ -26,9 +26,11 @@
                 <i class="fa-regular fa-user"></i>
             </a>
             <!-- Bouton Conversations -->
-            <a href="conversations.html" title="Messages">
-                <i class="fa-regular fa-comment-dots"></i>
-            </a>
+            <a href="{{ url_for('conversations') }}" title="Messages">
+    		<i class="fa-regular fa-message"></i>
+		</a>
+
+
             <!-- Bouton Déconnexion -->
             <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn">
                 <i class="fa-solid fa-right-from-bracket"></i>
