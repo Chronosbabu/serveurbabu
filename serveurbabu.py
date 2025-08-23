@@ -105,29 +105,31 @@ def index():
     if "username" not in session:
         return redirect(url_for("login"))
 
+    posts = load_posts()
+    for p in posts:
+        p['liked_by_user'] = session["username"] in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))
+    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
+
+# ✅ Nouvelle route pour créer un post depuis new_post.html
+@app.route("/add_post", methods=["GET", "POST"])
+def add_post():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
     if request.method == "POST":
-        description = (request.form.get("description") or "").strip()
-        if "file" not in request.files or not description:
+        content = (request.form.get("content") or "").strip()
+        if not content:
             return redirect(request.url)
-
-        file = request.files["file"]
-        if not file or file.filename == "":
-            return redirect(request.url)
-
-        filename = datetime.now().strftime("%Y%m%d%H%M%S_") + file.filename
-        file.save(os.path.join(UPLOAD_FOLDER, filename))
-
-        ext = file.filename.lower().rsplit('.', 1)[-1] if '.' in file.filename else ""
-        file_type = "video" if ext in ["mp4", "webm", "ogg"] else "image"
 
         posts = load_posts()
         new_post = {
             "id": len(posts) + 1,
             "username": session["username"],
             "avatar": session.get("avatar"),
-            "type": file_type,
-            "file": filename,
-            "description": description,
+            "type": "text",
+            "file": None,
+            "description": content,
             "likes": 0,
             "liked_by": [],
             "comments": [],
@@ -138,11 +140,7 @@ def index():
         socketio.emit('new_post', new_post)
         return redirect(url_for("index"))
 
-    posts = load_posts()
-    for p in posts:
-        p['liked_by_user'] = session["username"] in p.get("liked_by", [])
-        p['comments_count'] = len(p.get("comments", []))
-    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
+    return render_template("new_post.html")
 
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
@@ -164,11 +162,9 @@ def like_post(post_id):
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
 
-    # --- Correction : on envoie l'utilisateur qui a liké ---
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
 
-# --- Les autres routes restent inchangées ---
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
     if "username" not in session:
