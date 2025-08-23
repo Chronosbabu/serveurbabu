@@ -1,113 +1,84 @@
+
 document.addEventListener('DOMContentLoaded', () => {
-    const currentUsername = document.body.dataset.username; // username du client
+  // … tout ton code existant (likes, socket, etc.) reste identique …
 
-    async function toggleLike(button) {
-        const post = button.closest('.post');
-        const postId = post.dataset.postId;
-        const countEl = post.querySelector('.like-count');
+  // ------------------ Gestion des vidéos : UNE SEULE lit à la fois ------------------
+  const videos = new Set();
+  let current = null;
 
-        try {
-            const res = await fetch(`/like/${postId}`, { method: 'POST' });
-            if (!res.ok) return;
+  // Observe aussi les posts ajoutés dynamiquement (on réutilise ton observer existant si tu l'as)
+  function observeVideo(vid) {
+    if (!videos.has(vid)) {
+      videos.add(vid);
+      io.observe(vid);
+      vid.pause(); // par défaut à l'arrêt
+      // si l’utilisateur clique manuellement une vidéo, on coupe les autres
+      vid.addEventListener('play', () => {
+        videos.forEach(v => { if (v !== vid && !v.paused) v.pause(); });
+        current = vid;
+      });
+    }
+  }
 
-            const data = await res.json();
-            countEl.textContent = data.likes;
+  // IntersectionObserver : joue la vidéo la plus visible (>60%), sinon pause toutes
+  const io = new IntersectionObserver((entries) => {
+    // on trie par taux de visibilité décroissant
+    entries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
 
-            // Apparence bouton seulement pour CE client
-            if (data.liked) button.classList.add('liked');
-            else button.classList.remove('liked');
-        } catch (err) {
-            console.error("Erreur like:", err);
-        }
+    // vidéo “candidate” à lire (la plus visible au-dessus du seuil)
+    let best = null;
+    for (const entry of entries) {
+      const vid = entry.target;
+      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+      if (visible && !best) best = vid;
+      // si elle n’est plus suffisamment visible -> pause
+      if (!visible && !vid.paused) vid.pause();
     }
 
-    document.querySelectorAll('.post').forEach(post => {
-        const likeBtn = post.querySelector('.like-btn');
-        if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
-    });
-
-    const observer = new MutationObserver(mutations => {
-        mutations.forEach(m => {
-            m.addedNodes.forEach(node => {
-                if (node.classList && node.classList.contains('post')) {
-                    const likeBtn = node.querySelector('.like-btn');
-                    if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
-
-                    // --- NOUVEAU : brancher les nouvelles vidéos ajoutées dynamiquement
-                    const vid = node.querySelector('video');
-                    if (vid) observeVideo(vid);
-                }
-            });
-        });
-    });
-
-    const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
-    if (postsContainer) observer.observe(postsContainer, { childList: true });
-
-    const socket = io();
-
-    socket.on('update_like', data => {
-        const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-        if (post) {
-            const countEl = post.querySelector('.like-count');
-            countEl.textContent = data.likes;
-
-            const btn = post.querySelector('.like-btn');
-            // Ne changer la couleur que pour l'utilisateur qui a cliqué
-            if (btn && data.user === currentUsername) {
-                btn.classList.toggle('liked');
-            }
-        }
-    });
-
-    // ------------------ Gestion des vidéos (UNE SEULE lit à la fois) ------------------
-    const allVideos = new Set();
-    let playingVideo = null;
-
-    function stopAllExcept(current) {
-        allVideos.forEach(v => {
-            if (v !== current && !v.paused) v.pause();
-        });
+    if (best) {
+      // lecture exclusive
+      if (current && current !== best) current.pause();
+      videos.forEach(v => { if (v !== best && !v.paused) v.pause(); });
+      current = best;
+      const p = best.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {}); // ignore autoplay block
+    } else {
+      // aucune vidéo au-dessus du seuil => toutes en pause
+      videos.forEach(v => { if (!v.paused) v.pause(); });
+      current = null;
     }
+  }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
 
-    const io = new IntersectionObserver((entries) => {
-        // Traiter d'abord ce qui est le plus visible
-        entries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+  // Brancher les vidéos présentes
+  document.querySelectorAll('.post video').forEach(observeVideo);
 
-        entries.forEach(entry => {
-            const video = entry.target;
-
-            if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-                // Cette vidéo est vraiment visible => lecture exclusive
-                stopAllExcept(video);
-                if (playingVideo && playingVideo !== video) playingVideo.pause();
-                playingVideo = video;
-                const p = video.play();
-                if (p && typeof p.catch === 'function') p.catch(() => {});
-            } else {
-                // Plus assez visible => pause
-                if (!video.paused) video.pause();
-                if (playingVideo === video) playingVideo = null;
-            }
+  // Si tu as déjà un MutationObserver pour les posts, ajoute juste :
+  const postsContainer = document.getElementById('posts') || document.getElementById('profile-posts');
+  if (postsContainer) {
+    const mo = new MutationObserver(muts => {
+      muts.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType === 1) {
+            node.querySelectorAll && node.querySelectorAll('video').forEach(observeVideo);
+            if (node.matches && node.matches('video')) observeVideo(node);
+          }
         });
-    }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
-
-    function observeVideo(video) {
-        if (!allVideos.has(video)) {
-            allVideos.add(video);
-            io.observe(video);
-        }
-    }
-
-    // Brancher toutes les vidéos présentes au chargement
-    document.querySelectorAll('.post video').forEach(observeVideo);
-
-    // Quand l’onglet perd le focus, on coupe la lecture
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden && playingVideo) {
-            playingVideo.pause();
-            playingVideo = null;
-        }
+      });
     });
+    mo.observe(postsContainer, { childList: true, subtree: true });
+  }
+
+  // Quand l’onglet ou la fenêtre perd le focus -> pause tout
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      videos.forEach(v => v.pause());
+      current = null;
+    }
+  });
+  window.addEventListener('blur', () => {
+    videos.forEach(v => v.pause());
+    current = null;
+  });
 });
+
 
