@@ -1,3 +1,4 @@
+
 /* RESET */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -111,20 +112,20 @@ a.username-link:hover { text-decoration: underline; }
 /* POST ACTIONS */
 .post-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 
-/* Bouton like vide par défaut, rouge seulement si liked */
+/* === MODIFICATION BOUTON LIKE === */
 .post-actions .like-btn {
     cursor: pointer;
-    background: none;
-    border: none;
-    font-size: 1.4rem;
-    color: #333; /* couleur par défaut */
+    background: none;        /* vide par défaut */
+    border: none;            /* plus de cercle */
+    font-size: 1.2rem;
+    color: black;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.3s ease;
+    transition: all 0.3s ease;
 }
 .post-actions .like-btn.liked {
-    color: red; /* rouge uniquement quand liked */
+    color: red;             /* devient rouge quand liké */
 }
 .post-actions .like-count { font-size: 0.95rem; color: #555; }
 
@@ -316,4 +317,3 @@ a.username-link:hover { text-decoration: underline; }
     .post img.post-image, .post video { max-height: 260px; }
     .search-section input[type="text"] { max-width: 70%; }
 }
-
