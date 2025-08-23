@@ -29,6 +29,11 @@
         <div class="profile-meta">
             <h1>@{{ profile_user.username }}</h1>
             <p>{{ profile_user.bio if profile_user.bio else "Aucune bio pour le moment." }}</p>
+
+            <!-- Bouton Message visible uniquement pour les autres utilisateurs -->
+            {% if current_username != profile_user.username %}
+                <button id="message-btn">💬 Envoyer un message</button>
+            {% endif %}
         </div>
     </div>
 
@@ -72,6 +77,39 @@
         {% endif %}
     </main>
 </div>
+
+<script>
+// Script pour le bouton message
+document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("message-btn");
+    if (btn) {
+        btn.addEventListener("click", () => {
+            const message = prompt(`Envoyer un message à {{ profile_user.username }} :`);
+            if (message && message.trim() !== "") {
+                fetch("/send_message", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        recipient: "{{ profile_user.username }}",
+                        message: message
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        alert("Message envoyé !");
+                        // Rediriger vers la page conversations
+                        window.location.href = "{{ url_for('conversations') }}";
+                    } else {
+                        alert("Erreur lors de l'envoi du message.");
+                    }
+                });
+            }
+        });
+    }
+});
+</script>
+
 </body>
 </html>
 
