@@ -111,7 +111,7 @@ def index():
         p['comments_count'] = len(p.get("comments", []))
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
-# ✅ Nouvelle route pour créer un post depuis new_post.html
+# --- Nouvelle route pour créer un post ---
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
     if "username" not in session:
@@ -249,4 +249,3 @@ def handle_send_comment(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
