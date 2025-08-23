@@ -9,7 +9,7 @@
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
 </head>
-<body>
+<body data-username="{{ username }}">
 <div class="main-container">
     <header>
         <h2>📢 Espace de Publication</h2>
@@ -61,8 +61,8 @@
             {% endif %}
 
             <div class="post-actions">
-                <!-- Suppression de la classe 'liked' au départ -->
-                <button class="like-btn">❤️</button>
+                <!-- bouton like vide par défaut -->
+                <button class="like-btn"></button>
                 <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
                 <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
                     <i class="fa-regular fa-comment"></i>
@@ -99,7 +99,7 @@ socket.on('new_post', function(post) {
             ? `<img src="/uploads/${post.file}" alt="image" class="post-image" />`
             : `<video src="/uploads/${post.file}" controls muted loop></video>`}
         <div class="post-actions">
-            <button class="like-btn">❤️</button>
+            <button class="like-btn"></button>
             <span class="like-count">0</span>
             <a href="/comments/${post.id}" class="comment-btn">
                 <i class="fa-regular fa-comment"></i>
@@ -114,7 +114,6 @@ socket.on('new_post', function(post) {
     likeBtn.addEventListener('click', () => toggleLike(likeBtn));
 });
 </script>
-
 </body>
 </html>
 
