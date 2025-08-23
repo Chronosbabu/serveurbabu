@@ -32,12 +32,26 @@ header {
     background-color: #ffffff;
     border-bottom: 1px solid #eaeaea;
     flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-header h2 { font-size: 1.2rem; margin-bottom: 6px; }
+header h2 { font-size: 1.2rem; margin-bottom: 0; }
 header p { font-size: 0.95rem; color: #444; }
 header a { color: #2563eb; text-decoration: none; }
 header a:hover { text-decoration: underline; }
+
+.header-icons {
+    display: flex;
+    align-items: center;
+    gap: 16px; /* espace entre les icônes */
+}
+
+.logout-btn {
+    margin-left: 20px; /* espace supplémentaire pour éloigner de la dernière icône */
+    color: #f87171; /* rouge léger pour signaler déconnexion */
+}
 
 .avatar-header {
     width: 48px; height: 48px; border-radius: 50%;
