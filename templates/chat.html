@@ -3,7 +3,133 @@
 <head>
 <meta charset="UTF-8">
 <title>Chat avec {{ chat_user }}</title>
-<link rel="stylesheet" href="/static/chat_conversations.css">
+<link rel="stylesheet" href="/static/chat.css">
+<style>
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #e5ddd5;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Header */
+.header {
+    background: #075E54;
+    color: #fff;
+    text-align: center;
+    padding: 15px;
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+}
+
+/* Zone scrollable pour les messages */
+.messages {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Message individuel */
+.message {
+    padding: 10px 14px;
+    border-radius: 20px;
+    max-width: 75%;
+    line-height: 1.4;
+    font-size: 15px;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    animation: fadeIn 0.2s ease;
+}
+
+/* Messages envoyés par moi */
+.from-me {
+    background: #dcf8c6;
+    align-self: flex-end;
+}
+
+/* Messages reçus */
+.from-other {
+    background: #fff;
+    align-self: flex-start;
+}
+
+/* Aucun message */
+.no-messages {
+    text-align: center;
+    color: #888;
+    margin-top: 20px;
+}
+
+/* Zone de saisie fixe */
+.input-box {
+    display: flex;
+    padding: 10px;
+    background: #fff;
+    border-top: 1px solid #ccc;
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    gap: 8px;
+}
+
+.input-box input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 25px;
+    font-size: 15px;
+}
+
+.input-box button {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    border: none;
+    background: #25D366;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.input-box button:hover {
+    background: #128C7E;
+}
+
+/* Scrollbar fluide */
+.messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 3px;
+}
+
+/* Animation des messages */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media screen and (max-width: 600px) {
+    .message { font-size: 14px; max-width: 85%; }
+    .input-box input { font-size: 14px; }
+    .input-box button { width: 40px; height: 40px; font-size: 16px; }
+    .header { font-size: 18px; padding: 12px; }
+}
+</style>
 </head>
 <body data-username="{{ session['username'] }}">
 <div class="header">Chat avec {{ chat_user }}</div>
@@ -16,9 +142,10 @@
     <p class="no-messages">Aucun message pour le moment.</p>
     {% endfor %}
 </div>
+
 <div class="input-box">
     <input type="text" id="messageInput" placeholder="Écrire un message..." required>
-    <button id="sendBtn">Envoyer</button>
+    <button id="sendBtn">➤</button>
 </div>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -65,10 +192,10 @@ btn.addEventListener('click', async () => {
     } else alert("Impossible d'envoyer le message.");
 });
 
+// Envoi avec Enter
 input.addEventListener('keypress', (e) => {
     if(e.key === 'Enter') { e.preventDefault(); btn.click(); }
 });
 </script>
 </body>
 </html>
-
