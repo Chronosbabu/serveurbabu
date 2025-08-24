@@ -18,7 +18,7 @@ html, body {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   height: 100%;
   background: #e5ddd5;
-  overflow: hidden; /* empêche le scroll global */
+  overflow: hidden;
 }
 
 /* Header fixe */
@@ -101,9 +101,31 @@ html, body {
 }
 .input-box button:hover { background: #128C7E; }
 
+/* Bouton fichier */
+#fileBtn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #075E54;
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+}
+#fileBtn:hover { background: #054D46; }
+
 /* Scrollbar optionnelle */
 .messages::-webkit-scrollbar { width: 6px; }
 .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+
+.message img, .message video {
+  max-width: 100%;
+  border-radius: 15px;
+  display: block;
+}
+.message video {
+  max-height: 300px;
+}
 </style>
 </head>
 <body data-username="{{ session['username'] }}">
@@ -113,7 +135,13 @@ html, body {
 <div class="messages" id="messages">
   {% for msg in messages %}
     <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
-      {{ msg.text }}
+      {% if msg.type == 'text' %}
+        {{ msg.text }}
+      {% elif msg.type == 'image' %}
+        <img src="{{ msg.url }}" alt="image">
+      {% elif msg.type == 'video' %}
+        <video src="{{ msg.url }}" controls></video>
+      {% endif %}
     </div>
   {% else %}
     <div class="message from-other">Aucun message pour le moment.</div>
@@ -121,13 +149,17 @@ html, body {
 </div>
 
 <div class="input-box">
+  <button id="fileBtn">📎</button>
   <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
   <button id="sendBtn">➤</button>
+  <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
 </div>
 
 <script>
 const input = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
+const fileBtn = document.getElementById('fileBtn');
+const fileInput = document.getElementById('fileInput');
 const messagesDiv = document.getElementById('messages');
 const chatUser = "{{ chat_user }}";
 
@@ -142,12 +174,11 @@ function adjustInputHeight(){
   input.style.height = 'auto';
   const newHeight = Math.min(input.scrollHeight, 120);
   input.style.height = newHeight + 'px';
-  // Ajuster la zone messages en fonction de la hauteur du textarea
   messagesDiv.style.bottom = (newHeight + 16) + 'px';
 }
 input.addEventListener('input', adjustInputHeight);
 
-// Ajustement clavier mobile pour ne pas redimensionner le header
+// Ajustement clavier mobile
 if(window.visualViewport){
   const adjustForKeyboard = () => {
     const vv = window.visualViewport;
@@ -159,7 +190,7 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('scroll', adjustForKeyboard);
 }
 
-// Envoi de message
+// Envoyer message texte
 async function sendMessage(){
   const text = input.value.trim();
   if(!text) return;
@@ -168,7 +199,7 @@ async function sendMessage(){
     const res = await fetch('/send_message', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({recipient: chatUser, message: text})
+      body: JSON.stringify({recipient: chatUser, message: text, type:'text'})
     });
     const result = await res.json();
     if(result.success){
@@ -184,6 +215,39 @@ async function sendMessage(){
     alert('Erreur réseau.');
   }
 }
+
+// Envoyer fichier (image/vidéo)
+fileBtn.addEventListener('click', ()=> fileInput.click());
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0];
+  if(!file) return;
+  const formData = new FormData();
+  formData.append('recipient', chatUser);
+  formData.append('file', file);
+  try {
+    const res = await fetch('/send_file', { method:'POST', body: formData });
+    const result = await res.json();
+    if(result.success){
+      const div = document.createElement('div');
+      div.className = 'message from-me';
+      if(file.type.startsWith('image/')){
+        const img = document.createElement('img');
+        img.src = result.url;
+        div.appendChild(img);
+      } else if(file.type.startsWith('video/')){
+        const video = document.createElement('video');
+        video.src = result.url;
+        video.controls = true;
+        div.appendChild(video);
+      }
+      messagesDiv.appendChild(div);
+      scrollToBottom();
+    } else alert('Impossible d\'envoyer le fichier.');
+  } catch(e){
+    alert('Erreur réseau.');
+  }
+  fileInput.value = '';
+});
 
 // Événements
 btn.addEventListener('click', sendMessage);
