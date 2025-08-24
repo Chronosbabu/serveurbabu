@@ -7,28 +7,26 @@
 <style>
 :root {
   --header-h: 60px;
-  --input-h: 50px;
+  --input-min-h: 48px;
+  --input-max-h: 140px;
 }
 
 /* Reset */
 html, body {
+  height: 100%;
   margin: 0;
   padding: 0;
   font-family: 'Helvetica Neue', Arial, sans-serif;
-  height: 100%;
   background: #e5ddd5;
-}
-
-/* Conteneur principal */
-.container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
   overflow: hidden;
 }
 
 /* Header fixe */
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   height: var(--header-h);
   line-height: var(--header-h);
   text-align: center;
@@ -36,49 +34,62 @@ html, body {
   font-weight: bold;
   background: #075E54;
   color: #fff;
-  flex-shrink: 0;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Messages scrollables */
+/* Zone des messages */
 .messages {
-  flex: 1;
-  overflow-y: auto;
+  position: absolute;
+  top: var(--header-h);
+  bottom: var(--input-min-h);
+  left: 0;
+  right: 0;
   padding: 12px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
   -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 /* Message individuel */
 .message {
-  padding: 10px 14px;
+  padding: 8px 14px;
   border-radius: 20px;
   max-width: 75%;
   word-wrap: break-word;
+  line-height: 1.4;
+  font-size: 15px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 .from-me { background: #dcf8c6; align-self: flex-end; }
 .from-other { background: #fff; align-self: flex-start; }
 
-/* Zone input */
+/* Input fixe et auto-grow */
 .input-box {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
-  padding: 8px 10px;
-  background: #fff;
+  padding: 6px 10px;
   gap: 8px;
+  background: #fff;
   box-sizing: border-box;
-  flex-shrink: 0;
+  z-index: 20;
 }
 .input-box textarea {
   flex: 1;
-  padding: 10px;
+  min-height: var(--input-min-h);
+  max-height: var(--input-max-h);
+  padding: 10px 14px;
   border-radius: 25px;
   border: 1px solid #ccc;
-  font-size: 16px;
+  font-size: 15px;
   resize: none;
-  overflow-y: hidden;
-  min-height: 40px;
-  max-height: 120px;
+  overflow-y: auto;
 }
 .input-box button {
   width: 50px;
@@ -89,55 +100,97 @@ html, body {
   border: none;
   font-size: 18px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .input-box button:hover { background: #128C7E; }
+
+/* Scrollbar optionnelle */
+.messages::-webkit-scrollbar { width: 6px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+
+/* Animation simple */
+@keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1; transform: none;} }
+
+/* Responsive */
+@media (max-width: 600px){
+  .message { font-size: 14px; max-width: 85%; }
+  .input-box textarea { font-size: 14px; }
+  .input-box button { width: 40px; height: 40px; font-size: 16px; }
+  .header { font-size: 16px; line-height: 56px; }
+}
 </style>
 </head>
 <body data-username="{{ session['username'] }}">
-<div class="container">
-  <div class="header">Chat avec {{ chat_user }}</div>
 
-  <div class="messages" id="messages">
-    {% for msg in messages %}
-      <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
-        {{ msg.text }}
-      </div>
-    {% else %}
-      <div class="message from-other">Aucun message pour le moment.</div>
-    {% endfor %}
-  </div>
+<div class="header">Chat avec {{ chat_user }}</div>
 
-  <div class="input-box">
-    <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
-    <button id="sendBtn">➤</button>
-  </div>
+<div class="messages" id="messages">
+  {% for msg in messages %}
+    <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
+      {{ msg.text }}
+    </div>
+  {% else %}
+    <div class="message from-other">Aucun message pour le moment.</div>
+  {% endfor %}
 </div>
 
+<div class="input-box">
+  <textarea id="messageInput" placeholder="Écrire un message..." rows="1"></textarea>
+  <button id="sendBtn">➤</button>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const input = document.getElementById('messageInput');
+const textarea = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
 const messagesDiv = document.getElementById('messages');
+const currentUser = document.body.dataset.username;
 const chatUser = "{{ chat_user }}";
 
-// Scroll bas
+/* Scroll automatique */
 function scrollToBottom(){
   requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
 }
 scrollToBottom();
 
-// Ajuster hauteur input
-function adjustInputHeight(){
-  input.style.height = 'auto';
-  const newHeight = Math.min(input.scrollHeight, 120);
-  input.style.height = newHeight + 'px';
-}
-input.addEventListener('input', adjustInputHeight);
+/* Auto-grow du textarea */
+textarea.addEventListener('input', () => {
+  textarea.style.height = 'auto';
+  const newHeight = Math.min(textarea.scrollHeight, parseInt(getComputedStyle(textarea).getPropertyValue('max-height')));
+  textarea.style.height = newHeight + 'px';
+  messagesDiv.style.bottom = newHeight + 16 + 'px'; // ajuster le bas messages
+  scrollToBottom();
+});
 
-// Envoi message
+/* Clavier mobile */
+if(window.visualViewport){
+  const adjustInput = () => {
+    const vv = window.visualViewport;
+    const overlap = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
+    document.querySelector('.input-box').style.bottom = overlap + 'px';
+    scrollToBottom();
+  };
+  window.visualViewport.addEventListener('resize', adjustInput);
+  window.visualViewport.addEventListener('scroll', adjustInput);
+}
+
+/* Socket.io */
+const socket = io();
+socket.on('new_message', data => {
+  if ((data.from === chatUser && data.to === currentUser) || (data.from === currentUser && data.to === chatUser)) {
+    const div = document.createElement('div');
+    div.className = data.from === currentUser ? 'message from-me' : 'message from-other';
+    div.textContent = data.content;
+    messagesDiv.appendChild(div);
+    scrollToBottom();
+  }
+});
+
+/* Envoi de message */
 async function sendMessage(){
-  const text = input.value.trim();
+  const text = textarea.value.trim();
   if(!text) return;
-  input.focus();
+  textarea.focus();
   try {
     const res = await fetch('/send_message', {
       method: 'POST',
@@ -150,20 +203,21 @@ async function sendMessage(){
       div.className = 'message from-me';
       div.textContent = text;
       messagesDiv.appendChild(div);
-      input.value = '';
-      adjustInputHeight();
+      textarea.value = '';
+      textarea.style.height = 'auto';
       scrollToBottom();
-    } else alert('Impossible d\'envoyer le message.');
+    } else {
+      alert('Impossible d\'envoyer le message.');
+    }
   } catch(e){
     alert('Erreur réseau.');
   }
 }
 
 btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
-
-adjustInputHeight();
+textarea.addEventListener('keypress', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
 </script>
+
 </body>
 </html>
 
