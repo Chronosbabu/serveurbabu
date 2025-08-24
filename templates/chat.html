@@ -2,124 +2,179 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Chat avec {{ chat_user }}</title>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        background: #f2f2f2;
-    }
-    #messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .message {
-        max-width: 70%;
-        padding: 8px 12px;
-        border-radius: 15px;
-        word-wrap: break-word;
-    }
-    .from-me {
-        align-self: flex-end;
-        background-color: #4CAF50;
-        color: white;
-    }
-    .from-them {
-        align-self: flex-start;
-        background-color: #e0e0e0;
-        color: black;
-    }
-    #inputBox {
-        display: flex;
-        padding: 10px;
-        background: #fff;
-        border-top: 1px solid #ccc;
-    }
-    #messageInput {
-        flex: 1;
-        padding: 10px;
-        border-radius: 20px;
-        border: 1px solid #ccc;
-        outline: none;
-        font-size: 16px;
-    }
-    #sendBtn {
-        margin-left: 10px;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 20px;
-        background-color: #4CAF50;
-        color: white;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    #sendBtn:hover {
-        background-color: #45a049;
-    }
+:root {
+  --header-h: 60px;
+  --input-h: 60px;
+}
+
+/* Reset */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background: #e5ddd5;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-h);
+  line-height: var(--header-h);
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  background: #075E54;
+  color: #fff;
+  z-index: 10;
+}
+
+/* Messages */
+.messages {
+  position: absolute;
+  top: var(--header-h);
+  bottom: var(--input-h);
+  left: 0;
+  right: 0;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Message individuel */
+.message {
+  padding: 10px 14px;
+  border-radius: 20px;
+  max-width: 75%;
+  word-wrap: break-word;
+}
+.from-me { background: #dcf8c6; align-self: flex-end; }
+.from-other { background: #fff; align-self: flex-start; }
+
+/* Input */
+.input-box {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  padding: 8px 10px;
+  background: #fff;
+  gap: 8px;
+  box-sizing: border-box;
+  z-index: 20;
+}
+.input-box input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 25px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+.input-box button {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #25D366;
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+.input-box button:hover { background: #128C7E; }
+
+/* Scrollbar optionnelle */
+.messages::-webkit-scrollbar { width: 6px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
 </style>
 </head>
-<body>
+<body data-username="{{ session['username'] }}">
 
-<div id="messages"></div>
+<div class="header">Chat avec {{ chat_user }}</div>
 
-<div id="inputBox">
-    <input type="text" id="messageInput" placeholder="Tapez un message...">
-    <button id="sendBtn">Envoyer</button>
+<div class="messages" id="messages">
+  {% for msg in messages %}
+    <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
+      {{ msg.text }}
+    </div>
+  {% else %}
+    <div class="message from-other">Aucun message pour le moment.</div>
+  {% endfor %}
 </div>
 
+<div class="input-box">
+  <input type="text" id="messageInput" placeholder="Écrire un message..." autocomplete="off">
+  <button id="sendBtn">➤</button>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 const input = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
 const messagesDiv = document.getElementById('messages');
+const currentUser = document.body.dataset.username;
+const chatUser = "{{ chat_user }}";
 
-function scrollMessages() {
-    requestAnimationFrame(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; });
+// Scroll vers le bas
+function scrollToBottom(){
+  requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
+}
+scrollToBottom();
+
+// Gestion clavier mobile
+if(window.visualViewport){
+  const adjustInput = () => {
+    const vv = window.visualViewport;
+    const overlap = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
+    document.querySelector('.input-box').style.bottom = overlap + 'px';
+    scrollToBottom();
+  };
+  window.visualViewport.addEventListener('resize', adjustInput);
+  window.visualViewport.addEventListener('scroll', adjustInput);
 }
 
-async function sendMessage() {
-    const text = input.value.trim();
-    if(!text) return;
-
-    // ajout local immédiat
-    const div = document.createElement('div');
-    div.className = 'message from-me';
-    div.textContent = text;
-    messagesDiv.appendChild(div);
-    scrollMessages();
-
-    input.value = '';
-    input.focus();
-
-    // envoyer au serveur
-    try {
-        const res = await fetch("/send_message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ recipient: "{{ chat_user }}", message: text })
-        });
-        const result = await res.json();
-        if(!result.success) alert("Impossible d'envoyer le message.");
-    } catch(e) { alert("Erreur réseau."); }
+// Envoi de message
+async function sendMessage(){
+  const text = input.value.trim();
+  if(!text) return;
+  input.focus();
+  try {
+    const res = await fetch('/send_message', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({recipient: chatUser, message: text})
+    });
+    const result = await res.json();
+    if(result.success){
+      const div = document.createElement('div');
+      div.className = 'message from-me';
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      input.value = '';
+      scrollToBottom();
+    } else {
+      alert('Impossible d\'envoyer le message.');
+    }
+  } catch(e){
+    alert('Erreur réseau.');
+  }
 }
 
+// Evénements
 btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', e => {
-    if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); }
-});
-
-input.addEventListener('focus', scrollMessages);
-window.addEventListener('resize', scrollMessages);
-scrollMessages();
+input.addEventListener('keypress', e => { if(e.key==='Enter'){ e.preventDefault(); sendMessage(); } });
 </script>
 
 </body>
 </html>
+
