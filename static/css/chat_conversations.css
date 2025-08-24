@@ -1,30 +1,28 @@
 /* Messages */
 .messages {
-    padding: 15px;
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    overflow-y: auto;
-    background: #f8f9fa; /* léger gris pour le fond des messages */
-    border-radius: 10px;
-    margin: 10px;
+    gap: 6px;
 }
 
 /* Message individuel */
 .message {
     padding: 8px 12px;
-    border-radius: 20px;
+    border-radius: 18px;
     max-width: 70%;
-    word-wrap: break-word;
     line-height: 1.4;
-    font-size: 15px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: background 0.2s;
+    font-size: 14px;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    transition: transform 0.1s ease;
 }
 
 /* Messages envoyés par moi */
 .from-me {
-    background: #d1f2c4;
+    background: #dcf8c6;
     align-self: flex-end;
 }
 
@@ -37,31 +35,34 @@
 /* Aucun message */
 .no-messages {
     text-align: center;
-    color: #666;
-    margin-top: 10px;
+    color: #777;
+    font-size: 13px;
+    margin-top: 15px;
 }
 
 /* Zone de saisie */
 .input-box {
     display: flex;
-    gap: 10px;
-    padding: 10px;
-    margin: 10px;
+    gap: 8px;
+    padding: 8px;
+    border-top: 1px solid #ccc;
     background: #fff;
-    border-radius: 10px;
-    border: 1px solid #ddd;
 }
 
 .input-box input {
     flex: 1;
-    padding: 8px 12px;
+    padding: 8px 10px;
     border: 1px solid #ccc;
     border-radius: 20px;
     font-size: 14px;
 }
 
+.input-box input:focus {
+    border-color: #007bff;
+}
+
 .input-box button {
-    padding: 8px 16px;
+    padding: 8px 14px;
     background: #007bff;
     color: #fff;
     border: none;
@@ -75,16 +76,16 @@
 
 /* Défilement fluide */
 .messages::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
 .messages::-webkit-scrollbar-thumb {
     background-color: rgba(0,0,0,0.1);
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 /* Responsive */
 @media screen and (max-width: 600px) {
-    .message { max-width: 85%; font-size: 14px; }
+    .message { max-width: 85%; font-size: 13px; }
     .input-box input { font-size: 13px; }
     .input-box button { font-size: 13px; padding: 6px 12px; }
 }
