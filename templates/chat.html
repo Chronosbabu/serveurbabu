@@ -29,6 +29,15 @@ body {
     flex-shrink: 0;
 }
 
+/* Container principal pour les messages et input */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
 /* Zone scrollable pour les messages */
 .messages {
     flex: 1;
@@ -38,7 +47,6 @@ body {
     flex-direction: column;
     gap: 8px;
     -webkit-overflow-scrolling: touch;
-    margin-bottom: 60px; /* espace pour input-box fixe */
 }
 
 /* Message individuel */
@@ -146,14 +154,17 @@ body.keyboard-open .messages {
 </head>
 <body data-username="{{ session['username'] }}">
 <div class="header">Chat avec {{ chat_user }}</div>
-<div class="messages" id="messages">
-    {% for msg in messages %}
-    <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
-        {{ msg.text }}
+
+<div class="chat-container">
+    <div class="messages" id="messages">
+        {% for msg in messages %}
+        <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
+            {{ msg.text }}
+        </div>
+        {% else %}
+        <p class="no-messages">Aucun message pour le moment.</p>
+        {% endfor %}
     </div>
-    {% else %}
-    <p class="no-messages">Aucun message pour le moment.</p>
-    {% endfor %}
 </div>
 
 <div class="input-box">
