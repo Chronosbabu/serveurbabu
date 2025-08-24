@@ -25,9 +25,7 @@ for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
 
-# IMPORTANT : Socket.IO
-# - manage_session=True pour que la session Flask soit dispo dans les handlers socket
-# - cors_allowed_origins="*" pour éviter des blocages côté navigateur
+# Socket.IO avec session Flask disponible et CORS permis (si front et back ne sont pas sur le même host)
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 # --- Utilitaires ---
@@ -61,6 +59,24 @@ def hash_password(password):
 def get_user(username):
     users = load_users()
     return next((u for u in users if u.get("username") == username), None)
+
+def append_message(sender, receiver, text):
+    """Ajoute un message au store JSON en conservant ta logique de clé 'userA_userB'."""
+    messages = load_messages()
+    key1 = f"{sender}_{receiver}"
+    key2 = f"{receiver}_{sender}"
+    now_iso = datetime.now().isoformat()
+    entry = {"sender": sender, "text": text, "date": now_iso}
+
+    if key1 in messages:
+        messages[key1].append(entry)
+    elif key2 in messages:
+        messages[key2].append(entry)
+    else:
+        messages[key1] = [entry]
+
+    save_messages(messages)
+    return entry  # contient date + sender + text
 
 # --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
@@ -254,12 +270,11 @@ def conversations():
     username = session.get("username")
     user_conversations = []
 
-    # CORRECTION: ne pas utiliser replace(); on split proprement la clé "userA_userB"
+    # Extraction robuste des deux participants "userA_userB"
     for key, conv in messages.items():
         try:
             u1, u2 = key.split("_", 1)
         except ValueError:
-            # Clé mal formée, on ignore
             continue
         if username not in (u1, u2):
             continue
@@ -272,7 +287,7 @@ def conversations():
             "last_date": last_date
         })
 
-    # Optionnel : trier par date décroissante pour voir la dernière conversation en haut
+    # Trier par date décroissante
     user_conversations.sort(key=lambda x: x.get("last_date", ""), reverse=True)
 
     return render_template("conversations.html", conversations=user_conversations)
@@ -288,7 +303,29 @@ def chat(username):
     conv = messages.get(key1) or messages.get(key2) or []
     return render_template("chat.html", chat_user=username, messages=conv)
 
-# --- SocketIO : s'abonner à sa "room" personnelle (nécessaire pour room=receiver) ---
+# --- Route HTTP optionnelle pour envoyer un message (compatible avec fetch("/send_message")) ---
+@app.route("/send_message", methods=["POST"])
+def send_message_http():
+    if "username" not in session:
+        return jsonify({"success": False, "error": "Non connecté"}), 401
+
+    data = request.get_json(silent=True) or {}
+    sender = session.get("username")
+    receiver = (data.get("recipient") or "").strip()
+    text = (data.get("message") or "").strip()
+
+    if not receiver or not text:
+        return jsonify({"success": False, "error": "Champs manquants"}), 400
+
+    entry = append_message(sender, receiver, text)
+
+    # Temps réel pour les deux parties
+    socketio.emit("new_message", {"sender": sender, "text": text, "date": entry["date"]}, room=receiver)
+    socketio.emit("new_message", {"sender": sender, "text": text, "date": entry["date"]}, room=sender)
+
+    return jsonify({"success": True})
+
+# --- SocketIO : s'abonner à sa room personnelle (nécessaire pour room=receiver) ---
 @socketio.on("connect")
 def handle_connect():
     user = session.get("username")
@@ -299,30 +336,16 @@ def handle_connect():
 @socketio.on("send_message")
 def handle_send_message(data):
     sender = session.get("username")
-    receiver = data.get("receiver")
+    receiver = (data.get("receiver") or "").strip()
     text = (data.get("text") or "").strip()
     if not sender or not receiver or not text:
         return
 
-    messages = load_messages()
-    key1 = f"{sender}_{receiver}"
-    key2 = f"{receiver}_{sender}"
+    entry = append_message(sender, receiver, text)
 
-    now_iso = datetime.now().isoformat()
-    entry = {"sender": sender, "text": text, "date": now_iso}
-
-    if key1 in messages:
-        messages[key1].append(entry)
-    elif key2 in messages:
-        messages[key2].append(entry)
-    else:
-        messages[key1] = [entry]
-
-    save_messages(messages)
-
-    # Envoi temps-réel : au destinataire (room = receiver) et retour à l'émetteur
-    emit("new_message", {"sender": sender, "text": text, "date": now_iso}, room=receiver)
-    emit("new_message", {"sender": sender, "text": text, "date": now_iso}, room=sender)
+    # Envoi temps réel : destinataire + émetteur
+    emit("new_message", {"sender": sender, "text": text, "date": entry["date"]}, room=receiver)
+    emit("new_message", {"sender": sender, "text": text, "date": entry["date"]}, room=sender)
 
 # --- SocketIO Comments existants ---
 @socketio.on('send_comment')
@@ -350,4 +373,3 @@ def handle_send_comment(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
