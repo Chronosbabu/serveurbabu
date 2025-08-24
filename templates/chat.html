@@ -61,6 +61,7 @@ html, body {
   word-wrap: break-word;
   font-size: 15px;
   line-height: 1.4;
+  white-space: pre-wrap;
 }
 .from-me { background: #dcf8c6; align-self: flex-end; }
 .from-other { background: #fff; align-self: flex-start; }
@@ -199,13 +200,13 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('scroll', adjustForKeyboard);
 }
 
-// Ajouter un message au chat
+// Ajouter un message au chat (texte, image, vidéo)
 function addMessage(msg){
   const div = document.createElement('div');
   div.className = 'message ' + (msg.sender===username?'from-me':'from-other');
 
   if(msg.type==='text'){
-    div.textContent = msg.text;
+    div.innerText = msg.text; // correction pour rendre texte visible
   } else if(msg.type==='image'){
     const img = document.createElement('img');
     img.src = msg.url;
@@ -222,7 +223,7 @@ function addMessage(msg){
 }
 
 // Envoyer message texte
-async function sendMessage(){
+function sendMessage(){
   const text = input.value.trim();
   if(!text) return;
   input.value = '';
@@ -275,4 +276,3 @@ socket.on('new_message', msg => {
 
 </body>
 </html>
-
