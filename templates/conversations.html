@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -134,6 +135,7 @@ body {
     <div class="conversation" onclick="window.location.href='/chat/{{ conv.username }}'">
         <div class="profile-pic">
             {% if conv.profile_pic %}
+            <!-- Utilisation de la même route Flask que dans la recherche -->
             <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}" alt="{{ conv.username }}">
             {% else %}
             {{ conv.username[0]|upper }}
@@ -152,4 +154,3 @@ body {
 
 </body>
 </html>
-
