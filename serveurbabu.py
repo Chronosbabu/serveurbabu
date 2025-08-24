@@ -200,7 +200,9 @@ def like_post(post_id):
 
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
-    socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username}, broadcast=True)
+    socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
+
+    
     return jsonify({"likes": post["likes"], "liked": liked})
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
