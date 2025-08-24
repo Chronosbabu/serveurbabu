@@ -59,12 +59,12 @@ def get_user(username):
     users = load_users()
     return next((u for u in users if u.get("username") == username), None)
 
-def append_message(sender, receiver, text, type="text", url=None):
+def append_message(sender, receiver, text, msg_type="text", url=None):
     messages = load_messages()
     key1 = f"{sender}_{receiver}"
     key2 = f"{receiver}_{sender}"
     now_iso = datetime.now().isoformat()
-    entry = {"sender": sender, "text": text, "type": type, "url": url, "date": now_iso}
+    entry = {"sender": sender, "text": text, "type": msg_type, "url": url, "date": now_iso}
 
     if key1 in messages:
         messages[key1].append(entry)
@@ -76,10 +76,191 @@ def append_message(sender, receiver, text, type="text", url=None):
     save_messages(messages)
     return entry
 
-# --- Routes utilisateurs/posts (inchangées) ---
-# ... [tout le code register, login, posts, profils etc reste identique] ...
+# --- Routes utilisateurs/posts ---
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "").strip()
+        avatar_file = request.files.get("avatar")
+        if not username or not password:
+            return "Nom d'utilisateur et mot de passe requis.", 400
 
-# --- Route envoi de fichier ---
+        users = load_users()
+        if any(u["username"].lower() == username.lower() for u in users):
+            return "Nom d'utilisateur déjà pris !", 400
+
+        avatar_filename = None
+        if avatar_file and avatar_file.filename:
+            avatar_filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
+            avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_filename))
+
+        users.append({
+            "username": username,
+            "password": hash_password(password),
+            "avatar": avatar_filename,
+            "bio": "",
+            "created_at": datetime.now().isoformat()
+        })
+        save_users(users)
+        return redirect(url_for("login"))
+    return render_template("register.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "").strip()
+        users = load_users()
+        user = next((u for u in users if u["username"].lower() == username.lower()
+                     and u["password"] == hash_password(password)), None)
+        if user:
+            session["username"] = user["username"]
+            session["avatar"] = user.get("avatar")
+            return redirect(url_for("index"))
+        return "Nom ou mot de passe incorrect !", 401
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.pop("username", None)
+    session.pop("avatar", None)
+    return redirect(url_for("login"))
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    posts = load_posts()
+    for p in posts:
+        p['liked_by_user'] = session["username"] in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))
+    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
+
+@app.route("/add_post", methods=["GET", "POST"])
+def add_post():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        content = (request.form.get("content") or "").strip()
+        media_file = request.files.get("media")
+        filename = None
+        media_type = "text"
+
+        if media_file and media_file.filename:
+            filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
+            media_file.save(os.path.join(UPLOAD_FOLDER, filename))
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                media_type = "image"
+            elif ext in [".mp4", ".mov", ".avi", ".webm"]:
+                media_type = "video"
+
+        posts = load_posts()
+        new_post = {
+            "id": len(posts) + 1,
+            "username": session["username"],
+            "avatar": session.get("avatar"),
+            "type": media_type,
+            "file": filename,
+            "description": content,
+            "likes": 0,
+            "liked_by": [],
+            "comments": [],
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        posts.insert(0, new_post)
+        save_posts(posts)
+        socketio.emit('new_post', new_post)
+        return redirect(url_for("index"))
+
+    return render_template("new_post.html")
+
+@app.route("/like/<int:post_id>", methods=["POST"])
+def like_post(post_id):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        return jsonify({"error": "Post non trouvé"}), 404
+
+    username = session["username"]
+    if username in post.get("liked_by", []):
+        post["liked_by"].remove(username)
+        liked = False
+    else:
+        post.setdefault("liked_by", []).append(username)
+        liked = True
+
+    post["likes"] = len(post["liked_by"])
+    save_posts(posts)
+    socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
+    return jsonify({"likes": post["likes"], "liked": liked})
+
+@app.route("/comments/<int:post_id>", methods=["GET", "POST"])
+def comments(post_id):
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        abort(404)
+
+    if request.method == "POST":
+        content = (request.form.get("comment") or "").strip()
+        if content:
+            comment_data = {
+                "username": session["username"],
+                "avatar": session.get("avatar"),
+                "content": content,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            post.setdefault("comments", []).append(comment_data)
+            save_posts(posts)
+            
+            socketio.emit('new_comment', {"post_id": post_id, **comment_data})
+
+        return redirect(url_for("comments", post_id=post_id))
+
+    return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
+
+@app.route("/profile/<username>")
+def profile(username):
+    user = get_user(username)
+    if not user:
+        abort(404)
+
+    posts = load_posts()
+    user_posts = [p for p in posts if p.get("username") == user["username"]]
+    for p in user_posts:
+        p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))
+    return render_template("profile.html", profile_user=user, posts=user_posts,
+                           current_username=session.get("username"), current_avatar=session.get("avatar"))
+
+@app.route("/search", methods=["GET"])
+def search_users():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    query = (request.args.get("q") or "").strip().lower()
+    users = load_users()
+    if query:
+        users = [u for u in users if query in u["username"].lower()]
+    return render_template("search.html", users=users, current_username=session["username"])
+
+@app.route("/uploads/<filename>")
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route("/avatars/<filename>")
+def avatar_file(filename):
+    return send_from_directory(AVATAR_FOLDER, filename)
+
+# --- Route ajoutée pour l'envoi de fichiers ---
 @app.route("/send_file", methods=["POST"])
 def send_file_route():
     if "username" not in session:
@@ -102,14 +283,45 @@ def send_file_route():
 
     url = url_for("uploaded_file", filename=filename)
 
-    entry = append_message(session["username"], receiver, f"[{file_type}]", type=file_type, url=url)
-
-    socketio.emit("new_message", entry, room=receiver)
-    socketio.emit("new_message", entry, room=session["username"])
+    # Ajouter le message correspondant
+    messages = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
+    socketio.emit("new_message", messages, room=receiver)
+    socketio.emit("new_message", messages, room=session["username"])
 
     return jsonify({"success": True, "url": url, "type": file_type})
 
 # --- Routes Messages ---
+@app.route("/conversations")
+def conversations():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    messages = load_messages()
+    username = session.get("username")
+    user_conversations = []
+
+    for key, conv in messages.items():
+        try:
+            u1, u2 = key.split("_", 1)
+        except ValueError:
+            continue
+        if username not in (u1, u2):
+            continue
+        other_user = u2 if u1 == username else u1
+        last_msg = conv[-1]["text"] if conv else ""
+        last_date = conv[-1].get("date") if conv else ""
+
+        other_user_data = get_user(other_user)
+        user_conversations.append({
+            "username": other_user,
+            "profile_pic": other_user_data.get("avatar") if other_user_data else None,
+            "last_msg": last_msg,
+            "last_date": last_date
+        })
+
+    user_conversations.sort(key=lambda x: x.get("last_date", ""), reverse=True)
+    return render_template("conversations.html", conversations=user_conversations)
+
 @app.route("/chat/<username>")
 def chat(username):
     if "username" not in session:
@@ -134,7 +346,7 @@ def send_message_http():
     if not receiver or not text:
         return jsonify({"success": False, "error": "Champs manquants"}), 400
 
-    entry = append_message(sender, receiver, text, type="text")
+    entry = append_message(sender, receiver, text, msg_type="text")
     socketio.emit("new_message", entry, room=receiver)
     socketio.emit("new_message", entry, room=sender)
 
@@ -154,11 +366,31 @@ def handle_send_message(data):
     if not sender or not receiver or not text:
         return
 
-    entry = append_message(sender, receiver, text, type="text")
+    entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
 
-# --- Commentaires (inchangé) ---
+@socketio.on('send_comment')
+def handle_send_comment(data):
+    if "username" not in session:
+        return
+    post_id = data.get('post_id')
+    content = (data.get('content') or "").strip()
+    if not post_id or not content:
+        return
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        return
+    comment_data = {
+        "username": session["username"],
+        "avatar": session.get("avatar"),
+        "content": content,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    post.setdefault("comments", []).append(comment_data)
+    save_posts(posts)
+    emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
