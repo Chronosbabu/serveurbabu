@@ -173,14 +173,11 @@ def add_post():
         }
         posts.insert(0, new_post)
         save_posts(posts)
-        # --- CORRECTION ICI ---
-        # socketio.emit('new_post', new_post, broadcast=True)  # ancienne ligne qui causait l'erreur
         socketio.emit('new_post', new_post)  # version compatible toutes versions
         return redirect(url_for("index"))
 
     return render_template("new_post.html")
 
-# --- Suite des routes identiques, aucune modification ---
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
     if "username" not in session:
@@ -201,8 +198,6 @@ def like_post(post_id):
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
-
-    
     return jsonify({"likes": post["likes"], "liked": liked})
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
@@ -285,8 +280,12 @@ def conversations():
         other_user = u2 if u1 == username else u1
         last_msg = conv[-1]["text"] if conv else ""
         last_date = conv[-1].get("date") if conv else ""
+
+        # --- CORRECTION ICI ---
+        other_user_data = get_user(other_user)
         user_conversations.append({
             "username": other_user,
+            "profile_pic": other_user_data.get("avatar") if other_user_data else None,
             "last_msg": last_msg,
             "last_date": last_date
         })
