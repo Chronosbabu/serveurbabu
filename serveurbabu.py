@@ -226,7 +226,9 @@ def comments(post_id):
             }
             post.setdefault("comments", []).append(comment_data)
             save_posts(posts)
-            socketio.emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
+            
+            socketio.emit('new_comment', {"post_id": post_id, **comment_data})
+
         return redirect(url_for("comments", post_id=post_id))
 
     return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
