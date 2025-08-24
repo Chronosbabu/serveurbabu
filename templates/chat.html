@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -244,13 +245,7 @@ async function sendMessage(){
     formData.append('file', selectedFile);
 
     try {
-      const res = await fetch('/send_file', { method:'POST', body: formData });
-      const result = await res.json();
-      if(result.success){
-        addMessage({sender: username, url: result.url, type: result.type});
-      } else {
-        alert('Impossible d\'envoyer le fichier.');
-      }
+      await fetch('/send_file', { method:'POST', body: formData });
     } catch(e){
       alert('Erreur réseau.');
     }
@@ -264,7 +259,6 @@ async function sendMessage(){
     input.value = '';
     adjustInputHeight();
     socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
-    addMessage({sender: username, text: text, type:'text'});
   }
 }
 
@@ -304,4 +298,3 @@ socket.on('new_message', msg => {
 
 </body>
 </html>
-
