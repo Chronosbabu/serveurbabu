@@ -64,7 +64,7 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     key1 = f"{sender}_{receiver}"
     key2 = f"{receiver}_{sender}"
     now_iso = datetime.now().isoformat()
-    entry = {"sender": sender, "text": text, "type": msg_type, "url": url, "date": now_iso}
+    entry = {"sender": sender, "text": text, "type": msg_type, "url": url, "date": now_iso, "read_by": [sender]}
 
     if key1 in messages:
         messages[key1].append(entry)
@@ -221,7 +221,6 @@ def comments(post_id):
             }
             post.setdefault("comments", []).append(comment_data)
             save_posts(posts)
-            
             socketio.emit('new_comment', {"post_id": post_id, **comment_data})
 
         return redirect(url_for("comments", post_id=post_id))
@@ -283,10 +282,9 @@ def send_file_route():
 
     url = url_for("uploaded_file", filename=filename)
 
-    # Ajouter le message correspondant
-    messages = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
-    socketio.emit("new_message", messages, room=receiver)
-    socketio.emit("new_message", messages, room=session["username"])
+    entry = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
+    socketio.emit("new_message", entry, room=receiver)
+    socketio.emit("new_message", entry, room=session["username"])
 
     return jsonify({"success": True, "url": url, "type": file_type})
 
@@ -316,7 +314,8 @@ def conversations():
             "username": other_user,
             "profile_pic": other_user_data.get("avatar") if other_user_data else None,
             "last_msg": last_msg,
-            "last_date": last_date
+            "last_date": last_date,
+            "unread_count": sum(1 for m in conv if username not in m.get("read_by", []))
         })
 
     user_conversations.sort(key=lambda x: x.get("last_date", ""), reverse=True)
@@ -369,6 +368,20 @@ def handle_send_message(data):
     entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
+
+@socketio.on('mark_read')
+def mark_read(data):
+    user = session.get("username")
+    sender = data.get("sender")
+    messages = load_messages()
+    key1 = f"{sender}_{user}"
+    key2 = f"{user}_{sender}"
+    conv = messages.get(key1) or messages.get(key2) or []
+    for m in conv:
+        if user not in m.get("read_by", []):
+            m.setdefault("read_by", []).append(user)
+    save_messages(messages)
+    emit('update_unread', {'from': sender}, room=user)
 
 @socketio.on('send_comment')
 def handle_send_comment(data):

@@ -5,10 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CHRONOS</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
+<style>
+  /* Badge style pour messages non lus */
+  .message-badge {
+    position: absolute;
+    top: 0;
+    right: -5px;
+    background: red;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 5px;
+    border-radius: 50%;
+    font-weight: bold;
+  }
+  .header-icons a {
+    position: relative;
+  }
+</style>
 </head>
 <body>
 <div class="main-container">
@@ -26,8 +42,9 @@
             <a href="{{ url_for('profile', username=username) }}" title="Profil">
                 <i class="fa-regular fa-user"></i>
             </a>
-            <a href="{{ url_for('conversations') }}" title="Messages">
+            <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
                 <i class="fa-regular fa-message"></i>
+                <span class="message-badge" id="unread-count" style="display:none;">0</span>
             </a>
             <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn">
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -80,6 +97,7 @@
 <script>
 const socket = io();
 
+// --- Gestion des nouveaux posts ---
 socket.on('new_post', function(post) {
     const postsContainer = document.getElementById('posts');
     const postDiv = document.createElement('div');
@@ -113,6 +131,37 @@ socket.on('new_post', function(post) {
 
     const likeBtn = postDiv.querySelector('.like-btn');
     likeBtn.addEventListener('click', () => toggleLike(likeBtn));
+});
+
+// --- Gestion des messages non lus ---
+let unreadCount = 0;
+
+function updateUnreadBadge() {
+    const badge = document.getElementById('unread-count');
+    if (unreadCount > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = unreadCount;
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Quand un nouveau message arrive
+socket.on('new_message', function(message) {
+    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+    // Si le message n'est pas dans le chat en cours, incrémente le compteur
+    if (!currentChatUser || currentChatUser !== message.sender) {
+        unreadCount++;
+        updateUnreadBadge();
+    }
+});
+
+// Réinitialiser le compteur à l'ouverture de la page conversations
+window.addEventListener('load', () => {
+    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+        unreadCount = 0;
+        updateUnreadBadge();
+    }
 });
 </script>
 
