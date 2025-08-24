@@ -8,7 +8,6 @@
 :root {
   --header-h: 60px;
   --input-h: 50px;
-  --input-max-h: 150px;
 }
 
 /* Reset */
@@ -21,7 +20,7 @@ html, body {
   overflow: hidden;
 }
 
-/* Header toujours fixe */
+/* Header fixe */
 .header {
   position: fixed;
   top: 0;
@@ -62,29 +61,29 @@ html, body {
 .from-me { background: #dcf8c6; align-self: flex-end; }
 .from-other { background: #fff; align-self: flex-start; }
 
-/* Input */
+/* Zone input fixe en bas */
 .input-box {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   display: flex;
-  gap: 8px;
-  padding: 6px 10px;
+  padding: 8px 10px;
   background: #fff;
+  gap: 8px;
   box-sizing: border-box;
   z-index: 20;
 }
-.input-box input {
+.input-box textarea {
   flex: 1;
-  padding: 10px 12px;
+  padding: 10px;
   border-radius: 25px;
   border: 1px solid #ccc;
   font-size: 16px;
   resize: none;
-  overflow: hidden;
+  overflow-y: hidden;
   min-height: 40px;
-  max-height: var(--input-max-h);
+  max-height: 120px;
 }
 .input-box button {
   width: 50px;
@@ -118,7 +117,7 @@ html, body {
 </div>
 
 <div class="input-box">
-  <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off" rows="1"></textarea>
+  <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
   <button id="sendBtn">➤</button>
 </div>
 
@@ -127,7 +126,6 @@ html, body {
 const input = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
 const messagesDiv = document.getElementById('messages');
-const inputBox = document.querySelector('.input-box');
 const currentUser = document.body.dataset.username;
 const chatUser = "{{ chat_user }}";
 
@@ -137,29 +135,26 @@ function scrollToBottom(){
 }
 scrollToBottom();
 
-// Ajuster la hauteur de l'input selon le texte
-function autoResize(){
+// Ajuster la hauteur de la zone input automatiquement
+function adjustInputHeight(){
   input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, parseInt(getComputedStyle(document.documentElement).getPropertyValue('--input-max-h'))) + 'px';
-  document.documentElement.style.setProperty('--input-h', input.offsetHeight + 12 + 'px'); // inclut padding
-  messagesDiv.style.bottom = getComputedStyle(inputBox).height;
+  const newHeight = Math.min(input.scrollHeight, 120);
+  input.style.height = newHeight + 'px';
+  document.querySelector('.input-box').style.height = newHeight + 16 + 'px'; // padding
   scrollToBottom();
 }
-input.addEventListener('input', autoResize);
-window.addEventListener('resize', autoResize);
-window.addEventListener('orientationchange', autoResize);
-autoResize();
+input.addEventListener('input', adjustInputHeight);
 
 // Gestion clavier mobile
 if(window.visualViewport){
-  const adjustInput = () => {
+  const adjustForKeyboard = () => {
     const vv = window.visualViewport;
     const overlap = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
-    inputBox.style.bottom = overlap + 'px';
+    document.querySelector('.input-box').style.bottom = overlap + 'px';
     scrollToBottom();
   };
-  window.visualViewport.addEventListener('resize', adjustInput);
-  window.visualViewport.addEventListener('scroll', adjustInput);
+  window.visualViewport.addEventListener('resize', adjustForKeyboard);
+  window.visualViewport.addEventListener('scroll', adjustForKeyboard);
 }
 
 // Envoi de message
@@ -180,7 +175,7 @@ async function sendMessage(){
       div.textContent = text;
       messagesDiv.appendChild(div);
       input.value = '';
-      autoResize();
+      adjustInputHeight();
       scrollToBottom();
     } else {
       alert('Impossible d\'envoyer le message.');
@@ -194,6 +189,7 @@ async function sendMessage(){
 btn.addEventListener('click', sendMessage);
 input.addEventListener('keypress', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
 
+adjustInputHeight();
 </script>
 
 </body>
