@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit
 import os, json, hashlib
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -114,6 +114,7 @@ def logout():
 def index():
     if "username" not in session:
         return redirect(url_for("login"))
+
     posts = load_posts()
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
@@ -160,6 +161,54 @@ def add_post():
 
     return render_template("new_post.html")
 
+@app.route("/like/<int:post_id>", methods=["POST"])
+def like_post(post_id):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        return jsonify({"error": "Post non trouvé"}), 404
+
+    username = session["username"]
+    if username in post.get("liked_by", []):
+        post["liked_by"].remove(username)
+        liked = False
+    else:
+        post.setdefault("liked_by", []).append(username)
+        liked = True
+
+    post["likes"] = len(post["liked_by"])
+    save_posts(posts)
+    socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
+    return jsonify({"likes": post["likes"], "liked": liked})
+
+@app.route("/comments/<int:post_id>", methods=["GET", "POST"])
+def comments(post_id):
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        abort(404)
+
+    if request.method == "POST":
+        content = (request.form.get("comment") or "").strip()
+        if content:
+            comment_data = {
+                "username": session["username"],
+                "avatar": session.get("avatar"),
+                "content": content,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            post.setdefault("comments", []).append(comment_data)
+            save_posts(posts)
+            socketio.emit('new_comment', {"post_id": post_id, **comment_data})
+        return redirect(url_for("comments", post_id=post_id))
+
+    return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
+
 @app.route("/profile/<username>")
 def profile(username):
     user = get_user(username)
@@ -174,6 +223,16 @@ def profile(username):
     return render_template("profile.html", profile_user=user, posts=user_posts,
                            current_username=session.get("username"), current_avatar=session.get("avatar"))
 
+@app.route("/search", methods=["GET"])
+def search_users():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    query = (request.args.get("q") or "").strip().lower()
+    users = load_users()
+    if query:
+        users = [u for u in users if query in u["username"].lower()]
+    return render_template("search.html", users=users, current_username=session["username"])
+
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
@@ -182,36 +241,36 @@ def uploaded_file(filename):
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
-# --- Messages / Conversations ---
+# --- Routes Messages ---
 @app.route("/conversations")
-def conversations_page():
+def conversations():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    username = session["username"]
+    # --- MODIFICATION POUR AFFICHER LES CONVERSATIONS CORRECTEMENT ---
     messages = load_messages()
+    username = session.get("username")
     user_conversations = []
 
     for key, conv in messages.items():
         if username in key:
-            users_in_conv = key.split("_")
-            other_user = users_in_conv[0] if users_in_conv[1] == username else users_in_conv[1]
+            # Identifier l'autre utilisateur dans la conversation
+            other_user = key.replace(username + "_", "").replace("_" + username, "")
             last_msg = conv[-1]["text"] if conv else ""
             user_conversations.append({"username": other_user, "last_msg": last_msg})
+    # --- FIN MODIFICATION ---
 
     return render_template("conversations.html", conversations=user_conversations)
 
 @app.route("/chat/<username>")
-def chat_page(username):
+def chat(username):
     if "username" not in session:
         return redirect(url_for("login"))
 
-    current_user = session["username"]
     messages = load_messages()
-    key1 = f"{current_user}_{username}"
-    key2 = f"{username}_{current_user}"
+    key1 = f"{session['username']}_{username}"
+    key2 = f"{username}_{session['username']}"
     conv = messages.get(key1) or messages.get(key2) or []
-
     return render_template("chat.html", chat_user=username, messages=conv)
 
 # --- SocketIO Messages ---
@@ -222,22 +281,41 @@ def handle_send_message(data):
     text = data.get("text")
     if not sender or not receiver or not text:
         return
-
     messages = load_messages()
     key1 = f"{sender}_{receiver}"
     key2 = f"{receiver}_{sender}"
-
     if key1 in messages:
         messages[key1].append({"sender": sender, "text": text, "date": datetime.now().isoformat()})
     elif key2 in messages:
         messages[key2].append({"sender": sender, "text": text, "date": datetime.now().isoformat()})
     else:
         messages[key1] = [{"sender": sender, "text": text, "date": datetime.now().isoformat()}]
-
     save_messages(messages)
     emit("new_message", {"sender": sender, "text": text}, room=receiver)
+
+# --- SocketIO Comments existants ---
+@socketio.on('send_comment')
+def handle_send_comment(data):
+    if "username" not in session:
+        return
+    post_id = data.get('post_id')
+    content = data.get('content')
+    if not post_id or not content:
+        return
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post:
+        return
+    comment_data = {
+        "username": session["username"],
+        "avatar": session.get("avatar"),
+        "content": content,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    post.setdefault("comments", []).append(comment_data)
+    save_posts(posts)
+    emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
