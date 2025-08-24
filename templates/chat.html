@@ -111,7 +111,7 @@ const inputBox    = document.getElementById('inputBox');
 const currentUser = document.body.dataset.username;
 const chatUser    = "{{ chat_user }}";
 
-/* Ajuster les hauteurs pour mobile */
+/* Ajuster les hauteurs */
 function syncHeights(){
   const hH = headerEl.offsetHeight;
   const iH = inputBox.offsetHeight;
@@ -122,19 +122,19 @@ window.addEventListener('resize', syncHeights);
 window.addEventListener('orientationchange', syncHeights);
 syncHeights();
 
-/* Gestion clavier mobile */
+/* Clavier mobile */
 if(window.visualViewport){
   const onVV = () => {
     const vv = window.visualViewport;
     const overlap = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
     inputBox.style.bottom = overlap + 'px';
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
   };
   window.visualViewport.addEventListener('resize', onVV);
   window.visualViewport.addEventListener('scroll', onVV);
 }
 
-/* Empêcher scroll du body */
+/* Empêcher scroll body */
 document.addEventListener('touchmove', function(e){
   if(!e.target.closest('.messages')) e.preventDefault();
 }, {passive:false});
@@ -155,6 +155,10 @@ socket.on('new_message', data => {
 async function sendMessage(){
   const text = input.value.trim();
   if(!text) return;
+
+  // garde le focus sur l'input avant envoi
+  input.focus();
+  
   try{
     const res = await fetch("/send_message", {
       method: "POST",
@@ -167,17 +171,16 @@ async function sendMessage(){
       div.className = 'message from-me';
       div.textContent = text;
       messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
       input.value = '';
-      input.focus(); // garde le clavier actif
+      input.focus(); // le focus reste actif pour le clavier
     } else alert("Impossible d'envoyer le message.");
   } catch(e){ alert("Erreur réseau."); }
 }
 
 btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); sendMessage(); } });
+input.addEventListener('keypress', e => { if(e.key==='Enter'){ e.preventDefault(); sendMessage(); } });
 
-/* Focus/blur pour recalcul */
 input.addEventListener('focus', syncHeights);
 input.addEventListener('blur', ()=>{ inputBox.style.bottom='0px'; syncHeights(); });
 </script>
