@@ -247,18 +247,16 @@ def conversations():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    # --- MODIFICATION POUR AFFICHER LES CONVERSATIONS CORRECTEMENT ---
     messages = load_messages()
     username = session.get("username")
     user_conversations = []
 
     for key, conv in messages.items():
-        if username in key:
-            # Identifier l'autre utilisateur dans la conversation
-            other_user = key.replace(username + "_", "").replace("_" + username, "")
+        users_in_conv = key.split("_")
+        if username in users_in_conv:
+            other_user = users_in_conv[0] if users_in_conv[1] == username else users_in_conv[1]
             last_msg = conv[-1]["text"] if conv else ""
             user_conversations.append({"username": other_user, "last_msg": last_msg})
-    # --- FIN MODIFICATION ---
 
     return render_template("conversations.html", conversations=user_conversations)
 
@@ -268,9 +266,8 @@ def chat(username):
         return redirect(url_for("login"))
 
     messages = load_messages()
-    key1 = f"{session['username']}_{username}"
-    key2 = f"{username}_{session['username']}"
-    conv = messages.get(key1) or messages.get(key2) or []
+    key = "_".join(sorted([session['username'], username]))
+    conv = messages.get(key, [])
     return render_template("chat.html", chat_user=username, messages=conv)
 
 # --- SocketIO Messages ---
@@ -282,14 +279,12 @@ def handle_send_message(data):
     if not sender or not receiver or not text:
         return
     messages = load_messages()
-    key1 = f"{sender}_{receiver}"
-    key2 = f"{receiver}_{sender}"
-    if key1 in messages:
-        messages[key1].append({"sender": sender, "text": text, "date": datetime.now().isoformat()})
-    elif key2 in messages:
-        messages[key2].append({"sender": sender, "text": text, "date": datetime.now().isoformat()})
-    else:
-        messages[key1] = [{"sender": sender, "text": text, "date": datetime.now().isoformat()}]
+    key = "_".join(sorted([sender, receiver]))
+    messages.setdefault(key, []).append({
+        "sender": sender,
+        "text": text,
+        "date": datetime.now().isoformat()
+    })
     save_messages(messages)
     emit("new_message", {"sender": sender, "text": text}, room=receiver)
 
@@ -319,3 +314,4 @@ def handle_send_comment(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+
