@@ -155,7 +155,9 @@ html, body {
   <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
 </div>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-qO1O0i4j3fYlH3EjrGeu4p2a7YVlfWv2jYX2P6/pq8u+9z7tHhj2A+oC/1eyFh3j" crossorigin="anonymous"></script>
 <script>
+const socket = io();
 const input = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
 const fileBtn = document.getElementById('fileBtn');
@@ -190,66 +192,58 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('scroll', adjustForKeyboard);
 }
 
+// Ajouter message dans le DOM
+function appendMessage(msg){
+  const div = document.createElement('div');
+  div.className = 'message ' + (msg.sender === "{{ session['username'] }}" ? 'from-me' : 'from-other');
+
+  if(msg.type === 'text'){
+    div.textContent = msg.text;
+  } else if(msg.type === 'image'){
+    const img = document.createElement('img');
+    img.src = msg.url;
+    div.appendChild(img);
+  } else if(msg.type === 'video'){
+    const video = document.createElement('video');
+    video.src = msg.url;
+    video.controls = true;
+    div.appendChild(video);
+  }
+
+  messagesDiv.appendChild(div);
+  scrollToBottom();
+}
+
 // Envoyer message texte
-async function sendMessage(){
+function sendMessage(){
   const text = input.value.trim();
   if(!text) return;
-  input.focus();
-  try {
-    const res = await fetch('/send_message', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({recipient: chatUser, message: text, type:'text'})
-    });
-    const result = await res.json();
-    if(result.success){
-      const div = document.createElement('div');
-      div.className = 'message from-me';
-      div.textContent = text;
-      messagesDiv.appendChild(div);
-      input.value = '';
-      adjustInputHeight();
-      scrollToBottom();
-    } else alert('Impossible d\'envoyer le message.');
-  } catch(e){
-    alert('Erreur réseau.');
-  }
+  socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
+  input.value = '';
+  adjustInputHeight();
 }
 
 // Envoyer fichier (image/vidéo)
 fileBtn.addEventListener('click', ()=> fileInput.click());
-fileInput.addEventListener('change', async () => {
+fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if(!file) return;
   const formData = new FormData();
   formData.append('recipient', chatUser);
   formData.append('file', file);
-  try {
-    const res = await fetch('/send_file', { method:'POST', body: formData });
-    const result = await res.json();
-    if(result.success){
-      const div = document.createElement('div');
-      div.className = 'message from-me';
-      if(file.type.startsWith('image/')){
-        const img = document.createElement('img');
-        img.src = result.url;
-        div.appendChild(img);
-      } else if(file.type.startsWith('video/')){
-        const video = document.createElement('video');
-        video.src = result.url;
-        video.controls = true;
-        div.appendChild(video);
-      }
-      messagesDiv.appendChild(div);
-      scrollToBottom();
-    } else alert('Impossible d\'envoyer le fichier.');
-  } catch(e){
-    alert('Erreur réseau.');
-  }
+
+  fetch('/send_file', { method:'POST', body: formData })
+    .then(res => res.json())
+    .then(result => {
+      if(result.success){
+        appendMessage({sender: "{{ session['username'] }}", type: result.type, url: result.url});
+      } else alert('Impossible d\'envoyer le fichier.');
+    })
+    .catch(()=> alert('Erreur réseau.'));
   fileInput.value = '';
 });
 
-// Événements
+// Envoyer message au clic ou Enter
 btn.addEventListener('click', sendMessage);
 input.addEventListener('keypress', e => { 
   if(e.key==='Enter' && !e.shiftKey){ 
@@ -259,8 +253,15 @@ input.addEventListener('keypress', e => {
 });
 
 adjustInputHeight();
+scrollToBottom();
+
+// Écouter les messages entrants
+socket.on('new_message', msg => {
+  if(msg.sender === chatUser || msg.sender === "{{ session['username'] }}"){
+    appendMessage(msg);
+  }
+});
 </script>
 
 </body>
 </html>
-
