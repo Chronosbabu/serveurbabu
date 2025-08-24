@@ -18,17 +18,15 @@ html, body {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   height: 100%;
   background: #e5ddd5;
-}
-
-/* Conteneur principal */
-.container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  overflow: hidden; /* empêche le scroll global */
 }
 
 /* Header fixe */
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   height: var(--header-h);
   line-height: var(--header-h);
   text-align: center;
@@ -36,20 +34,22 @@ html, body {
   font-weight: bold;
   background: #075E54;
   color: #fff;
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
   z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* Messages scrollables */
 .messages {
-  flex: 1;
-  overflow-y: auto;
+  position: absolute;
+  top: var(--header-h);
+  bottom: var(--input-min-h + 16px);
+  left: 0;
+  right: 0;
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -59,23 +59,28 @@ html, body {
   border-radius: 20px;
   max-width: 75%;
   word-wrap: break-word;
+  font-size: 15px;
+  line-height: 1.4;
 }
 .from-me { background: #dcf8c6; align-self: flex-end; }
 .from-other { background: #fff; align-self: flex-start; }
 
-/* Zone input */
+/* Zone input fixe */
 .input-box {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   padding: 8px 10px;
   background: #fff;
   gap: 8px;
   box-sizing: border-box;
-  flex-shrink: 0;
-  position: relative; /* <-- correction pour clavier */
+  z-index: 20;
 }
 .input-box textarea {
   flex: 1;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: 25px;
   border: 1px solid #ccc;
   font-size: 16px;
@@ -99,27 +104,25 @@ html, body {
 /* Scrollbar optionnelle */
 .messages::-webkit-scrollbar { width: 6px; }
 .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
-
 </style>
 </head>
 <body data-username="{{ session['username'] }}">
-<div class="container">
-  <div class="header">Chat avec {{ chat_user }}</div>
 
-  <div class="messages" id="messages">
-    {% for msg in messages %}
-      <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
-        {{ msg.text }}
-      </div>
-    {% else %}
-      <div class="message from-other">Aucun message pour le moment.</div>
-    {% endfor %}
-  </div>
+<div class="header">Chat avec {{ chat_user }}</div>
 
-  <div class="input-box">
-    <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
-    <button id="sendBtn">➤</button>
-  </div>
+<div class="messages" id="messages">
+  {% for msg in messages %}
+    <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}">
+      {{ msg.text }}
+    </div>
+  {% else %}
+    <div class="message from-other">Aucun message pour le moment.</div>
+  {% endfor %}
+</div>
+
+<div class="input-box">
+  <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
+  <button id="sendBtn">➤</button>
 </div>
 
 <script>
@@ -139,8 +142,22 @@ function adjustInputHeight(){
   input.style.height = 'auto';
   const newHeight = Math.min(input.scrollHeight, 120);
   input.style.height = newHeight + 'px';
+  // Ajuster la zone messages en fonction de la hauteur du textarea
+  messagesDiv.style.bottom = (newHeight + 16) + 'px';
 }
 input.addEventListener('input', adjustInputHeight);
+
+// Ajustement clavier mobile pour ne pas redimensionner le header
+if(window.visualViewport){
+  const adjustForKeyboard = () => {
+    const vv = window.visualViewport;
+    const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+    document.querySelector('.input-box').style.bottom = keyboardHeight + 'px';
+    scrollToBottom();
+  };
+  window.visualViewport.addEventListener('resize', adjustForKeyboard);
+  window.visualViewport.addEventListener('scroll', adjustForKeyboard);
+}
 
 // Envoi de message
 async function sendMessage(){
@@ -168,15 +185,18 @@ async function sendMessage(){
   }
 }
 
-// Events
+// Événements
 btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
-
-// Fixe le scroll quand le clavier s'ouvre (mobile)
-window.addEventListener('resize', scrollToBottom);
+input.addEventListener('keypress', e => { 
+  if(e.key==='Enter' && !e.shiftKey){ 
+    e.preventDefault(); 
+    sendMessage(); 
+  } 
+});
 
 adjustInputHeight();
 </script>
+
 </body>
 </html>
 
