@@ -127,6 +127,14 @@ html, body {
 .message video {
   max-height: 300px;
 }
+
+/* Aperçu fichier */
+.preview {
+  max-width: 100px;
+  max-height: 100px;
+  margin-right: 8px;
+  border-radius: 10px;
+}
 </style>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
@@ -168,6 +176,8 @@ const fileBtn = document.getElementById('fileBtn');
 const fileInput = document.getElementById('fileInput');
 const messagesDiv = document.getElementById('messages');
 
+let selectedFile = null; // fichier en attente
+
 // Rejoindre sa room
 socket.on('connect', () => {
   socket.emit('join_room', {username: username});
@@ -207,7 +217,7 @@ function addMessage(msg){
 
   if(msg.type==='text'){
     const p = document.createElement('p');
-    p.textContent = msg.text; // texte correctement rendu
+    p.textContent = msg.text;
     div.appendChild(p);
   } else if(msg.type==='image'){
     const img = document.createElement('img');
@@ -224,41 +234,59 @@ function addMessage(msg){
   scrollToBottom();
 }
 
-// Envoyer message texte
-function sendMessage(){
+// Envoyer message texte ou fichier
+async function sendMessage(){
   const text = input.value.trim();
-  if(!text) return;
-  input.value = '';
-  adjustInputHeight();
 
-  socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
-  addMessage({sender: username, text: text, type:'text'});
+  if(selectedFile){ // si un fichier est sélectionné
+    const formData = new FormData();
+    formData.append('recipient', chatUser);
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await fetch('/send_file', { method:'POST', body: formData });
+      const result = await res.json();
+      if(result.success){
+        addMessage({sender: username, url: result.url, type: result.type});
+      } else {
+        alert('Impossible d\'envoyer le fichier.');
+      }
+    } catch(e){
+      alert('Erreur réseau.');
+    }
+    selectedFile = null;
+    input.value = '';
+    adjustInputHeight();
+    return;
+  }
+
+  if(text){
+    input.value = '';
+    adjustInputHeight();
+    socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
+    addMessage({sender: username, text: text, type:'text'});
+  }
 }
 
-// Envoyer fichier (image/vidéo)
+// Préparer fichier et afficher un aperçu dans textarea
 fileBtn.addEventListener('click', ()=> fileInput.click());
-fileInput.addEventListener('change', async () => {
+fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if(!file) return;
-  const formData = new FormData();
-  formData.append('recipient', chatUser);
-  formData.append('file', file);
+  selectedFile = file;
 
-  try {
-    const res = await fetch('/send_file', { method:'POST', body: formData });
-    const result = await res.json();
-    if(result.success){
-      addMessage({sender: username, url: result.url, type: result.type});
-    } else {
-      alert('Impossible d\'envoyer le fichier.');
-    }
-  } catch(e){
-    alert('Erreur réseau.');
+  // Affiche un aperçu dans le champ input
+  if(file.type.startsWith("image/")){
+    input.value = "[Image sélectionnée]";
+  } else if(file.type.startsWith("video/")){
+    input.value = "[Vidéo sélectionnée]";
+  } else {
+    input.value = "[Fichier prêt]";
   }
-  fileInput.value = '';
+  adjustInputHeight();
 });
 
-// Bouton envoyer texte
+// Bouton envoyer
 btn.addEventListener('click', sendMessage);
 input.addEventListener('keypress', e => { 
   if(e.key==='Enter' && !e.shiftKey){ 
@@ -270,7 +298,7 @@ adjustInputHeight();
 
 // Réception messages en temps réel
 socket.on('new_message', msg => {
-  addMessage(msg); // on ajoute directement le message reçu
+  addMessage(msg);
 });
 </script>
 
