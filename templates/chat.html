@@ -38,7 +38,7 @@ html, body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Messages scrollables */
+/* Messages scrollables uniquement */
 .messages {
   position: absolute;
   top: var(--header-h);
@@ -181,7 +181,6 @@ let selectedFile = null; // fichier en attente
 // Rejoindre sa room
 socket.on('connect', () => {
   socket.emit('join_room', {username: username});
-  // Signaler que tous les messages de cette conversation sont lus
   socket.emit('mark_read', {sender: chatUser});
 });
 
@@ -223,7 +222,6 @@ function addMessage(msg){
   messagesDiv.appendChild(div);
   scrollToBottom();
 
-  // Si le message vient de l'autre utilisateur, signaler comme lu
   if(msg.sender === chatUser){
     socket.emit('mark_read', {sender: chatUser});
   }
@@ -290,3 +288,4 @@ socket.on('new_message', msg => {
 </script>
 </body>
 </html>
+
