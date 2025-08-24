@@ -27,11 +27,48 @@ body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f2f5; 
     {% endfor %}
 </div>
 <div class="input-box">
-    <form method="POST" action="{{ url_for('chat', username=chat_user) }}">
-        <input type="text" name="text" placeholder="Écrire un message..." required>
-        <button type="submit">Envoyer</button>
-    </form>
+    <input type="text" id="messageInput" placeholder="Écrire un message..." required>
+    <button id="sendBtn">Envoyer</button>
 </div>
+
+<script>
+const input = document.getElementById('messageInput');
+const btn = document.getElementById('sendBtn');
+const messagesDiv = document.getElementById('messages');
+
+btn.addEventListener('click', async () => {
+    const text = input.value.trim();
+    if(!text) return;
+
+    // envoyer le message via POST à /send_message
+    const response = await fetch("/send_message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient: "{{ chat_user }}", message: text })
+    });
+
+    const result = await response.json();
+    if(result.success){
+        // ajouter le message à l'affichage
+        const div = document.createElement('div');
+        div.className = 'message from-me';
+        div.textContent = text;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        input.value = '';
+    } else {
+        alert("Impossible d'envoyer le message.");
+    }
+});
+
+// optionnel: envoyer avec Enter
+input.addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') {
+        e.preventDefault();
+        btn.click();
+    }
+});
+</script>
 </body>
 </html>
 
