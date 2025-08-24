@@ -81,30 +81,41 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---- MESSAGES EN TEMPS RÉEL ----
   socket.on('new_message', data => {
     // si on est sur chat.html et que la conversation correspond
-    const chatContainer = document.getElementById('chat-messages');
-    if (chatContainer && data.conversation_id == chatContainer.dataset.conversationId) {
-      const msgEl = document.createElement('div');
-      msgEl.className = 'chat-message';
-      msgEl.innerHTML = `<strong>${data.from}</strong>: ${data.content}`;
-      chatContainer.appendChild(msgEl);
+    const chatContainer = document.getElementById('messages'); // zone de chat
+    if (chatContainer && data.recipient === currentUsername || data.sender === currentUsername) {
+      const div = document.createElement('div');
+      div.className = data.sender === currentUsername ? 'message from-me' : 'message from-other';
+      div.textContent = data.content;
+      chatContainer.appendChild(div);
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
   });
 
-  function bindChatForm(form) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const input = form.querySelector('input[name="message"]');
-      const content = input.value.trim();
-      if (content) {
-        const conversationId = form.dataset.conversationId;
-        socket.emit('send_message', { conversation_id: parseInt(conversationId), content });
-        input.value = "";
-      }
-    });
-  }
+  // ---- envoi de message depuis chat.html ----
+  const input = document.getElementById('messageInput');
+  const btn = document.getElementById('sendBtn');
+  const messagesDiv = document.getElementById('messages');
 
-  document.querySelectorAll('.chat-form').forEach(bindChatForm);
+  btn.addEventListener('click', () => {
+    const text = input.value.trim();
+    if (!text) return;
+
+    socket.emit('send_message', { recipient: "{{ chat_user }}", content: text });
+
+    const div = document.createElement('div');
+    div.className = 'message from-me';
+    div.textContent = text;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    input.value = '';
+  });
+
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      btn.click();
+    }
+  });
 
   // ------------------ FORMULAIRE COMMENTAIRES ------------------
   function bindCommentForm(form) {
