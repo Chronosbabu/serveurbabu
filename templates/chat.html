@@ -127,6 +127,7 @@ html, body {
   max-height: 300px;
 }
 </style>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body data-username="{{ session['username'] }}">
 
@@ -155,15 +156,21 @@ html, body {
   <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
 </div>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-qO1O0i4j3fYlH3EjrGeu4p2a7YVlfWv2jYX2P6/pq8u+9z7tHhj2A+oC/1eyFh3j" crossorigin="anonymous"></script>
 <script>
 const socket = io();
+const username = document.body.dataset.username;
+const chatUser = "{{ chat_user }}";
+
 const input = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
 const fileBtn = document.getElementById('fileBtn');
 const fileInput = document.getElementById('fileInput');
 const messagesDiv = document.getElementById('messages');
-const chatUser = "{{ chat_user }}";
+
+// Rejoindre sa room
+socket.on('connect', () => {
+  socket.emit('join_room', {username: username});
+});
 
 // Scroll automatique vers le bas
 function scrollToBottom(){
@@ -192,18 +199,18 @@ if(window.visualViewport){
   window.visualViewport.addEventListener('scroll', adjustForKeyboard);
 }
 
-// Ajouter message dans le DOM
-function appendMessage(msg){
+// Ajouter un message au chat
+function addMessage(msg){
   const div = document.createElement('div');
-  div.className = 'message ' + (msg.sender === "{{ session['username'] }}" ? 'from-me' : 'from-other');
+  div.className = 'message ' + (msg.sender===username?'from-me':'from-other');
 
-  if(msg.type === 'text'){
+  if(msg.type==='text'){
     div.textContent = msg.text;
-  } else if(msg.type === 'image'){
+  } else if(msg.type==='image'){
     const img = document.createElement('img');
     img.src = msg.url;
     div.appendChild(img);
-  } else if(msg.type === 'video'){
+  } else if(msg.type==='video'){
     const video = document.createElement('video');
     video.src = msg.url;
     video.controls = true;
@@ -215,35 +222,40 @@ function appendMessage(msg){
 }
 
 // Envoyer message texte
-function sendMessage(){
+async function sendMessage(){
   const text = input.value.trim();
   if(!text) return;
-  socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
   input.value = '';
   adjustInputHeight();
+
+  socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
+  addMessage({sender: username, text: text, type:'text'});
 }
 
 // Envoyer fichier (image/vidéo)
 fileBtn.addEventListener('click', ()=> fileInput.click());
-fileInput.addEventListener('change', () => {
+fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
   if(!file) return;
   const formData = new FormData();
   formData.append('recipient', chatUser);
   formData.append('file', file);
 
-  fetch('/send_file', { method:'POST', body: formData })
-    .then(res => res.json())
-    .then(result => {
-      if(result.success){
-        appendMessage({sender: "{{ session['username'] }}", type: result.type, url: result.url});
-      } else alert('Impossible d\'envoyer le fichier.');
-    })
-    .catch(()=> alert('Erreur réseau.'));
+  try {
+    const res = await fetch('/send_file', { method:'POST', body: formData });
+    const result = await res.json();
+    if(result.success){
+      addMessage({sender: username, url: result.url, type: result.type});
+    } else {
+      alert('Impossible d\'envoyer le fichier.');
+    }
+  } catch(e){
+    alert('Erreur réseau.');
+  }
   fileInput.value = '';
 });
 
-// Envoyer message au clic ou Enter
+// Bouton envoyer texte
 btn.addEventListener('click', sendMessage);
 input.addEventListener('keypress', e => { 
   if(e.key==='Enter' && !e.shiftKey){ 
@@ -251,17 +263,16 @@ input.addEventListener('keypress', e => {
     sendMessage(); 
   } 
 });
-
 adjustInputHeight();
-scrollToBottom();
 
-// Écouter les messages entrants
+// Réception messages en temps réel
 socket.on('new_message', msg => {
-  if(msg.sender === chatUser || msg.sender === "{{ session['username'] }}"){
-    appendMessage(msg);
+  if(msg.sender === chatUser || msg.sender === username){
+    addMessage(msg);
   }
 });
 </script>
 
 </body>
 </html>
+
