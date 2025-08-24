@@ -68,11 +68,13 @@ body {
     font-size: 18px;
     color: #555;
     overflow: hidden;
+    position: relative;
 }
 .profile-pic img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 
 /* Conversation Infos */
@@ -132,7 +134,7 @@ body {
     <div class="conversation" onclick="window.location.href='/chat/{{ conv.username }}'">
         <div class="profile-pic">
             {% if conv.profile_pic %}
-            <img src="{{ conv.profile_pic }}" alt="{{ conv.username }}">
+            <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}" alt="{{ conv.username }}">
             {% else %}
             {{ conv.username[0]|upper }}
             {% endif %}
