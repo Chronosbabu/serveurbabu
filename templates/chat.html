@@ -24,7 +24,7 @@ html, body {
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
 }
 
 /* Header fixe */
@@ -71,8 +71,7 @@ html, body {
   gap: 8px;
   box-sizing: border-box;
   flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
+  position: relative; /* <-- correction pour clavier */
 }
 .input-box textarea {
   flex: 1;
@@ -100,6 +99,7 @@ html, body {
 /* Scrollbar optionnelle */
 .messages::-webkit-scrollbar { width: 6px; }
 .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+
 </style>
 </head>
 <body data-username="{{ session['username'] }}">
@@ -171,6 +171,9 @@ async function sendMessage(){
 // Events
 btn.addEventListener('click', sendMessage);
 input.addEventListener('keypress', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+
+// Fixe le scroll quand le clavier s'ouvre (mobile)
+window.addEventListener('resize', scrollToBottom);
 
 adjustInputHeight();
 </script>
