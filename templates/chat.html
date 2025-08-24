@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -43,7 +42,7 @@ html, body {
 .messages {
   position: absolute;
   top: var(--header-h);
-  bottom: calc(var(--input-min-h) + 16px + env(safe-area-inset-bottom));
+  bottom: 60px;
   left: 0;
   right: 0;
   padding: 12px;
@@ -70,7 +69,7 @@ html, body {
 /* Zone input fixe */
 .input-box {
   position: fixed;
-  bottom: env(safe-area-inset-bottom);
+  bottom: 0;
   left: 0;
   right: 0;
   display: flex;
@@ -116,26 +115,12 @@ html, body {
 }
 #fileBtn:hover { background: #054D46; }
 
-/* Scrollbar optionnelle */
-.messages::-webkit-scrollbar { width: 6px; }
-.messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
-
 .message img, .message video {
   max-width: 100%;
   border-radius: 15px;
   display: block;
 }
-.message video {
-  max-height: 300px;
-}
-
-/* Aperçu fichier */
-.preview {
-  max-width: 100px;
-  max-height: 100px;
-  margin-right: 8px;
-  border-radius: 10px;
-}
+.message video { max-height: 300px; }
 </style>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
@@ -159,7 +144,7 @@ html, body {
   {% endfor %}
 </div>
 
-<div class="input-box">
+<div class="input-box" id="inputBox">
   <button id="fileBtn">📎</button>
   <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
   <button id="sendBtn">➤</button>
@@ -176,126 +161,81 @@ const btn = document.getElementById('sendBtn');
 const fileBtn = document.getElementById('fileBtn');
 const fileInput = document.getElementById('fileInput');
 const messagesDiv = document.getElementById('messages');
+const inputBox = document.getElementById('inputBox');
 
 let selectedFile = null;
 
-// Scroll automatique vers le bas
-function scrollToBottom(){
-  requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
+// Scroll automatique
+function scrollToBottom() {
+  requestAnimationFrame(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; });
 }
-scrollToBottom();
 
-// Ajuster la hauteur du textarea dynamiquement
-function adjustInputHeight(){
+// Ajuster hauteur textarea
+function adjustInputHeight() {
   input.style.height = 'auto';
   const newHeight = Math.min(input.scrollHeight, 120);
   input.style.height = newHeight + 'px';
-  messagesDiv.style.bottom = (newHeight + 16) + 'px';
+  inputBox.style.height = (newHeight + 16) + 'px';
+  messagesDiv.style.bottom = inputBox.offsetHeight + 'px';
 }
 input.addEventListener('input', adjustInputHeight);
 
-// Ajouter un message
+// Ajouter message
 function addMessage(msg){
   const div = document.createElement('div');
   div.className = 'message ' + (msg.sender===username?'from-me':'from-other');
 
-  if(msg.type==='text'){
-    const p = document.createElement('p');
-    p.textContent = msg.text;
-    div.appendChild(p);
-  } else if(msg.type==='image'){
-    const img = document.createElement('img');
-    img.src = msg.url;
-    div.appendChild(img);
-  } else if(msg.type==='video'){
-    const video = document.createElement('video');
-    video.src = msg.url;
-    video.controls = true;
-    div.appendChild(video);
-  }
+  if(msg.type==='text'){ div.textContent = msg.text; }
+  else if(msg.type==='image'){ const img=document.createElement('img'); img.src=msg.url; div.appendChild(img); }
+  else if(msg.type==='video'){ const video=document.createElement('video'); video.src=msg.url; video.controls=true; div.appendChild(video); }
 
   messagesDiv.appendChild(div);
   scrollToBottom();
-
-  if(msg.sender === chatUser){
-    socket.emit('mark_read', {sender: chatUser});
-  }
+  if(msg.sender === chatUser){ socket.emit('mark_read', {sender: chatUser}); }
 }
 
 // Envoyer message
 async function sendMessage(){
   const text = input.value.trim();
-
   if(selectedFile){ 
     const formData = new FormData();
     formData.append('recipient', chatUser);
     formData.append('file', selectedFile);
-
-    try {
-      await fetch('/send_file', { method:'POST', body: formData });
-    } catch(e){
-      alert('Erreur réseau.');
-    }
-    selectedFile = null;
-    input.value = '';
-    adjustInputHeight();
-    return;
+    try { await fetch('/send_file',{method:'POST', body:formData}); } 
+    catch(e){ alert('Erreur réseau.'); }
+    selectedFile=null; input.value=''; adjustInputHeight(); return;
   }
-
-  if(text){
-    input.value = '';
-    adjustInputHeight();
-    socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
-  }
+  if(text){ input.value=''; adjustInputHeight(); socket.emit('send_message',{receiver:chatUser,text:type='text',type:'text'}); }
 }
 
-fileBtn.addEventListener('click', ()=> fileInput.click());
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files[0];
-  if(!file) return;
-  selectedFile = file;
-
-  if(file.type.startsWith("image/")){
-    input.value = "[Image sélectionnée]";
-  } else if(file.type.startsWith("video/")){
-    input.value = "[Vidéo sélectionnée]";
-  } else {
-    input.value = "[Fichier prêt]";
-  }
+fileBtn.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', ()=>{
+  const file = fileInput.files[0]; if(!file) return; selectedFile=file;
+  input.value=file.type.startsWith("image/") ? "[Image sélectionnée]" : file.type.startsWith("video/") ? "[Vidéo sélectionnée]" : "[Fichier prêt]";
   adjustInputHeight();
 });
 
 btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', e => { 
-  if(e.key==='Enter' && !e.shiftKey){ 
-    e.preventDefault(); 
-    sendMessage(); 
-  } 
-});
+input.addEventListener('keypress', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+
 adjustInputHeight();
+scrollToBottom();
 
-// Socket messages
-socket.on('connect', () => {
-  socket.emit('join_room', {username: username});
-  socket.emit('mark_read', {sender: chatUser});
+// Socket
+socket.on('connect', ()=>{
+  socket.emit('join_room', {username:username});
+  socket.emit('mark_read',{sender:chatUser});
 });
+socket.on('new_message', addMessage);
 
-socket.on('new_message', msg => {
-  addMessage(msg);
-});
-
-// ===== ASTUCE MOBILE POUR CLAVIER =====
-let initialHeight = window.innerHeight;
-
-window.addEventListener('resize', () => {
-  const heightDiff = initialHeight - window.innerHeight;
-  if(heightDiff > 100){ // clavier visible
-    messagesDiv.style.bottom = (input.scrollHeight + heightDiff + 16) + 'px';
-    scrollToBottom();
-  } else { // clavier caché
-    messagesDiv.style.bottom = (input.scrollHeight + 16) + 'px';
-  }
+// Ajustement clavier mobile
+let windowHeight = window.innerHeight;
+window.addEventListener('resize', ()=>{
+  const diff = windowHeight - window.innerHeight;
+  if(diff>100){ messagesDiv.style.bottom = inputBox.offsetHeight + diff + 'px'; scrollToBottom(); }
+  else{ messagesDiv.style.bottom = inputBox.offsetHeight + 'px'; }
 });
 </script>
 </body>
 </html>
+
