@@ -7,28 +7,22 @@
 <title>Chat avec {{ chat_user }}</title>
 <style>
 :root{
-  --header-h: 60px; /* valeurs par défaut, seront mises à jour en JS */
+  --header-h: 60px; 
   --input-h: 64px;
 }
-
-/* Empêcher tout scroll de la page : seul .messages défile */
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 body {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   margin: 0;
   background: #e5ddd5;
   -webkit-text-size-adjust: 100%;
-  height: 100dvh; /* évite les sauts d'adresse bar sur mobile */
+  height: 100dvh;
 }
-
-/* Header (non scrollant) */
 .header {
   background: #075E54; color: #fff; text-align: center;
   padding: 15px; font-size: 20px; font-weight: bold;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
-
-/* La zone des messages occupe exactement l'espace entre header et input */
 .messages {
   position: fixed;
   left: 0; right: 0;
@@ -39,11 +33,9 @@ body {
   display: flex; flex-direction: column; gap: 8px;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;   /* évite le scroll de la page */
+  overscroll-behavior: contain;
   touch-action: pan-y;
 }
-
-/* Messages */
 .message {
   padding: 10px 14px; border-radius: 20px; max-width: 75%;
   line-height: 1.4; font-size: 15px; word-wrap: break-word;
@@ -52,8 +44,6 @@ body {
 .from-me   { background: #dcf8c6; align-self: flex-end; }
 .from-other{ background: #fff;    align-self: flex-start; }
 .no-messages { text-align: center; color: #888; margin-top: 20px; }
-
-/* Barre d’entrée 100% FIXE, hors zone scrollable */
 .input-box {
   position: fixed; left: 0; right: 0; bottom: 0;
   display: flex; gap: 8px;
@@ -61,12 +51,10 @@ body {
   background: #fff; border-top: 1px solid #ccc; box-sizing: border-box;
   z-index: 100;
 }
-
 .input-box input {
   flex: 1; padding: 10px 12px; border: 1px solid #ccc;
   border-radius: 25px; font-size: 15px; box-sizing: border-box;
 }
-
 .input-box button {
   width: 45px; height: 45px; border-radius: 50%;
   border: none; background: #25D366; color: #fff;
@@ -74,15 +62,9 @@ body {
   cursor: pointer; font-size: 18px;
 }
 .input-box button:hover { background: #128C7E; }
-
-/* Scrollbar */
 .messages::-webkit-scrollbar { width: 6px; }
 .messages::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 3px; }
-
-/* Animation */
 @keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1; transform: none;} }
-
-/* Responsive */
 @media (max-width: 600px){
   .message { font-size: 14px; max-width: 85%; }
   .input-box input { font-size: 14px; }
@@ -120,56 +102,54 @@ const inputBox    = document.getElementById('inputBox');
 const currentUser = document.body.dataset.username;
 const chatUser    = "{{ chat_user }}";
 
+function scrollToBottom(){ messagesDiv.scrollTop = messagesDiv.scrollHeight; }
+
 /* 1) Caler .messages entre header et input, et garder input FIXE */
 function syncHeights(){
   const hH = headerEl.offsetHeight;
   const iH = inputBox.offsetHeight;
   document.documentElement.style.setProperty('--header-h', hH + 'px');
   document.documentElement.style.setProperty('--input-h',  iH + 'px');
+  scrollToBottom();
 }
 window.addEventListener('resize', syncHeights);
 window.addEventListener('orientationchange', syncHeights);
 syncHeights();
 
-/* 2) Gérer clavier mobile via VisualViewport (iOS/Android) pour que l'input reste fixe et visible */
-if (window.visualViewport) {
-  const onVV = () => {
+/* 2) Gérer clavier mobile via VisualViewport */
+if(window.visualViewport){
+  const onVV = ()=>{
     const vv = window.visualViewport;
-    // chevauchement clavier estimé
-    const keyboardOverlap = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
+    const keyboardOverlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     inputBox.style.bottom = (keyboardOverlap) + 'px';
-    // Re-calcul de la zone messages
-    syncHeights();
+    scrollToBottom();
   };
   window.visualViewport.addEventListener('resize', onVV);
   window.visualViewport.addEventListener('scroll', onVV);
 }
 
-/* 3) Empêcher tout scroll de la page : seul .messages défile */
-document.addEventListener('touchmove', function(e){
-  const target = e.target.closest('.messages');
-  if(!target) e.preventDefault();
-}, {passive:false});
+/* 3) Empêcher scroll page sauf .messages */
+document.addEventListener('touchmove', e=>{
+  if(!e.target.closest('.messages')) e.preventDefault();
+},{passive:false});
 
 /* Socket */
 const socket = io();
-socket.on('new_message', data => {
+socket.on('new_message', data=>{
   if ((data.from === chatUser && data.to === currentUser) || (data.from === currentUser && data.to === chatUser)) {
     const div = document.createElement('div');
     div.className = data.from === currentUser ? 'message from-me' : 'message from-other';
     div.textContent = data.content;
     messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    scrollToBottom();
   }
 });
 
 /* Envoi */
-btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', (e) => { if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); } });
-
 async function sendMessage(){
   const text = input.value.trim();
   if(!text) return;
+  input.value='';  // vide direct pour UX, même si fetch prend du temps
   try{
     const res = await fetch("/send_message", {
       method: "POST",
@@ -182,19 +162,19 @@ async function sendMessage(){
       div.className = 'message from-me';
       div.textContent = text;
       messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      input.value = '';
-    } else {
-      alert("Impossible d'envoyer le message.");
-    }
-  } catch(e){
-    alert("Erreur réseau.");
-  }
+      scrollToBottom();
+    } else alert("Impossible d'envoyer le message.");
+  } catch(e){ alert("Erreur réseau."); }
 }
 
-/* Focus/blur => resync (cas clavier) */
+btn.addEventListener('click', sendMessage);
+input.addEventListener('keypress', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); sendMessage(); }
+});
+
+/* Focus clavier => resync */
 input.addEventListener('focus', syncHeights);
-input.addEventListener('blur',  () => { inputBox.style.bottom = '0px'; syncHeights(); });
+input.addEventListener('blur', ()=>{ inputBox.style.bottom='0px'; syncHeights(); });
 </script>
 </body>
 </html>
