@@ -15,7 +15,7 @@ body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f2f5; 
 .input-box button { padding:10px 15px; background:#007BFF; color:#fff; border:none; border-radius:5px; cursor:pointer; }
 </style>
 </head>
-<body>
+<body data-username="{{ session['username'] }}">
 <div class="header">Chat avec {{ chat_user }}</div>
 <div class="messages" id="messages">
     {% for msg in messages %}
@@ -31,42 +31,52 @@ body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f2f5; 
     <button id="sendBtn">Envoyer</button>
 </div>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 const input = document.getElementById('messageInput');
 const btn = document.getElementById('sendBtn');
 const messagesDiv = document.getElementById('messages');
+const currentUser = document.body.dataset.username;
+const chatUser = "{{ chat_user }}";
 
+// initialiser socket
+const socket = io();
+
+// recevoir les messages en temps réel
+socket.on('new_message', data => {
+    if ((data.from === chatUser && data.to === currentUser) || (data.from === currentUser && data.to === chatUser)) {
+        const div = document.createElement('div');
+        div.className = data.from === currentUser ? 'message from-me' : 'message from-other';
+        div.textContent = data.content;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+});
+
+// envoyer le message
 btn.addEventListener('click', async () => {
     const text = input.value.trim();
     if(!text) return;
 
-    // envoyer le message via POST à /send_message
     const response = await fetch("/send_message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient: "{{ chat_user }}", message: text })
+        body: JSON.stringify({ recipient: chatUser, message: text })
     });
 
     const result = await response.json();
     if(result.success){
-        // ajouter le message à l'affichage
         const div = document.createElement('div');
         div.className = 'message from-me';
         div.textContent = text;
         messagesDiv.appendChild(div);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
         input.value = '';
-    } else {
-        alert("Impossible d'envoyer le message.");
-    }
+    } else alert("Impossible d'envoyer le message.");
 });
 
-// optionnel: envoyer avec Enter
 input.addEventListener('keypress', (e) => {
-    if(e.key === 'Enter') {
-        e.preventDefault();
-        btn.click();
-    }
+    if(e.key === 'Enter') { e.preventDefault(); btn.click(); }
 });
 </script>
 </body>
