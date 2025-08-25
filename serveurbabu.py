@@ -259,7 +259,6 @@ def uploaded_file(filename):
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
-# --- Route ajoutée pour l'envoi de fichiers ---
 @app.route("/send_file", methods=["POST"])
 def send_file_route():
     if "username" not in session:
@@ -277,9 +276,9 @@ def send_file_route():
     file_type = "text"
     if ext in [".jpg", ".jpeg", ".png", ".gif"]:
         file_type = "image"
-    elif ext in [".mp4", ".mov", ".avi"]:   # ❌ plus ".webm"
+    elif ext in [".mp4", ".mov", ".avi"]:
         file_type = "video"
-    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:  # ✅ ici on traite les webm comme audio
+    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:
         file_type = "audio"
 
     url = url_for("uploaded_file", filename=filename)
@@ -290,7 +289,7 @@ def send_file_route():
 
     return jsonify({"success": True, "url": url, "type": file_type})
 
-# --- Routes Messages ---
+# --- Messages & Conversations ---
 @app.route("/conversations")
 def conversations():
     if "username" not in session:
@@ -353,6 +352,7 @@ def send_message_http():
 
     return jsonify({"success": True})
 
+# --- SocketIO ---
 @socketio.on("connect")
 def handle_connect():
     user = session.get("username")
@@ -366,7 +366,6 @@ def handle_send_message(data):
     text = (data.get("text") or "").strip()
     if not sender or not receiver or not text:
         return
-
     entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
@@ -410,4 +409,5 @@ def handle_send_comment(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+
 
