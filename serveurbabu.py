@@ -16,23 +16,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Fichiers principaux
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
-
-# Nouveaux fichiers pour le système bancaire et paris
-ACCOUNTS_FILE = os.path.join(DATA_DIR, "accounts.json")
+COMPTE_FILE = os.path.join(DATA_DIR, "compte.json")
 MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")
 
-# Initialisation si fichiers inexistants
-for file_path, default in [
-    (DATA_FILE, []), 
-    (USER_FILE, []), 
-    (MESSAGES_FILE, {}), 
-    (ACCOUNTS_FILE, {}), 
-    (MATCHES_FILE, [])
-]:
+for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (COMPTE_FILE, {}), (MATCHES_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -40,43 +30,45 @@ for file_path, default in [
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 # --- Utilitaires ---
-def load_json(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
+def load_posts():
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_json(data, file_path):
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def load_posts():
-    return load_json(DATA_FILE)
-
 def save_posts(posts):
-    save_json(posts, DATA_FILE)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(posts, f, ensure_ascii=False, indent=2)
 
 def load_users():
-    return load_json(USER_FILE)
+    with open(USER_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_users(users):
-    save_json(users, USER_FILE)
+    with open(USER_FILE, "w", encoding="utf-8") as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
 
 def load_messages():
-    return load_json(MESSAGES_FILE)
+    with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_messages(messages):
-    save_json(messages, MESSAGES_FILE)
+    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
 
-def load_accounts():
-    return load_json(ACCOUNTS_FILE)
+def load_compte():
+    with open(COMPTE_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def save_accounts(accounts):
-    save_json(accounts, ACCOUNTS_FILE)
+def save_compte(compte):
+    with open(COMPTE_FILE, "w", encoding="utf-8") as f:
+        json.dump(compte, f, ensure_ascii=False, indent=2)
 
 def load_matches():
-    return load_json(MATCHES_FILE)
+    with open(MATCHES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def save_matches(matches):
-    save_json(matches, MATCHES_FILE)
+    with open(MATCHES_FILE, "w", encoding="utf-8") as f:
+        json.dump(matches, f, ensure_ascii=False, indent=2)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -204,7 +196,6 @@ def add_post():
 
     return render_template("new_post.html")
 
-# --- Likes / commentaires ---
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
     if "username" not in session:
@@ -254,7 +245,6 @@ def comments(post_id):
 
     return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
 
-# --- Profils et recherche ---
 @app.route("/profile/<username>")
 def profile(username):
     user = get_user(username)
@@ -287,85 +277,49 @@ def uploaded_file(filename):
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
-# --- Paris et comptes bancaires ---
-@app.route("/compte", methods=["GET", "POST"])
+# --- Routes supplémentaires pour comptes et matches ---
+@app.route("/compte")
 def compte():
     if "username" not in session:
         return redirect(url_for("login"))
+    comptes = load_compte()
+    compte_data = comptes.get(session["username"], {"balance": 0, "transactions": []})
+    return render_template("compte.html", compte=compte_data, username=session["username"])
 
-    accounts = load_accounts()
-    user = session["username"]
+@app.route("/compte/depot", methods=["POST"])
+def depot():
+    if "username" not in session:
+        return jsonify({"success": False, "error": "Non connecté"}), 401
+    montant = float(request.form.get("montant", 0))
+    comptes = load_compte()
+    user_compte = comptes.get(session["username"], {"balance": 0, "transactions": []})
+    user_compte["balance"] += montant
+    user_compte.setdefault("transactions", []).append({"type": "depot", "montant": montant, "date": datetime.now().isoformat()})
+    comptes[session["username"]] = user_compte
+    save_compte(comptes)
+    return redirect(url_for("compte"))
 
-    if request.method == "POST":
-        # Création compte si inexistant
-        password = (request.form.get("password") or "").strip()
-        if user not in accounts:
-            accounts[user] = {"password": hash_password(password), "franc": 0, "dollar": 0}
-            save_accounts(accounts)
-
-    user_account = accounts.get(user)
-    return render_template("compte.html", account=user_account)
-
-@app.route("/matches", methods=["GET"])
+@app.route("/matches")
 def matches():
     if "username" not in session:
         return redirect(url_for("login"))
+    all_matches = load_matches()
+    return render_template("matches.html", matches=all_matches, username=session["username"])
 
-    matches_list = load_matches()
-    return render_template("matches.html", matches=matches_list)
-
-@app.route("/add_match", methods=["POST"])
+@app.route("/matches/add", methods=["POST"])
 def add_match():
-    # Ajouter match via script externe
-    data = request.get_json() or {}
-    team1 = data.get("team1")
-    team2 = data.get("team2")
-    if not team1 or not team2:
-        return jsonify({"success": False, "error": "Champs manquants"}), 400
-    matches_list = load_matches()
-    match_id = len(matches_list) + 1
-    matches_list.append({"id": match_id, "team1": team1, "team2": team2, "bets": []})
-    save_matches(matches_list)
-    socketio.emit("new_match", {"id": match_id, "team1": team1, "team2": team2})
-    return jsonify({"success": True})
-
-@app.route("/bet", methods=["POST"])
-def bet():
     if "username" not in session:
         return jsonify({"success": False, "error": "Non connecté"}), 401
-
-    data = request.get_json() or {}
-    match_id = data.get("match_id")
-    choice = data.get("choice")  # team1, team2 ou null
-    amount_franc = float(data.get("franc") or 0)
-    amount_dollar = float(data.get("dollar") or 0)
-
-    accounts = load_accounts()
+    nom = (request.form.get("nom") or "").strip()
+    photo = (request.form.get("photo") or "").strip()
+    if not nom:
+        return redirect(url_for("matches"))
     matches_list = load_matches()
-    user = session["username"]
-
-    user_acc = accounts.get(user)
-    if not user_acc:
-        return jsonify({"success": False, "error": "Compte bancaire inexistant"}), 400
-
-    if amount_franc > user_acc.get("franc", 0) or amount_dollar > user_acc.get("dollar", 0):
-        return jsonify({"success": False, "error": "Solde insuffisant"}), 400
-
-    # Débit du compte
-    user_acc["franc"] -= amount_franc
-    user_acc["dollar"] -= amount_dollar
-    save_accounts(accounts)
-
-    # Ajouter le pari
-    match = next((m for m in matches_list if m["id"] == match_id), None)
-    if not match:
-        return jsonify({"success": False, "error": "Match introuvable"}), 404
-    match["bets"].append({"user": user, "choice": choice, "franc": amount_franc, "dollar": amount_dollar})
+    matches_list.append({"nom": nom, "photo": photo})
     save_matches(matches_list)
+    return redirect(url_for("matches"))
 
-    return jsonify({"success": True})
-
-# --- SocketIO basique ---
+# --- WebSocket & Messages (inchangés) ---
 @socketio.on("connect")
 def handle_connect():
     user = session.get("username")
@@ -379,32 +333,9 @@ def handle_send_message(data):
     text = (data.get("text") or "").strip()
     if not sender or not receiver or not text:
         return
-
     entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
-
-@socketio.on('send_comment')
-def handle_send_comment(data):
-    if "username" not in session:
-        return
-    post_id = data.get('post_id')
-    content = (data.get('content') or "").strip()
-    if not post_id or not content:
-        return
-    posts = load_posts()
-    post = next((p for p in posts if p["id"] == post_id), None)
-    if not post:
-        return
-    comment_data = {
-        "username": session["username"],
-        "avatar": session.get("avatar"),
-        "content": content,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    post.setdefault("comments", []).append(comment_data)
-    save_posts(posts)
-    emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
