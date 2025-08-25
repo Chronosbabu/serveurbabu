@@ -66,18 +66,20 @@ html, body {
 .from-me { background: #dcf8c6; align-self: flex-end; }
 .from-other { background: #fff; align-self: flex-start; }
 
-/* Styles spécifiques pour l'audio */
-.message audio {
+/* Styles spécifiques pour l'audio : supprimer le fond */
+.message.audio-wrapper {
+  background: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  max-width: 100% !important;
+}
+.message.audio-wrapper audio {
   width: 250px;
   display: block;
   margin: 5px 0;
   border-radius: 0;
   background: transparent;
   padding: 0;
-}
-.message.from-me audio,
-.message.from-other audio {
-  background: transparent;
   box-shadow: none;
 }
 
@@ -178,7 +180,7 @@ html, body {
 
 <div class="messages" id="messages">
   {% for msg in messages %}
-    <div class="message {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}" data-msg-id="{{ loop.index0 }}">
+    <div class="message {% if msg.type == 'audio' %}audio-wrapper{% endif %} {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}" data-msg-id="{{ loop.index0 }}">
       {% if msg.type == 'text' %}
         {{ msg.text }}
       {% elif msg.type == 'image' %}
@@ -243,6 +245,7 @@ input.addEventListener('input', adjustInputHeight);
 function addMessage(msg){
   const div = document.createElement('div');
   div.className = 'message ' + (msg.sender===username?'from-me':'from-other');
+  if(msg.type==='audio'){ div.classList.add('audio-wrapper'); }
 
   if(msg.type==='text'){
     div.textContent = msg.text;
