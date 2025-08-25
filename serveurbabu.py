@@ -19,10 +19,11 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
-COMPTE_FILE = os.path.join(DATA_DIR, "compte.json")
+COMPTES_FILE = os.path.join(DATA_DIR, "comptes.json")
 MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")
 
-for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (COMPTE_FILE, {}), (MATCHES_FILE, [])]:
+# Initialisation fichiers JSON si non existants
+for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (COMPTES_FILE, []), (MATCHES_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -54,13 +55,13 @@ def save_messages(messages):
     with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=2)
 
-def load_compte():
-    with open(COMPTE_FILE, "r", encoding="utf-8") as f:
+def load_comptes():
+    with open(COMPTES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_compte(compte):
-    with open(COMPTE_FILE, "w", encoding="utf-8") as f:
-        json.dump(compte, f, ensure_ascii=False, indent=2)
+def save_comptes(comptes):
+    with open(COMPTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(comptes, f, ensure_ascii=False, indent=2)
 
 def load_matches():
     with open(MATCHES_FILE, "r", encoding="utf-8") as f:
@@ -276,68 +277,4 @@ def uploaded_file(filename):
 @app.route("/avatars/<filename>")
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
-
-# --- Routes supplémentaires pour comptes et matches ---
-@app.route("/compte")
-def compte():
-    if "username" not in session:
-        return redirect(url_for("login"))
-    comptes = load_compte()
-    compte_data = comptes.get(session["username"], {"balance": 0, "transactions": []})
-    return render_template("compte.html", compte=compte_data, username=session["username"])
-
-@app.route("/compte/depot", methods=["POST"])
-def depot():
-    if "username" not in session:
-        return jsonify({"success": False, "error": "Non connecté"}), 401
-    montant = float(request.form.get("montant", 0))
-    comptes = load_compte()
-    user_compte = comptes.get(session["username"], {"balance": 0, "transactions": []})
-    user_compte["balance"] += montant
-    user_compte.setdefault("transactions", []).append({"type": "depot", "montant": montant, "date": datetime.now().isoformat()})
-    comptes[session["username"]] = user_compte
-    save_compte(comptes)
-    return redirect(url_for("compte"))
-
-@app.route("/matches")
-def matches():
-    if "username" not in session:
-        return redirect(url_for("login"))
-    all_matches = load_matches()
-    return render_template("matches.html", matches=all_matches, username=session["username"])
-
-@app.route("/matches/add", methods=["POST"])
-def add_match():
-    if "username" not in session:
-        return jsonify({"success": False, "error": "Non connecté"}), 401
-    nom = (request.form.get("nom") or "").strip()
-    photo = (request.form.get("photo") or "").strip()
-    if not nom:
-        return redirect(url_for("matches"))
-    matches_list = load_matches()
-    matches_list.append({"nom": nom, "photo": photo})
-    save_matches(matches_list)
-    return redirect(url_for("matches"))
-
-# --- WebSocket & Messages (inchangés) ---
-@socketio.on("connect")
-def handle_connect():
-    user = session.get("username")
-    if user:
-        join_room(user)
-
-@socketio.on("send_message")
-def handle_send_message(data):
-    sender = session.get("username")
-    receiver = (data.get("receiver") or "").strip()
-    text = (data.get("text") or "").strip()
-    if not sender or not receiver or not text:
-        return
-    entry = append_message(sender, receiver, text, msg_type="text")
-    emit("new_message", entry, room=receiver)
-    emit("new_message", entry, room=sender)
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    socketio.run(app, host="0.0.0.0", port=port)
 
