@@ -277,9 +277,9 @@ def send_file_route():
     file_type = "text"
     if ext in [".jpg", ".jpeg", ".png", ".gif"]:
         file_type = "image"
-    elif ext in [".mp4", ".mov", ".avi", ".webm"]:
+    elif ext in [".mp4", ".mov", ".avi"]:   # ❌ plus ".webm"
         file_type = "video"
-    elif ext in [".mp3", ".wav", ".ogg", ".m4a"]:
+    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:  # ✅ ici on traite les webm comme audio
         file_type = "audio"
 
     url = url_for("uploaded_file", filename=filename)
