@@ -160,7 +160,7 @@ body {
         </div>
         <div class="conversation-info">
             <h4>{{ conv.username }}</h4>
-            <p>{{ conv.last_msg }}</p>
+            <p class="last-msg">{{ conv.last_msg }}</p>
         </div>
         <div class="right-side">
             <div class="time">{{ conv.last_date }}</div>
@@ -172,13 +172,12 @@ body {
     {% endfor %}
 </div>
 
-<!-- Socket.IO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 const socket = io();
 const currentUser = "{{ session.get('username') }}";
 
-// --- Initialisation des badges dès l'ouverture ---
+// --- Initialisation des badges ---
 document.querySelectorAll('.conversation').forEach(conv => {
     const badge = conv.querySelector('.unread-badge');
     if (badge.textContent && parseInt(badge.textContent) > 0) {
@@ -196,11 +195,23 @@ socket.on('new_message', (msg) => {
             count += 1;
             badge.textContent = count;
             badge.style.display = 'block';
+
+            // Mettre à jour le dernier message et la date
+            conv.querySelector('.last-msg').textContent = msg.text;
+            const timeElem = conv.querySelector('.time');
+            timeElem.textContent = new Date(msg.date).toLocaleString();
+            
+            // Remonter la conversation en haut
+            const parent = conv.parentElement;
+            parent.prepend(conv);
+        } else {
+            // Nouvelle conversation
+            location.reload(); // pour simplifier si une nouvelle conversation est arrivée
         }
     }
 });
 
-// --- Clic sur une conversation ---
+// --- Clic sur conversation ---
 document.querySelectorAll('.conversation').forEach(conv => {
     conv.addEventListener('click', () => {
         const username = conv.dataset.username;
@@ -212,7 +223,7 @@ document.querySelectorAll('.conversation').forEach(conv => {
     });
 });
 
-// --- Confirmation serveur lecture des messages ---
+// --- Confirmation lecture messages ---
 socket.on('update_unread', (data) => {
     const username = data.from;
     const conv = document.querySelector(`.conversation[data-username='${username}']`);
@@ -223,6 +234,6 @@ socket.on('update_unread', (data) => {
     }
 });
 </script>
-
 </body>
 </html>
+
