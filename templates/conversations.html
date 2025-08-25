@@ -178,6 +178,14 @@ body {
 const socket = io();
 const currentUser = "{{ session.get('username') }}";
 
+// --- Initialisation des badges dès l'ouverture ---
+document.querySelectorAll('.conversation').forEach(conv => {
+    const badge = conv.querySelector('.unread-badge');
+    if (badge.textContent && parseInt(badge.textContent) > 0) {
+        badge.style.display = 'block';
+    }
+});
+
 // --- Réception des nouveaux messages ---
 socket.on('new_message', (msg) => {
     if (msg.sender !== currentUser) {
@@ -196,13 +204,10 @@ socket.on('new_message', (msg) => {
 document.querySelectorAll('.conversation').forEach(conv => {
     conv.addEventListener('click', () => {
         const username = conv.dataset.username;
-        // Marque comme lu sur le serveur
         socket.emit('mark_read', {sender: username});
-        // Cache le badge localement
         const badge = conv.querySelector('.unread-badge');
         badge.style.display = 'none';
         badge.textContent = '';
-        // Redirige vers le chat
         window.location.href = `/chat/${username}`;
     });
 });
@@ -221,4 +226,3 @@ socket.on('update_unread', (data) => {
 
 </body>
 </html>
-
