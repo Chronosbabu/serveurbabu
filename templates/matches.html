@@ -51,6 +51,8 @@
       background: #b0003a;
     }
   </style>
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
   <header>
@@ -58,41 +60,39 @@
   </header>
 
   <div class="container" id="matchesList">
-    <!-- Les matches seront injectés ici -->
+    <!-- Matches injectés depuis le serveur -->
   </div>
 
   <script>
-    // Exemple de matches reçus du serveur
-    const matches = [
-      { equipe1: "Real Madrid", equipe2: "Barcelone" },
-      { equipe1: "PSG", equipe2: "Marseille" },
-      { equipe1: "Milan AC", equipe2: "Inter Milan" }
-    ];
+    const socket = io(); // connexion au serveur Flask/Render
 
-    // Exemple de solde utilisateur (normalement ça vient du serveur)
-    let soldeFrancs = 10000;
+    let soldeFrancs = 10000;  // TODO: récupérer via /compte depuis ton serveur
     let soldeDollars = 50;
 
-    function afficherMatches() {
+    // Afficher un match dans la liste
+    function afficherMatch(match) {
       const list = document.getElementById("matchesList");
-      list.innerHTML = "";
-      matches.forEach((m, index) => {
-        const card = document.createElement("div");
-        card.className = "match-card";
-        card.innerHTML = `
-          <div class="match-info">
-            <h3>${m.equipe1} vs ${m.equipe2}</h3>
-          </div>
-          <button class="btn-parier" onclick="parier(${index})">Parier</button>
-        `;
-        list.appendChild(card);
-      });
+      const card = document.createElement("div");
+      card.className = "match-card";
+      card.innerHTML = `
+        <div class="match-info">
+          <h3>${match.equipe1} vs ${match.equipe2}</h3>
+        </div>
+        <button class="btn-parier" onclick='parier(${JSON.stringify(match)})'>Parier</button>
+      `;
+      list.appendChild(card);
     }
 
-    function parier(index) {
-      const match = matches[index];
+    // Charger tous les matches au début
+    async function chargerMatches() {
+      const res = await fetch("/matches/list");
+      const matches = await res.json();
+      document.getElementById("matchesList").innerHTML = "";
+      matches.forEach(m => afficherMatch(m));
+    }
 
-      // 1. Choix de l'équipe gagnante
+    // Pari utilisateur
+    async function parier(match) {
       const choix = prompt(
         `Sur qui pariez-vous pour le match ${match.equipe1} vs ${match.equipe2} ?
 1 = ${match.equipe1}
@@ -100,53 +100,52 @@
 3 = Match nul`
       );
       if (!choix || !["1","2","3"].includes(choix)) {
-        alert("Choix invalide.");
-        return;
+        alert("Choix invalide."); return;
       }
 
-      // 2. Choix devise
       const devise = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars");
       if (!devise || !["1","2"].includes(devise)) {
-        alert("Devise invalide.");
-        return;
+        alert("Devise invalide."); return;
       }
 
-      // 3. Montant
       const montant = parseFloat(prompt("Entrez le montant à parier :"));
       if (isNaN(montant) || montant <= 0) {
-        alert("Montant invalide.");
-        return;
+        alert("Montant invalide."); return;
       }
 
-      // 4. Vérification du solde
-      if (devise === "1") { // Francs
-        if (montant > soldeFrancs) {
-          alert("Solde insuffisant en Francs.");
-          return;
-        }
-        soldeFrancs -= montant;
-        alert(`Pari effectué avec succès ! Nouveau solde Francs : ${soldeFrancs}`);
-      } else { // Dollars
-        if (montant > soldeDollars) {
-          alert("Solde insuffisant en Dollars.");
-          return;
-        }
-        soldeDollars -= montant;
-        alert(`Pari effectué avec succès ! Nouveau solde Dollars : ${soldeDollars}`);
+      if (devise === "1" && montant > soldeFrancs) {
+        alert("Solde insuffisant en Francs."); return;
+      }
+      if (devise === "2" && montant > soldeDollars) {
+        alert("Solde insuffisant en Dollars."); return;
       }
 
-      // Ici on envoie au serveur les infos du pari
+      // Mise à jour du solde côté client
+      if (devise === "1") soldeFrancs -= montant;
+      else soldeDollars -= montant;
+
+      alert("Pari effectué avec succès !");
+
+      // Envoi au serveur
       const pari = {
         match: match,
         choix: choix,
         devise: devise === "1" ? "Francs" : "Dollars",
         montant: montant
       };
-      console.log("Pari envoyé au serveur :", pari);
-      // fetch("/parier", { method: "POST", body: JSON.stringify(pari) }) etc.
+      await fetch("/parier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pari)
+      });
     }
 
-    afficherMatches();
+    // Réception des nouveaux matches via Socket.IO
+    socket.on("new_match", (match) => {
+      afficherMatch(match);
+    });
+
+    chargerMatches();
   </script>
 </body>
 </html>
