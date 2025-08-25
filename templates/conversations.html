@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -50,6 +49,7 @@ body {
     border-bottom: 1px solid #eee;
     cursor: pointer;
     transition: background 0.2s ease;
+    position: relative;
 }
 .conversation:last-child { border-bottom: none; }
 .conversation:hover { background: #f7f9fc; }
@@ -76,6 +76,22 @@ body {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+/* Badge messages non lus */
+.unread-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: red;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 12px;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1.2;
 }
 
 /* Conversation Infos */
@@ -135,17 +151,19 @@ body {
     <div class="conversation" onclick="window.location.href='/chat/{{ conv.username }}'">
         <div class="profile-pic">
             {% if conv.profile_pic %}
-            <!-- Utilisation de la même route Flask que dans la recherche -->
             <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}" alt="{{ conv.username }}">
             {% else %}
             {{ conv.username[0]|upper }}
+            {% endif %}
+            {% if conv.unread_count and conv.unread_count > 0 %}
+            <div class="unread-badge">{{ conv.unread_count }}</div>
             {% endif %}
         </div>
         <div class="conversation-info">
             <h4>{{ conv.username }}</h4>
             <p>{{ conv.last_msg }}</p>
         </div>
-        <div class="time">{{ conv.last_time }}</div>
+        <div class="time">{{ conv.last_date }}</div>
     </div>
     {% else %}
     <div class="empty">Aucune conversation pour l'instant.</div>
@@ -154,3 +172,4 @@ body {
 
 </body>
 </html>
+
