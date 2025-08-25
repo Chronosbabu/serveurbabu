@@ -144,13 +144,7 @@ body {
 </style>
 </head>
 <body>
-<div class="header">
-    💬 Mes Conversations
-    {% set total_unread = conversations | sum(attribute='unread_count') %}
-    {% if total_unread > 0 %}
-        <span class="unread-badge" style="top:10px; right:10px;">{{ total_unread }}</span>
-    {% endif %}
-</div>
+<div class="header">💬 Mes Conversations</div>
 
 <div class="conversation-list">
     {% for conv in conversations %}
@@ -162,6 +156,7 @@ body {
             {{ conv.username[0]|upper }}
             {% endif %}
             {% if conv.unread_count and conv.unread_count > 0 %}
+            <!-- Badge uniquement pour cette conversation -->
             <div class="unread-badge">{{ conv.unread_count }}</div>
             {% endif %}
         </div>
