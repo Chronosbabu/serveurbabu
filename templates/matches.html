@@ -33,18 +33,13 @@
     }
     .match-info {
       display: flex;
-      align-items: center;
-    }
-    .match-info img {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      margin-right: 15px;
+      flex-direction: column;
+      align-items: flex-start;
     }
     .match-info h3 {
       margin: 0;
     }
-    .btn-message {
+    .btn-parier {
       padding: 8px 15px;
       border: none;
       border-radius: 8px;
@@ -52,7 +47,7 @@
       color: #fff;
       cursor: pointer;
     }
-    .btn-message:hover {
+    .btn-parier:hover {
       background: #b0003a;
     }
   </style>
@@ -67,34 +62,92 @@
   </div>
 
   <script>
+    // Exemple de matches reçus du serveur
     const matches = [
-      { nom: "Alice", photo: "https://via.placeholder.com/60", msg: "Salut Alice !" },
-      { nom: "Bob", photo: "https://via.placeholder.com/60", msg: "Coucou Bob !" },
-      { nom: "Clara", photo: "https://via.placeholder.com/60", msg: "Hello Clara !" }
+      { equipe1: "Real Madrid", equipe2: "Barcelone" },
+      { equipe1: "PSG", equipe2: "Marseille" },
+      { equipe1: "Milan AC", equipe2: "Inter Milan" }
     ];
+
+    // Exemple de solde utilisateur (normalement ça vient du serveur)
+    let soldeFrancs = 10000;
+    let soldeDollars = 50;
 
     function afficherMatches() {
       const list = document.getElementById("matchesList");
       list.innerHTML = "";
-      matches.forEach(m => {
+      matches.forEach((m, index) => {
         const card = document.createElement("div");
         card.className = "match-card";
         card.innerHTML = `
           <div class="match-info">
-            <img src="${m.photo}" alt="${m.nom}">
-            <h3>${m.nom}</h3>
+            <h3>${m.equipe1} vs ${m.equipe2}</h3>
           </div>
-          <button class="btn-message" onclick="envoyerMessage('${m.nom}', '${m.msg}')">Message</button>
+          <button class="btn-parier" onclick="parier(${index})">Parier</button>
         `;
         list.appendChild(card);
       });
     }
 
-    function envoyerMessage(nom, msg) {
-      alert("Message envoyé à " + nom + " : " + msg);
+    function parier(index) {
+      const match = matches[index];
+
+      // 1. Choix de l'équipe gagnante
+      const choix = prompt(
+        `Sur qui pariez-vous pour le match ${match.equipe1} vs ${match.equipe2} ?
+1 = ${match.equipe1}
+2 = ${match.equipe2}
+3 = Match nul`
+      );
+      if (!choix || !["1","2","3"].includes(choix)) {
+        alert("Choix invalide.");
+        return;
+      }
+
+      // 2. Choix devise
+      const devise = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars");
+      if (!devise || !["1","2"].includes(devise)) {
+        alert("Devise invalide.");
+        return;
+      }
+
+      // 3. Montant
+      const montant = parseFloat(prompt("Entrez le montant à parier :"));
+      if (isNaN(montant) || montant <= 0) {
+        alert("Montant invalide.");
+        return;
+      }
+
+      // 4. Vérification du solde
+      if (devise === "1") { // Francs
+        if (montant > soldeFrancs) {
+          alert("Solde insuffisant en Francs.");
+          return;
+        }
+        soldeFrancs -= montant;
+        alert(`Pari effectué avec succès ! Nouveau solde Francs : ${soldeFrancs}`);
+      } else { // Dollars
+        if (montant > soldeDollars) {
+          alert("Solde insuffisant en Dollars.");
+          return;
+        }
+        soldeDollars -= montant;
+        alert(`Pari effectué avec succès ! Nouveau solde Dollars : ${soldeDollars}`);
+      }
+
+      // Ici on envoie au serveur les infos du pari
+      const pari = {
+        match: match,
+        choix: choix,
+        devise: devise === "1" ? "Francs" : "Dollars",
+        montant: montant
+      };
+      console.log("Pari envoyé au serveur :", pari);
+      // fetch("/parier", { method: "POST", body: JSON.stringify(pari) }) etc.
     }
 
     afficherMatches();
   </script>
 </body>
 </html>
+

@@ -102,6 +102,22 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
+BETS_FILE = os.path.join(DATA_DIR, "bets.json")
+if not os.path.exists(BETS_FILE):
+    with open(BETS_FILE, "w", encoding="utf-8") as f:
+        json.dump([], f, ensure_ascii=False, indent=2)
+
+def load_bets():
+    with open(BETS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_bets(bets):
+    with open(BETS_FILE, "w", encoding="utf-8") as f:
+        json.dump(bets, f, ensure_ascii=False, indent=2)
+
+
+
+
 # --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -560,6 +576,56 @@ def matches_add():
     return jsonify({"success": True, "match": new_match})
 
 # --- FIN nouvelles routes ---
+
+
+
+@app.route("/parier", methods=["POST"])
+def parier():
+    if "username" not in session:
+        return jsonify({"success": False, "message": "Non connecté"}), 401
+    data = request.get_json(silent=True) or {}
+    match_id = data.get("match_id")
+    choix = data.get("choix")
+    devise = data.get("devise")
+    montant = int(data.get("montant", 0))
+    username = session["username"]
+
+    if not match_id or not choix or devise not in ["francs", "dollars"] or montant <= 0:
+        return jsonify({"success": False, "message": "Champs invalides"}), 400
+
+    matches = load_matches()
+    match = next((m for m in matches if m["id"] == match_id), None)
+    if not match:
+        return jsonify({"success": False, "message": "Match introuvable"}), 404
+
+    accounts = load_accounts()
+    if username not in accounts:
+        return jsonify({"success": False, "message": "Aucun compte bancaire"}), 403
+
+    acc = accounts[username]
+    solde = acc.get(devise, 0)
+    if montant > solde:
+        return jsonify({"success": False, "message": f"Solde insuffisant en {devise}"}), 403
+
+    acc[devise] -= montant
+    save_accounts(accounts)
+
+    bets = load_bets()
+    new_bet = {
+        "id": len(bets) + 1,
+        "username": username,
+        "match_id": match_id,
+        "choix": choix,
+        "devise": devise,
+        "montant": montant,
+        "date": datetime.now().isoformat()
+    }
+    bets.append(new_bet)
+    save_bets(bets)
+
+    socketio.emit("new_bet", new_bet, room=username)
+    return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
