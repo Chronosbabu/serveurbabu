@@ -259,6 +259,7 @@ def uploaded_file(filename):
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
+# --- Envoi fichiers ---
 @app.route("/send_file", methods=["POST"])
 def send_file_route():
     if "username" not in session:
@@ -289,7 +290,7 @@ def send_file_route():
 
     return jsonify({"success": True, "url": url, "type": file_type})
 
-# --- Messages & Conversations ---
+# --- Messages ---
 @app.route("/conversations")
 def conversations():
     if "username" not in session:
@@ -366,6 +367,7 @@ def handle_send_message(data):
     text = (data.get("text") or "").strip()
     if not sender or not receiver or not text:
         return
+
     entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
@@ -409,5 +411,4 @@ def handle_send_comment(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
 
