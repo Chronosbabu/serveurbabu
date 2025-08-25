@@ -16,11 +16,23 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# Fichiers principaux
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
-for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
+# Nouveaux fichiers pour le système bancaire et paris
+ACCOUNTS_FILE = os.path.join(DATA_DIR, "accounts.json")
+MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")
+
+# Initialisation si fichiers inexistants
+for file_path, default in [
+    (DATA_FILE, []), 
+    (USER_FILE, []), 
+    (MESSAGES_FILE, {}), 
+    (ACCOUNTS_FILE, {}), 
+    (MATCHES_FILE, [])
+]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -28,29 +40,43 @@ for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 # --- Utilitaires ---
-def load_posts():
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+def load_json(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+def save_json(data, file_path):
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def load_posts():
+    return load_json(DATA_FILE)
 
 def save_posts(posts):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(posts, f, ensure_ascii=False, indent=2)
+    save_json(posts, DATA_FILE)
 
 def load_users():
-    with open(USER_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_json(USER_FILE)
 
 def save_users(users):
-    with open(USER_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
+    save_json(users, USER_FILE)
 
 def load_messages():
-    with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_json(MESSAGES_FILE)
 
 def save_messages(messages):
-    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
-        json.dump(messages, f, ensure_ascii=False, indent=2)
+    save_json(messages, MESSAGES_FILE)
+
+def load_accounts():
+    return load_json(ACCOUNTS_FILE)
+
+def save_accounts(accounts):
+    save_json(accounts, ACCOUNTS_FILE)
+
+def load_matches():
+    return load_json(MATCHES_FILE)
+
+def save_matches(matches):
+    save_json(matches, MATCHES_FILE)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -178,6 +204,7 @@ def add_post():
 
     return render_template("new_post.html")
 
+# --- Likes / commentaires ---
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
     if "username" not in session:
@@ -227,6 +254,7 @@ def comments(post_id):
 
     return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
 
+# --- Profils et recherche ---
 @app.route("/profile/<username>")
 def profile(username):
     user = get_user(username)
@@ -259,101 +287,85 @@ def uploaded_file(filename):
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
-# --- Envoi fichiers ---
-@app.route("/send_file", methods=["POST"])
-def send_file_route():
-    if "username" not in session:
-        return jsonify({"success": False, "error": "Non connecté"}), 401
-
-    receiver = request.form.get("recipient", "").strip()
-    file = request.files.get("file")
-    if not receiver or not file:
-        return jsonify({"success": False, "error": "Champs manquants"}), 400
-
-    filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
-
-    ext = os.path.splitext(filename)[1].lower()
-    file_type = "text"
-    if ext in [".jpg", ".jpeg", ".png", ".gif"]:
-        file_type = "image"
-    elif ext in [".mp4", ".mov", ".avi"]:
-        file_type = "video"
-    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:
-        file_type = "audio"
-
-    url = url_for("uploaded_file", filename=filename)
-
-    entry = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
-    socketio.emit("new_message", entry, room=receiver)
-    socketio.emit("new_message", entry, room=session["username"])
-
-    return jsonify({"success": True, "url": url, "type": file_type})
-
-# --- Messages ---
-@app.route("/conversations")
-def conversations():
+# --- Paris et comptes bancaires ---
+@app.route("/compte", methods=["GET", "POST"])
+def compte():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    messages = load_messages()
-    username = session.get("username")
-    user_conversations = []
+    accounts = load_accounts()
+    user = session["username"]
 
-    for key, conv in messages.items():
-        try:
-            u1, u2 = key.split("_", 1)
-        except ValueError:
-            continue
-        if username not in (u1, u2):
-            continue
-        other_user = u2 if u1 == username else u1
-        last_msg = conv[-1]["text"] if conv else ""
-        last_date = conv[-1].get("date") if conv else ""
+    if request.method == "POST":
+        # Création compte si inexistant
+        password = (request.form.get("password") or "").strip()
+        if user not in accounts:
+            accounts[user] = {"password": hash_password(password), "franc": 0, "dollar": 0}
+            save_accounts(accounts)
 
-        other_user_data = get_user(other_user)
-        user_conversations.append({
-            "username": other_user,
-            "profile_pic": other_user_data.get("avatar") if other_user_data else None,
-            "last_msg": last_msg,
-            "last_date": last_date,
-            "unread_count": sum(1 for m in conv if username not in m.get("read_by", []))
-        })
+    user_account = accounts.get(user)
+    return render_template("compte.html", account=user_account)
 
-    user_conversations.sort(key=lambda x: x.get("last_date", ""), reverse=True)
-    return render_template("conversations.html", conversations=user_conversations)
-
-@app.route("/chat/<username>")
-def chat(username):
+@app.route("/matches", methods=["GET"])
+def matches():
     if "username" not in session:
         return redirect(url_for("login"))
 
-    messages = load_messages()
-    key1 = f"{session['username']}_{username}"
-    key2 = f"{username}_{session['username']}"
-    conv = messages.get(key1) or messages.get(key2) or []
-    return render_template("chat.html", chat_user=username, messages=conv)
+    matches_list = load_matches()
+    return render_template("matches.html", matches=matches_list)
 
-@app.route("/send_message", methods=["POST"])
-def send_message_http():
+@app.route("/add_match", methods=["POST"])
+def add_match():
+    # Ajouter match via script externe
+    data = request.get_json() or {}
+    team1 = data.get("team1")
+    team2 = data.get("team2")
+    if not team1 or not team2:
+        return jsonify({"success": False, "error": "Champs manquants"}), 400
+    matches_list = load_matches()
+    match_id = len(matches_list) + 1
+    matches_list.append({"id": match_id, "team1": team1, "team2": team2, "bets": []})
+    save_matches(matches_list)
+    socketio.emit("new_match", {"id": match_id, "team1": team1, "team2": team2})
+    return jsonify({"success": True})
+
+@app.route("/bet", methods=["POST"])
+def bet():
     if "username" not in session:
         return jsonify({"success": False, "error": "Non connecté"}), 401
 
-    data = request.get_json(silent=True) or {}
-    sender = session.get("username")
-    receiver = (data.get("recipient") or "").strip()
-    text = (data.get("message") or "").strip()
+    data = request.get_json() or {}
+    match_id = data.get("match_id")
+    choice = data.get("choice")  # team1, team2 ou null
+    amount_franc = float(data.get("franc") or 0)
+    amount_dollar = float(data.get("dollar") or 0)
 
-    if not receiver or not text:
-        return jsonify({"success": False, "error": "Champs manquants"}), 400
+    accounts = load_accounts()
+    matches_list = load_matches()
+    user = session["username"]
 
-    entry = append_message(sender, receiver, text, msg_type="text")
-    socketio.emit("new_message", entry, room=receiver)
-    socketio.emit("new_message", entry, room=sender)
+    user_acc = accounts.get(user)
+    if not user_acc:
+        return jsonify({"success": False, "error": "Compte bancaire inexistant"}), 400
+
+    if amount_franc > user_acc.get("franc", 0) or amount_dollar > user_acc.get("dollar", 0):
+        return jsonify({"success": False, "error": "Solde insuffisant"}), 400
+
+    # Débit du compte
+    user_acc["franc"] -= amount_franc
+    user_acc["dollar"] -= amount_dollar
+    save_accounts(accounts)
+
+    # Ajouter le pari
+    match = next((m for m in matches_list if m["id"] == match_id), None)
+    if not match:
+        return jsonify({"success": False, "error": "Match introuvable"}), 404
+    match["bets"].append({"user": user, "choice": choice, "franc": amount_franc, "dollar": amount_dollar})
+    save_matches(matches_list)
 
     return jsonify({"success": True})
 
-# --- SocketIO ---
+# --- SocketIO basique ---
 @socketio.on("connect")
 def handle_connect():
     user = session.get("username")
@@ -371,20 +383,6 @@ def handle_send_message(data):
     entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
-
-@socketio.on('mark_read')
-def mark_read(data):
-    user = session.get("username")
-    sender = data.get("sender")
-    messages = load_messages()
-    key1 = f"{sender}_{user}"
-    key2 = f"{user}_{sender}"
-    conv = messages.get(key1) or messages.get(key2) or []
-    for m in conv:
-        if user not in m.get("read_by", []):
-            m.setdefault("read_by", []).append(user)
-    save_messages(messages)
-    emit('update_unread', {'from': sender}, room=user)
 
 @socketio.on('send_comment')
 def handle_send_comment(data):
