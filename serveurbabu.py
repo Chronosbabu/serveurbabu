@@ -279,6 +279,8 @@ def send_file_route():
         file_type = "image"
     elif ext in [".mp4", ".mov", ".avi", ".webm"]:
         file_type = "video"
+    elif ext in [".mp3", ".wav", ".ogg", ".m4a"]:
+        file_type = "audio"
 
     url = url_for("uploaded_file", filename=filename)
 
