@@ -224,21 +224,26 @@ let mediaRecorder, audioChunks = [];
 socket.on('connect', () => {
   socket.emit('join_room', {username: username});
   socket.emit('mark_read', {sender: chatUser});
+  // Ajuster hauteur dès le chargement
+  adjustInputHeight();
 });
 
 // Scroll automatique
 function scrollToBottom(){
   requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
 }
-scrollToBottom();
 
-// Ajuster textarea
+// Ajuster textarea et messagesDiv bottom
 function adjustInputHeight(){
   input.style.height = 'auto';
   const newHeight = Math.min(input.scrollHeight, 120);
   input.style.height = newHeight + 'px';
   messagesDiv.style.bottom = (newHeight + 16) + 'px';
 }
+
+// Initial adjustment au chargement
+adjustInputHeight();
+
 input.addEventListener('input', adjustInputHeight);
 
 // Ajouter un message
@@ -267,6 +272,7 @@ function addMessage(msg){
 
   messagesDiv.appendChild(div);
   scrollToBottom();
+  adjustInputHeight(); // <- correction : recalculer bottom à chaque ajout
 
   if(msg.sender === chatUser){
     socket.emit('mark_read', {sender: chatUser});
@@ -281,10 +287,8 @@ async function sendMessage(){
     const formData = new FormData();
     formData.append('recipient', chatUser);
     formData.append('file', selectedFile);
-
     try { await fetch('/send_file', { method:'POST', body: formData }); }
     catch(e){ alert('Erreur réseau.'); }
-
     selectedFile = null;
     input.value = '';
     adjustInputHeight();
@@ -295,10 +299,8 @@ async function sendMessage(){
     const formData = new FormData();
     formData.append('recipient', chatUser);
     formData.append('file', recordedAudio, "audio_message.webm");
-
     try { await fetch('/send_file', { method:'POST', body: formData }); }
     catch(e){ alert('Erreur réseau.'); }
-
     recordedAudio = null;
     input.value = '';
     adjustInputHeight();
@@ -354,10 +356,11 @@ input.addEventListener('keypress', e => {
     sendMessage(); 
   } 
 });
-adjustInputHeight();
 
 // Réception messages
 socket.on('new_message', msg => addMessage(msg));
+
+scrollToBottom();
 </script>
 </body>
 </html>
