@@ -19,8 +19,17 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
+# Nouveaux fichiers pour comptes et matches
+ACCOUNTS_FILE = os.path.join(DATA_DIR, "accounts.json")
+MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")
 
-for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
+for file_path, default in [
+    (DATA_FILE, []),
+    (USER_FILE, []),
+    (MESSAGES_FILE, {}),
+    (ACCOUNTS_FILE, {}),   # comptes stockés par username
+    (MATCHES_FILE, [])     # liste de matches
+]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -51,6 +60,23 @@ def load_messages():
 def save_messages(messages):
     with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=2)
+
+# Nouveaux utilitaires pour comptes et matches
+def load_accounts():
+    with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_accounts(accounts):
+    with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(accounts, f, ensure_ascii=False, indent=2)
+
+def load_matches():
+    with open(MATCHES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_matches(matches):
+    with open(MATCHES_FILE, "w", encoding="utf-8") as f:
+        json.dump(matches, f, ensure_ascii=False, indent=2)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -277,9 +303,9 @@ def send_file_route():
     file_type = "text"
     if ext in [".jpg", ".jpeg", ".png", ".gif"]:
         file_type = "image"
-    elif ext in [".mp4", ".mov", ".avi"]:   
+    elif ext in [".mp4", ".mov", ".avi"]:
         file_type = "video"
-    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:  
+    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:
         file_type = "audio"
 
     url = url_for("uploaded_file", filename=filename)
@@ -413,13 +439,127 @@ def compte():
     user = get_user(session["username"])
     return render_template("compte.html", user=user)
 
+# Route appelée depuis la page compte pour ouvrir/valider le mot de passe du compte bancaire
+@app.route("/compte/ouvrir", methods=["POST"])
+def ouvrir_compte():
+    if "username" not in session:
+        return jsonify({"success": False, "message": "Non connecté"}), 401
+
+    data = request.get_json(silent=True) or {}
+    pwd = (data.get("password") or "").strip()
+    if not pwd:
+        return jsonify({"success": False, "message": "Mot de passe requis"}), 400
+
+    accounts = load_accounts()
+    username = session["username"]
+
+    # Si pas d'account on crée (mot de passe stocké haché)
+    if username not in accounts:
+        accounts[username] = {
+            "bank_password": hash_password(pwd),
+            "francs": 0,
+            "dollars": 0,
+            "created_at": datetime.now().isoformat()
+        }
+        save_accounts(accounts)
+        return jsonify({"success": True, "francs": 0, "dollars": 0})
+
+    # Si existe, vérifier mot de passe
+    acc = accounts[username]
+    if acc.get("bank_password") != hash_password(pwd):
+        return jsonify({"success": False, "message": "Mot de passe incorrect"}), 403
+
+    return jsonify({"success": True, "francs": acc.get("francs", 0), "dollars": acc.get("dollars", 0)})
+
+# Route pour vérifier qu'un utilisateur existe (utilisée par le script de dépôt local)
+@app.route("/compte/verifier/<username>", methods=["GET"])
+def verifier_user(username):
+    user = get_user(username)
+    if not user:
+        return jsonify({"success": False}), 404
+    return jsonify({"success": True})
+
+# Route pour déposer depuis un script externe (depot.py)
+@app.route("/compte/depot", methods=["POST"])
+def depot():
+    # Cette route peut être appelée par ton script local (sans session)
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    try:
+        francs = int(data.get("francs", 0))
+    except:
+        francs = 0
+    try:
+        dollars = int(data.get("dollars", 0))
+    except:
+        dollars = 0
+
+    if not username:
+        return jsonify({"success": False, "message": "username requis"}), 400
+
+    user = get_user(username)
+    if not user:
+        return jsonify({"success": False, "message": "Utilisateur introuvable"}), 404
+
+    accounts = load_accounts()
+    # si pas de compte, on le crée (sans mot de passe). Tu peux changer ce comportement si tu veux exiger un compte créé par l'utilisateur.
+    if username not in accounts:
+        accounts[username] = {
+            "bank_password": None,  # pas encore créé
+            "francs": 0,
+            "dollars": 0,
+            "created_at": datetime.now().isoformat()
+        }
+
+    acc = accounts[username]
+    acc["francs"] = acc.get("francs", 0) + francs
+    acc["dollars"] = acc.get("dollars", 0) + dollars
+    save_accounts(accounts)
+
+    # Optionnel : notifier l'utilisateur via socketio (s'il est connecté)
+    socketio.emit("account_update", {"username": username, "francs": acc["francs"], "dollars": acc["dollars"]}, room=username)
+
+    return jsonify({"success": True, "francs": acc["francs"], "dollars": acc["dollars"]})
+
+# Matches pages & API
 @app.route("/matches")
 def matches():
     if "username" not in session:
         return redirect(url_for("login"))
-    users = load_users()
-    matches_list = [u for u in users if u["username"] != session["username"]]
-    return render_template("matches.html", matches=matches_list)
+    # ta page matches (frontend) affichera le contenu obtenu depuis /matches/list
+    return render_template("matches.html")
+
+# Liste des matches en JSON (utiles pour frontend JS ou scripts externes)
+@app.route("/matches/list", methods=["GET"])
+def matches_list():
+    matches = load_matches()
+    return jsonify({"success": True, "matches": matches})
+
+# Route pour ajouter un match (utilisé par ton script externe "add_match.py")
+@app.route("/matches/add", methods=["POST"])
+def matches_add():
+    data = request.get_json(silent=True) or {}
+    team1 = (data.get("team1") or "").strip()
+    team2 = (data.get("team2") or "").strip()
+    if not team1 or not team2:
+        return jsonify({"success": False, "message": "Deux équipes requises"}), 400
+
+    matches = load_matches()
+    new_match = {
+        "id": len(matches) + 1,
+        "team1": team1,
+        "team2": team2,
+        "created_at": datetime.now().isoformat(),
+        "status": "scheduled"  # champ extensible
+    }
+    matches.insert(0, new_match)
+    save_matches(matches)
+
+    # Broadcast vers tous les clients connectés pour qu'ils voient le nouveau match
+    socketio.emit("new_match", new_match, broadcast=True)
+    return jsonify({"success": True, "match": new_match})
+
+# --- FIN nouvelles routes ---
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
