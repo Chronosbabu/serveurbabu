@@ -66,6 +66,21 @@ html, body {
 .from-me { background: #dcf8c6; align-self: flex-end; }
 .from-other { background: #fff; align-self: flex-start; }
 
+/* Styles spécifiques pour l'audio */
+.message audio {
+  width: 250px;
+  display: block;
+  margin: 5px 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+.message.from-me audio,
+.message.from-other audio {
+  background: transparent;
+  box-shadow: none;
+}
+
 /* Zone input fixe */
 .input-box {
   position: fixed;
@@ -146,15 +161,6 @@ html, body {
   display: block;
 }
 .message video { max-height: 300px; }
-
-/* Correction audio : compact, pas de grand fond */
-.message audio {
-  display: inline-block;
-  width: auto;
-  max-width: 220px;
-  border-radius: 12px;
-  margin: 4px 0;
-}
 
 /* Aperçu fichier */
 .preview {
