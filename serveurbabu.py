@@ -207,6 +207,39 @@ def like_post(post_id):
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
 
+@app.route("/conversations")
+def conversations():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    messages = load_messages()
+    username = session.get("username")
+    user_conversations = []
+
+    for key, conv in messages.items():
+        try:
+            u1, u2 = key.split("_", 1)
+        except ValueError:
+            continue
+        if username not in (u1, u2):
+            continue
+        other_user = u2 if u1 == username else u1
+        last_msg = conv[-1]["text"] if conv else ""
+        last_date = conv[-1].get("date") if conv else ""
+
+        other_user_data = get_user(other_user)
+        user_conversations.append({
+            "username": other_user,
+            "profile_pic": other_user_data.get("avatar") if other_user_data else None,
+            "last_msg": last_msg,
+            "last_date": last_date,
+            "unread_count": sum(1 for m in conv if username not in m.get("read_by", []))
+        })
+
+    user_conversations.sort(key=lambda x: x.get("last_date", ""), reverse=True)
+    return render_template("conversations.html", conversations=user_conversations)
+
+
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
     if "username" not in session:
