@@ -45,11 +45,12 @@ body {
 .conversation {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Pour mettre badge à droite */
+    justify-content: space-between;
     padding: 14px 16px;
     border-bottom: 1px solid #eee;
     cursor: pointer;
     transition: background 0.2s ease;
+    position: relative;
 }
 .conversation:last-child { border-bottom: none; }
 .conversation:hover { background: #f7f9fc; }
@@ -123,6 +124,7 @@ body {
     min-width: 20px;
     text-align: center;
     line-height: 1.2;
+    display: none;
 }
 
 /* Empty state */
@@ -148,7 +150,7 @@ body {
 
 <div class="conversation-list">
     {% for conv in conversations %}
-    <div class="conversation" onclick="window.location.href='/chat/{{ conv.username }}'">
+    <div class="conversation" data-username="{{ conv.username }}">
         <div class="profile-pic">
             {% if conv.profile_pic %}
             <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}" alt="{{ conv.username }}">
@@ -162,15 +164,60 @@ body {
         </div>
         <div class="right-side">
             <div class="time">{{ conv.last_date }}</div>
-            {% if conv.unread_count and conv.unread_count > 0 %}
-            <div class="unread-badge">{{ conv.unread_count }}</div>
-            {% endif %}
+            <div class="unread-badge">{% if conv.unread_count > 0 %}{{ conv.unread_count }}{% endif %}</div>
         </div>
     </div>
     {% else %}
     <div class="empty">Aucune conversation pour l'instant.</div>
     {% endfor %}
 </div>
+
+<!-- Socket.IO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const socket = io();
+const currentUser = "{{ session.get('username') }}";
+
+// --- Réception des nouveaux messages ---
+socket.on('new_message', (msg) => {
+    if (msg.sender !== currentUser) {
+        const conv = document.querySelector(`.conversation[data-username='${msg.sender}']`);
+        if (conv) {
+            const badge = conv.querySelector('.unread-badge');
+            let count = parseInt(badge.textContent || "0", 10);
+            count += 1;
+            badge.textContent = count;
+            badge.style.display = 'block';
+        }
+    }
+});
+
+// --- Clic sur une conversation ---
+document.querySelectorAll('.conversation').forEach(conv => {
+    conv.addEventListener('click', () => {
+        const username = conv.dataset.username;
+        // Marque comme lu sur le serveur
+        socket.emit('mark_read', {sender: username});
+        // Cache le badge localement
+        const badge = conv.querySelector('.unread-badge');
+        badge.style.display = 'none';
+        badge.textContent = '';
+        // Redirige vers le chat
+        window.location.href = `/chat/${username}`;
+    });
+});
+
+// --- Confirmation serveur lecture des messages ---
+socket.on('update_unread', (data) => {
+    const username = data.from;
+    const conv = document.querySelector(`.conversation[data-username='${username}']`);
+    if (conv) {
+        const badge = conv.querySelector('.unread-badge');
+        badge.style.display = 'none';
+        badge.textContent = '';
+    }
+});
+</script>
 
 </body>
 </html>
