@@ -146,7 +146,15 @@ html, body {
   display: block;
 }
 .message video { max-height: 300px; }
-.message audio { width: 100%; margin-top: 5px; }
+
+/* Correction audio : compact, pas de grand fond */
+.message audio {
+  display: inline-block;
+  width: auto;
+  max-width: 220px;
+  border-radius: 12px;
+  margin: 4px 0;
+}
 
 /* Aperçu fichier */
 .preview {
@@ -185,7 +193,7 @@ html, body {
   <button id="micBtn">🎤</button>
   <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
   <button id="sendBtn">➤</button>
-  <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+  <input type="file" id="fileInput" accept="image/*,video/*,audio/*" style="display:none;">
 </div>
 
 <script>
