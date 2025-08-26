@@ -1,1 +1,96 @@
- <!DOCTYPE html> <html lang="fr"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Mes Matches</title> <style> body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fafafa; } header { background: #e91e63; color: #fff; padding: 15px; text-align: center; } .container { padding: 20px; max-width: 600px; margin: auto; } .match-card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; } .match-info { display: flex; flex-direction: column; align-items: flex-start; } .match-info h3 { margin: 0; } .btn-parier { padding: 8px 15px; border: none; border-radius: 8px; background: #e91e63; color: #fff; cursor: pointer; } .btn-parier:hover { background: #b0003a; } </style> <!-- Socket.IO --> <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script> </head> <body> <header> <h1>Mes Matches</h1> </header> <div class="container" id="matchesList"> <!-- Matches injectés depuis le serveur --> </div> <script> const socket = io(); // connexion au serveur Flask/Render let soldeFrancs = 0; let soldeDollars = 0; // Récupérer le solde réel depuis le serveur async function chargerSolde() { try { const res = await fetch("/compte"); const data = await res.json(); soldeFrancs = data.soldeFrancs; soldeDollars = data.soldeDollars; console.log("Solde récupéré :", data); } catch (err) { console.error("Erreur de récupération du solde :", err); } } // Afficher un match dans la liste function afficherMatch(match) { const list = document.getElementById("matchesList"); const card = document.createElement("div"); card.className = "match-card"; card.innerHTML = <div class="match-info"> <h3>${match.equipe1} vs ${match.equipe2}</h3> </div> <button class="btn-parier" onclick='parier(${JSON.stringify(match)})'>Parier</button> ; list.appendChild(card); } // Charger tous les matches au début async function chargerMatches() { const res = await fetch("/matches/list"); const matches = await res.json(); document.getElementById("matchesList").innerHTML = ""; matches.forEach(m => afficherMatch(m)); } // Pari utilisateur async function parier(match) { const choix = prompt( Sur qui pariez-vous pour le match ${match.equipe1} vs ${match.equipe2} ? 1 = ${match.equipe1} 2 = ${match.equipe2} 3 = Match nul ); if (!choix || !["1","2","3"].includes(choix)) { alert("Choix invalide."); return; } const devise = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars"); if (!devise || !["1","2"].includes(devise)) { alert("Devise invalide."); return; } const montant = parseFloat(prompt("Entrez le montant à parier :")); if (isNaN(montant) || montant <= 0) { alert("Montant invalide."); return; } if (devise === "1" && montant > soldeFrancs) { alert("Solde insuffisant en Francs."); return; } if (devise === "2" && montant > soldeDollars) { alert("Solde insuffisant en Dollars."); return; } // Mise à jour du solde côté client if (devise === "1") soldeFrancs -= montant; else soldeDollars -= montant; alert("Pari effectué avec succès !"); // Envoi au serveur const pari = { match: match.id, choix: choix, devise: devise === "1" ? "francs" : "dollars", montant: montant }; await fetch("/parier", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pari) }); } // Réception des nouveaux matches via Socket.IO socket.on("new_match", (match) => { afficherMatch(match); }); // Au démarrage : récupérer le solde + les matches chargerSolde(); chargerMatches(); </script> </body> </html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mes Matches</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fafafa; }
+header { background: #e91e63; color: #fff; padding: 15px; text-align: center; }
+.container { padding: 20px; max-width: 600px; margin: auto; }
+.match-card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: space-between; }
+.match-info { display: flex; flex-direction: column; align-items: flex-start; }
+.match-info h3 { margin: 0; }
+.btn-parier { padding: 8px 15px; border: none; border-radius: 8px; background: #e91e63; color: #fff; cursor: pointer; }
+.btn-parier:hover { background: #b0003a; }
+</style>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+<header>
+<h1>Mes Matches</h1>
+</header>
+<div class="container" id="matchesList">
+<!-- Matches injectés depuis le serveur -->
+</div>
+<script>
+const socket = io(); // connexion au serveur Flask/Render
+let soldeFrancs = 0;
+let soldeDollars = 0;
+
+// Récupérer le solde réel depuis le serveur
+async function chargerSolde() {
+    try {
+        const res = await fetch("/compte");
+        const data = await res.json();
+        soldeFrancs = Number(data.soldeFrancs); // conversion en nombre
+        soldeDollars = Number(data.soldeDollars); // conversion en nombre
+        console.log("Solde récupéré :", data);
+    } catch (err) {
+        console.error("Erreur de récupération du solde :", err);
+    }
+}
+
+// Afficher un match dans la liste
+function afficherMatch(match) {
+    const list = document.getElementById("matchesList");
+    const card = document.createElement("div");
+    card.className = "match-card";
+    card.innerHTML = `<div class="match-info"><h3>${match.equipe1} vs ${match.equipe2}</h3></div>
+    <button class="btn-parier" onclick='parier(${JSON.stringify(match)})'>Parier</button>`;
+    list.appendChild(card);
+}
+
+// Charger tous les matches au début
+async function chargerMatches() {
+    const res = await fetch("/matches/list");
+    const matches = await res.json();
+    document.getElementById("matchesList").innerHTML = "";
+    matches.forEach(m => afficherMatch(m));
+}
+
+// Pari utilisateur
+async function parier(match) {
+    const choix = prompt(`Sur qui pariez-vous pour le match ${match.equipe1} vs ${match.equipe2} ? 1 = ${match.equipe1} 2 = ${match.equipe2} 3 = Match nul`);
+    if (!choix || !["1","2","3"].includes(choix)) { alert("Choix invalide."); return; }
+
+    const devise = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars");
+    if (!devise || !["1","2"].includes(devise)) { alert("Devise invalide."); return; }
+
+    const montant = parseFloat(prompt("Entrez le montant à parier :"));
+    if (isNaN(montant) || montant <= 0) { alert("Montant invalide."); return; }
+
+    if (devise === "1" && montant > soldeFrancs) { alert("Solde insuffisant en Francs."); return; }
+    if (devise === "2" && montant > soldeDollars) { alert("Solde insuffisant en Dollars."); return; }
+
+    // Mise à jour du solde côté client
+    if (devise === "1") soldeFrancs -= montant;
+    else soldeDollars -= montant;
+
+    alert("Pari effectué avec succès !");
+
+    // Envoi au serveur
+    const pari = { match: match, choix: choix, devise: devise === "1" ? "francs" : "dollars", montant: montant };
+    await fetch("/parier", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pari) });
+}
+
+// Réception des nouveaux matches via Socket.IO
+socket.on("new_match", (match) => { afficherMatch(match); });
+
+// Au démarrage : récupérer le solde + les matches
+chargerSolde();
+chargerMatches();
+</script>
+</body>
+</html>
+
