@@ -572,7 +572,8 @@ def matches_add():
     matches.insert(0, new_match)
     save_matches(matches)
 
-    socketio.emit("new_match", new_match, broadcast=True)
+    socketio.emit("new_match", new_match, to=None)  # to=None signifie tous
+
     return jsonify({"success": True, "match": new_match})
 
 
