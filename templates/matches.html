@@ -33,8 +33,8 @@ async function chargerSolde() {
     try {
         const res = await fetch("/compte");
         const data = await res.json();
-        soldeFrancs = Number(data.soldeFrancs); // conversion en nombre
-        soldeDollars = Number(data.soldeDollars); // conversion en nombre
+        soldeFrancs = Number(data.soldeFrancs); 
+        soldeDollars = Number(data.soldeDollars); 
         console.log("Solde récupéré :", data);
     } catch (err) {
         console.error("Erreur de récupération du solde :", err);
@@ -46,17 +46,24 @@ function afficherMatch(match) {
     const list = document.getElementById("matchesList");
     const card = document.createElement("div");
     card.className = "match-card";
+
+    // encoder correctement le match pour éviter les erreurs JSON dans onclick
+    const matchData = JSON.stringify(match).replace(/'/g, "\\'");
     card.innerHTML = `<div class="match-info"><h3>${match.equipe1} vs ${match.equipe2}</h3></div>
-    <button class="btn-parier" onclick='parier(${JSON.stringify(match)})'>Parier</button>`;
+    <button class="btn-parier" onclick="parier(JSON.parse('${matchData}'))">Parier</button>`;
     list.appendChild(card);
 }
 
 // Charger tous les matches au début
 async function chargerMatches() {
-    const res = await fetch("/matches/list");
-    const matches = await res.json();
-    document.getElementById("matchesList").innerHTML = "";
-    matches.forEach(m => afficherMatch(m));
+    try {
+        const res = await fetch("/matches/list");
+        const matches = await res.json();
+        document.getElementById("matchesList").innerHTML = "";
+        matches.forEach(m => afficherMatch(m));
+    } catch(err) {
+        console.error("Erreur de récupération des matches :", err);
+    }
 }
 
 // Pari utilisateur
