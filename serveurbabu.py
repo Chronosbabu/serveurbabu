@@ -586,7 +586,7 @@ def parier():
     choix = data.get("choix")
     devise = data.get("devise")
     try:
-    montant = float(data.get("montant", 0))
+        montant = float(data.get("montant", 0))
     except:
         return jsonify({"success": False, "message": "Montant invalide"}), 400
 
