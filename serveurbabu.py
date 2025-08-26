@@ -585,7 +585,11 @@ def parier():
     match_id = data.get("match_id")
     choix = data.get("choix")
     devise = data.get("devise")
-    montant = int(data.get("montant", 0))
+    try:
+    montant = float(data.get("montant", 0))
+    except:
+        return jsonify({"success": False, "message": "Montant invalide"}), 400
+
     username = session["username"]
 
     if not match_id or not choix or devise not in ["francs", "dollars"] or montant <= 0:
