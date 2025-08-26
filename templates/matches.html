@@ -66,8 +66,21 @@
   <script>
     const socket = io(); // connexion au serveur Flask/Render
 
-    let soldeFrancs = 10000;  // TODO: récupérer via /compte depuis ton serveur
-    let soldeDollars = 50;
+    let soldeFrancs = 0;
+    let soldeDollars = 0;
+
+    // Récupérer le solde réel depuis le serveur
+    async function chargerSolde() {
+      try {
+        const res = await fetch("/compte");
+        const data = await res.json();
+        soldeFrancs = data.soldeFrancs;
+        soldeDollars = data.soldeDollars;
+        console.log("Solde récupéré :", data);
+      } catch (err) {
+        console.error("Erreur de récupération du solde :", err);
+      }
+    }
 
     // Afficher un match dans la liste
     function afficherMatch(match) {
@@ -145,6 +158,8 @@
       afficherMatch(match);
     });
 
+    // Au démarrage : récupérer le solde + les matches
+    chargerSolde();
     chargerMatches();
   </script>
 </body>
