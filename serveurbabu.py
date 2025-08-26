@@ -549,33 +549,31 @@ def matches():
 @app.route("/matches/list", methods=["GET"])
 def matches_list():
     matches = load_matches()
-    return jsonify({"success": True, "matches": matches})
+    return jsonify(matches)
 
 # Route pour ajouter un match (utilisé par ton script externe "add_match.py")
+
 @app.route("/matches/add", methods=["POST"])
 def matches_add():
     data = request.get_json(silent=True) or {}
-    team1 = (data.get("team1") or "").strip()
-    team2 = (data.get("team2") or "").strip()
-    if not team1 or not team2:
+    equipe1 = (data.get("equipe1") or "").strip()
+    equipe2 = (data.get("equipe2") or "").strip()
+    if not equipe1 or not equipe2:
         return jsonify({"success": False, "message": "Deux équipes requises"}), 400
 
     matches = load_matches()
     new_match = {
         "id": len(matches) + 1,
-        "team1": team1,
-        "team2": team2,
+        "equipe1": equipe1,
+        "equipe2": equipe2,
         "created_at": datetime.now().isoformat(),
-        "status": "scheduled"  # champ extensible
+        "status": "scheduled"
     }
     matches.insert(0, new_match)
     save_matches(matches)
 
-    # Broadcast vers tous les clients connectés pour qu'ils voient le nouveau match
     socketio.emit("new_match", new_match, broadcast=True)
     return jsonify({"success": True, "match": new_match})
-
-# --- FIN nouvelles routes ---
 
 
 
