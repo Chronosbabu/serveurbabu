@@ -646,6 +646,10 @@ def resultat():
 
     return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
 
+@app.route("/resultats", methods=["GET"])
+def get_resultats():
+    results = load_results()
+    return jsonify(results)
 
 
 

@@ -56,6 +56,8 @@
       font-size: 1.2em;
     }
   </style>
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
   <header>
@@ -78,8 +80,9 @@
   </div>
 
   <script>
-    let soldeFrancs = 0;  // garde la valeur actuelle
+    let soldeFrancs = 0;
     let soldeDollars = 0;
+    let socket;
 
     async function ouvrirCompte() {
       let pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
@@ -98,7 +101,7 @@
         soldeDollars = data.dollars;
         document.getElementById("solde-box").style.display = "block";
         updateAffichage();
-        listenResultats(); // commencer à écouter les résultats
+        listenSocket(); // maintenant on écoute avec socket.io
       } else {
         alert(data.message || "Erreur");
       }
@@ -109,27 +112,17 @@
       document.getElementById("dollars").innerText = soldeDollars;
     }
 
-    async function listenResultats() {
-      // vérifie toutes les 5 secondes
-      setInterval(async () => {
-        const res = await fetch("/resultats"); // route GET à créer côté serveur
-        const data = await res.json();
-        
-        data.forEach(match => {
-          const mise = match.mise; // ce que l'utilisateur a parié
-          const resultat = match.resultat; // résultat du match
-          const choix = match.choixUtilisateur; // ce que l'utilisateur a choisi
+    function listenSocket() {
+      socket = io();
 
-          // si gagné
-          if (choix === resultat) {
-            soldeFrancs += mise * 0.5;
-            soldeDollars += (mise * 0.5) / 2000; // exemple conversion
-          }
-          // si perdu => ne change rien
-        });
-
-        updateAffichage();
-      }, 5000);
+      socket.on("account_update", data => {
+        // Vérifie que c’est bien le compte connecté
+        if (data.username === document.getElementById("username").innerText) {
+          soldeFrancs = data.francs;
+          soldeDollars = data.dollars;
+          updateAffichage();
+        }
+      });
     }
 
     document.getElementById("btnCompte").addEventListener("click", ouvrirCompte);
