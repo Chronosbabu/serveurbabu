@@ -38,6 +38,7 @@ socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 
 
+
 RESULTS_FILE = "resultats.json"
 
 # Charger les résultats existants ou créer un fichier vide
@@ -47,7 +48,10 @@ if os.path.exists(RESULTS_FILE):
 else:
     resultats = {}
 
-
+def next_match_id():
+    if resultats:
+        return str(max(int(k) for k in resultats.keys()) + 1)
+    return "1"
 
 
 
@@ -652,11 +656,16 @@ def parier():
 @app.route("/resultat", methods=["POST"])
 def resultat():
     data = request.json
-    match_id = str(data.get("match_id"))
+    match_id = data.get("match_id")
     resultat_match = data.get("resultat")
 
-    if not match_id or not resultat_match:
-        return jsonify({"success": False, "message": "match_id ou resultat manquant"}), 400
+    if not resultat_match:
+        return jsonify({"success": False, "message": "Résultat manquant"}), 400
+
+    # Si l'utilisateur ne met pas d'ID, on incrémente automatiquement
+    if not match_id:
+        match_id = next_match_id()
+    match_id = str(match_id)
 
     # Stocker le résultat
     resultats[match_id] = resultat_match
@@ -664,6 +673,8 @@ def resultat():
         json.dump(resultats, f)
 
     return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
+
+
 
 
 
