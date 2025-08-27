@@ -111,19 +111,21 @@
       document.getElementById("francs").innerText = soldeFrancs;
       document.getElementById("dollars").innerText = soldeDollars;
     }
+	function listenSocket() {
+  	   socket = io();
 
-    function listenSocket() {
-      socket = io();
+  	   socket.emit("join", document.getElementById("username").innerText); // rejoins ta room
 
-      socket.on("account_update", data => {
-        // Vérifie que c’est bien le compte connecté
-        if (data.username === document.getElementById("username").innerText) {
-          soldeFrancs = data.francs;
-          soldeDollars = data.dollars;
-          updateAffichage();
-        }
-      });
-    }
+  	   socket.on("account_update", data => {
+    		soldeFrancs = data.francs;
+    		soldeDollars = data.dollars;
+    		updateAffichage();
+  });
+}
+
+
+    
+
 
     document.getElementById("btnCompte").addEventListener("click", ouvrirCompte);
   </script>

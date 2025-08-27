@@ -650,6 +650,9 @@ def get_resultats():
     return jsonify(results)
 
 
+@socketio.on("join")
+def on_join(username):
+    join_room(username)
 
 
 
