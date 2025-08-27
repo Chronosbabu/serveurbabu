@@ -101,7 +101,7 @@
         soldeDollars = data.dollars;
         document.getElementById("solde-box").style.display = "block";
         updateAffichage();
-        listenSocket(); // maintenant on écoute avec socket.io
+        listenSocket(); // écoute des mises à jour via socket.io
       } else {
         alert(data.message || "Erreur");
       }
