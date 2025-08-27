@@ -65,17 +65,28 @@
     const socket = io();
     let soldeFrancs = 0;
     let soldeDollars = 0;
+    let bankConnected = false;
 
-    // Charger le solde au démarrage
-    async function chargerSolde() {
-      try {
-        const res = await fetch("/compte");
-        const data = await res.json();
-        soldeFrancs = data.soldeFrancs;
-        soldeDollars = data.soldeDollars;
-        console.log("Solde:", data);
-      } catch (e) {
-        console.error("Erreur solde:", e);
+    // Connexion bancaire obligatoire
+    async function connecterBanque() {
+      let pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
+      if (!pwd) return false;
+
+      const res = await fetch("/compte/ouvrir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd })
+      });
+      const data = await res.json();
+      if (data.success) {
+        bankConnected = true;
+        soldeFrancs = data.francs;
+        soldeDollars = data.dollars;
+        alert("Connexion bancaire réussie ✅\nFrancs: " + soldeFrancs + " | Dollars: " + soldeDollars);
+        return true;
+      } else {
+        alert("❌ " + (data.message || "Mot de passe incorrect"));
+        return false;
       }
     }
 
@@ -106,6 +117,12 @@
     // Processus de pari façon USSD
     async function parier(match) {
       try {
+        // Vérifier si compte connecté
+        if (!bankConnected) {
+          const ok = await connecterBanque();
+          if (!ok) return;
+        }
+
         // Étape 1 : choix équipe
         const choix = prompt(`Choisissez le vainqueur :
 1 = ${match.equipe1}
@@ -130,8 +147,8 @@
           return alert("Solde insuffisant en Dollars.");
         }
 
-        // Étape 4 : mot de passe bancaire
-        const pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
+        // Étape 4 : confirmation avec mot de passe bancaire
+        const pwd = prompt("Confirmez avec votre mot de passe bancaire :");
         if (!pwd) return alert("Mot de passe requis.");
 
         // Envoi au serveur
@@ -167,7 +184,6 @@
     socket.on("new_match", m => afficherMatch(m));
 
     // Init
-    chargerSolde();
     chargerMatches();
   </script>
 </body>
