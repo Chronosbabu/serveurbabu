@@ -628,6 +628,9 @@ def parier():
 
     socketio.emit("new_bet", new_bet, room=username)
     return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
+    if any(bet["username"] == username and bet["match_id"] == match_id for bet in bets):
+        return jsonify({"success": False, "message": "Vous avez déjà parié sur ce match"}), 403
+
 
 
 if __name__ == "__main__":
