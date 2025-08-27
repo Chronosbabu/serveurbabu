@@ -1,353 +1,174 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Matches & Paris</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paris en Direct</title>
   <style>
-    :root {
-      --primary:#e91e63;
-      --primary-dark:#b0003a;
-      --bg:#fafafa;
-      --card:#fff;
-      --shadow:0 2px 6px rgba(0,0,0,.15);
-      --success:#2e7d32;
-      --error:#c62828;
-      --muted:#666;
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      margin: 0; padding: 0;
+      background: #f5f5f5;
     }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg)}
-    header{background:var(--primary);color:#fff;padding:16px;text-align:center}
-    .container{max-width:820px;margin:20px auto;padding:0 16px}
-    .row{display:flex;gap:16px;flex-wrap:wrap}
-    .card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:16px}
-    .balances{flex:1 1 280px}
-    .matches{flex:2 1 420px}
-    .title{margin:0 0 12px}
-    .sub{color:var(--muted);margin:6px 0 0}
-    .balance-line{display:flex;justify-content:space-between;align-items:center;margin:6px 0;font-size:15px}
-    .pill{padding:6px 10px;border-radius:999px;background:#f1f1f1}
-    .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;background:var(--primary);color:#fff;cursor:pointer}
-    .btn:hover{background:var(--primary-dark)}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .match{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:12px;background:#fff;box-shadow:var(--shadow);margin:12px 0}
-    .teams{font-weight:600}
-    .small{font-size:13px;color:var(--muted)}
-    .bet-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    select,input[type="number"]{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:110px}
-    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;padding:10px 14px;border-radius:10px;color:#fff;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s ease;max-width:90vw}
-    .toast.show{opacity:1;pointer-events:auto}
-    .toast.success{background:var(--success)}
-    .toast.error{background:var(--error)}
-    /* Modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:16px}
-    .modal{background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:18px;max-width:420px;width:100%}
-    .modal h3{margin:0 0 8px}
-    .modal .muted{color:var(--muted);margin:0 0 12px}
-    .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-    .link{background:transparent;border:0;color:var(--primary);cursor:pointer;padding:8px 10px}
-    .empty{padding:18px;border:1px dashed #ddd;border-radius:12px;text-align:center;color:var(--muted)}
+    header {
+      background: #e91e63;
+      color: #fff;
+      padding: 16px;
+      text-align: center;
+      font-size: 1.4em;
+    }
+    .container {
+      max-width: 720px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+    .match-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+      padding: 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .teams {
+      font-weight: 600;
+      font-size: 1.1em;
+    }
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      background: #e91e63;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    .btn:hover {
+      background: #b0003a;
+    }
   </style>
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
   <header>
-    <h1>Mes Matches</h1>
+    ⚽ Matches disponibles
   </header>
 
-  <div class="container">
-    <div class="row">
-      <!-- Solde / Connexion bancaire -->
-      <section class="card balances">
-        <h2 class="title">Mon solde</h2>
-        <div class="balance-line">
-          <span>Francs</span>
-          <span class="pill" id="solde-francs">—</span>
-        </div>
-        <div class="balance-line">
-          <span>Dollars</span>
-          <span class="pill" id="solde-dollars">—</span>
-        </div>
-        <p class="sub">Connecte ton compte bancaire pour afficher/mettre à jour les soldes.</p>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" id="btn-open-bank">Se connecter à la banque</button>
-          <button class="btn" id="btn-refresh" disabled>Rafraîchir le solde</button>
-        </div>
-      </section>
-
-      <!-- Liste des matches -->
-      <section class="card matches" id="matches-card">
-        <h2 class="title">Matches disponibles</h2>
-        <div id="matchesList"></div>
-        <div class="empty" id="emptyState" style="display:none">Aucun match pour le moment.</div>
-      </section>
-    </div>
-  </div>
-
-  <!-- Toast -->
-  <div id="toast" class="toast"></div>
-
-  <!-- Modal mot de passe -->
-  <div id="modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal">
-      <h3>Connexion bancaire</h3>
-      <p class="muted">Entre le mot de passe de ton compte bancaire pour lire ton solde.</p>
-      <input id="bank-password" type="password" placeholder="Mot de passe" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px"/>
-      <div class="actions">
-        <button class="link" id="cancel-modal">Annuler</button>
-        <button class="btn" id="confirm-modal">Valider</button>
-      </div>
-    </div>
+  <div class="container" id="matchesList">
+    <!-- Matches injectés ici -->
   </div>
 
   <script>
-    // --- State ---
-    const state = {
-      bankConnected: false,
-      francs: null,
-      dollars: null,
-      matches: [],
-      socket: null,
-    };
+    const socket = io();
+    let soldeFrancs = 0;
+    let soldeDollars = 0;
 
-    // --- Utils ---
-    function showToast(msg, type="success", ms=2400){
-      const el = document.getElementById("toast");
-      el.textContent = msg;
-      el.className = `toast show ${type}`;
-      setTimeout(()=>{ el.className = "toast"; }, ms);
-    }
-
-    async function fetchJSON(url, options={}){
-      const res = await fetch(url, options);
-      let data = null;
-      try { data = await res.json(); } catch(e){ /* peut être HTML */ }
-      if(!res.ok){
-        const message = (data && (data.message || data.error)) || `Erreur HTTP ${res.status}`;
-        const err = new Error(message);
-        err.status = res.status;
-        err.data = data;
-        throw err;
-      }
-      return data;
-    }
-
-    function fmt(n){
-      if(n === null || n === undefined) return "—";
-      return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(n);
-    }
-
-    function renderBalances(){
-      document.getElementById("solde-francs").textContent = fmt(state.francs);
-      document.getElementById("solde-dollars").textContent = fmt(state.dollars);
-      document.getElementById("btn-refresh").disabled = !state.bankConnected;
-    }
-
-    function openModal(){
-      const bd = document.getElementById("modal-backdrop");
-      bd.style.display = "flex";
-      bd.setAttribute("aria-hidden","false");
-      document.getElementById("bank-password").value = "";
-      setTimeout(()=>document.getElementById("bank-password").focus(), 50);
-    }
-    function closeModal(){
-      const bd = document.getElementById("modal-backdrop");
-      bd.style.display = "none";
-      bd.setAttribute("aria-hidden","true");
-    }
-
-    // --- Banque ---
-    async function connectBank(password){
-      const data = await fetchJSON("/compte/ouvrir", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ password })
-      });
-      // Serveur renvoie { success, francs, dollars }
-      if(data && data.success){
-        state.bankConnected = true;
-        state.francs = Number(data.francs) || 0;
-        state.dollars = Number(data.dollars) || 0;
-        renderBalances();
-        showToast("Connexion bancaire réussie ✅","success");
+    // Charger le solde au démarrage
+    async function chargerSolde() {
+      try {
+        const res = await fetch("/compte");
+        const data = await res.json();
+        soldeFrancs = data.soldeFrancs;
+        soldeDollars = data.soldeDollars;
+        console.log("Solde:", data);
+      } catch (e) {
+        console.error("Erreur solde:", e);
       }
     }
 
-    async function refreshBalances(){
-      // On redemande via /compte/ouvrir pour rester compatible avec le serveur existant
-      if(!state.bankConnected){ openModal(); return; }
-      // Pour éviter de redemander le mot de passe à l'utilisateur, on propose juste de rouvrir la modale.
-      openModal();
+    // Afficher un match
+    function afficherMatch(match) {
+      const card = document.createElement("div");
+      card.className = "match-card";
+      card.innerHTML = `
+        <div class="teams">${match.equipe1} vs ${match.equipe2}</div>
+        <button class="btn" onclick='parier(${JSON.stringify(match)})'>Parier</button>
+      `;
+      document.getElementById("matchesList").appendChild(card);
     }
 
-    // --- Matches ---
-    function renderMatch(m){
-      const wrap = document.createElement("div");
-      wrap.className = "match";
-
-      const info = document.createElement("div");
-      info.innerHTML = `
-        <div class="teams">${m.equipe1} <span class="small">vs</span> ${m.equipe2}</div>
-        <div class="small">ID: ${m.id} • ${m.status || ""}</div>
-      `;
-
-      const form = document.createElement("div");
-      form.className = "bet-form";
-      form.innerHTML = `
-        <select aria-label="Choix du vainqueur">
-          <option value="1">${m.equipe1}</option>
-          <option value="2">${m.equipe2}</option>
-          <option value="3">Match nul</option>
-        </select>
-        <select aria-label="Devise">
-          <option value="francs">Francs</option>
-          <option value="dollars">Dollars</option>
-        </select>
-        <input type="number" min="1" step="1" placeholder="Montant" aria-label="Montant"/>
-        <button class="btn">Parier</button>
-      `;
-
-      const [selectChoix, selectDevise, inputMontant, btn] = form.querySelectorAll("select, input, button");
-
-      btn.addEventListener("click", async ()=>{
-        try{
-          if(!state.bankConnected){
-            showToast("Connecte d’abord ton compte bancaire.","error");
-            openModal();
-            return;
-          }
-          const choix = parseInt(selectChoix.value,10);
-          const devise = selectDevise.value; // 'francs' | 'dollars'
-          const montant = Number(inputMontant.value);
-          if(!choix || !["francs","dollars"].includes(devise) || !(montant>0)){
-            showToast("Complete correctement le pari.","error"); return;
-          }
-
-          // Vérif locale facultative : on ne bloque pas si < 0 (le serveur reste source de vérité)
-          const localSolde = devise === "francs" ? state.francs : state.dollars;
-          if(localSolde !== null && montant > localSolde){
-            // On ne bloque pas; on laisse le serveur décider, mais on prévient
-            console.warn("Alerte: montant supérieur au solde local; on laisse le serveur valider.");
-          }
-
-          btn.disabled = true;
-
-          const payload = {
-            match_id: m.id,
-            choix: choix,              // 1 | 2 | 3
-            devise: devise,            // 'francs' | 'dollars' (exactement ce que le serveur attend)
-            montant: montant
-          };
-
-          const res = await fetch("/parier", {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify(payload)
-          });
-
-          let data = null;
-          try { data = await res.json(); } catch(e){}
-
-          if(!res.ok || !data || data.success === false){
-            // Cas fréquent: 403 "Solde insuffisant en X"
-            const msg = (data && (data.message || data.error)) || `Erreur HTTP ${res.status}`;
-            // Pour éviter le faux "solde insuffisant", on force une resync des soldes :
-            if(res.status === 403 && /Solde insuffisant/i.test(msg)){
-              try {
-                // Demande de re-saisie du mot de passe pour resynchroniser
-                openModal();
-              } catch(e){}
-            }
-            throw new Error(msg);
-          }
-
-          // Succès : le serveur renvoie { success: true, message, solde: nouveauSoldeDevise }
-          if(devise === "francs") state.francs = Number(data.solde);
-          else state.dollars = Number(data.solde);
-          renderBalances();
-          inputMontant.value = "";
-          showToast("Pari effectué ✅","success");
-        }catch(err){
-          console.error(err);
-          showToast(err.message || "Erreur lors du pari","error");
-        }finally{
-          btn.disabled = false;
-        }
-      });
-
-      wrap.appendChild(info);
-      wrap.appendChild(form);
-      return wrap;
-    }
-
-    async function loadMatches(){
-      try{
-        const matches = await fetchJSON("/matches/list");
-        state.matches = Array.isArray(matches) ? matches : [];
+    // Charger les matches depuis le serveur
+    async function chargerMatches() {
+      try {
+        const res = await fetch("/matches/list");
+        const matches = await res.json();
         const list = document.getElementById("matchesList");
         list.innerHTML = "";
-        if(state.matches.length === 0){
-          document.getElementById("emptyState").style.display = "block";
-          return;
+        matches.forEach(m => afficherMatch(m));
+      } catch (e) {
+        console.error("Erreur matches:", e);
+      }
+    }
+
+    // Processus de pari façon USSD
+    async function parier(match) {
+      try {
+        // Étape 1 : choix équipe
+        const choix = prompt(`Choisissez le vainqueur :
+1 = ${match.equipe1}
+2 = ${match.equipe2}
+3 = Match nul`);
+        if (!["1","2","3"].includes(choix)) return alert("Choix invalide.");
+
+        // Étape 2 : devise
+        const deviseChoix = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars");
+        if (!["1","2"].includes(deviseChoix)) return alert("Devise invalide.");
+        const devise = deviseChoix === "1" ? "francs" : "dollars";
+
+        // Étape 3 : montant
+        const montant = parseFloat(prompt("Entrez le montant à parier :"));
+        if (isNaN(montant) || montant <= 0) return alert("Montant invalide.");
+
+        // Vérification côté client
+        if (devise === "francs" && montant > soldeFrancs) {
+          return alert("Solde insuffisant en Francs.");
         }
-        document.getElementById("emptyState").style.display = "none";
-        state.matches.forEach(m => list.appendChild(renderMatch(m)));
-      }catch(err){
-        console.error(err);
-        showToast("Impossible de charger les matches","error");
+        if (devise === "dollars" && montant > soldeDollars) {
+          return alert("Solde insuffisant en Dollars.");
+        }
+
+        // Étape 4 : mot de passe bancaire
+        const pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
+        if (!pwd) return alert("Mot de passe requis.");
+
+        // Envoi au serveur
+        const pari = {
+          match_id: match.id,
+          choix: parseInt(choix),
+          devise: devise,
+          montant: montant,
+          password: pwd
+        };
+
+        const res = await fetch("/parier", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pari)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert("✅ Pari confirmé avec succès !");
+          if (devise === "francs") soldeFrancs = data.solde;
+          else soldeDollars = data.solde;
+        } else {
+          alert("❌ " + (data.message || "Erreur lors du pari"));
+        }
+      } catch (err) {
+        console.error("Erreur pari:", err);
+        alert("Erreur lors du pari.");
       }
     }
 
-    // --- Socket.IO ---
-    function setupSocket(){
-      try{
-        state.socket = io();
-        state.socket.on("connect", ()=> console.log("Socket connecté"));
-        state.socket.on("disconnect", ()=> console.log("Socket déconnecté"));
+    // Socket : nouveaux matches en direct
+    socket.on("new_match", m => afficherMatch(m));
 
-        // Nouveau match poussé par le serveur
-        state.socket.on("new_match", (m)=>{
-          state.matches.unshift(m);
-          const list = document.getElementById("matchesList");
-          document.getElementById("emptyState").style.display = "none";
-          list.prepend(renderMatch(m));
-        });
-
-        // Mise à jour de solde (ex: /compte/depot)
-        state.socket.on("account_update", (data)=>{
-          // data = { username, francs, dollars } pour l'utilisateur courant (room=username)
-          if(typeof data.francs === "number") state.francs = data.francs;
-          if(typeof data.dollars === "number") state.dollars = data.dollars;
-          state.bankConnected = true; // on sait maintenant qu’on a un compte
-          renderBalances();
-          showToast("Solde mis à jour 💳","success");
-        });
-      }catch(e){
-        console.warn("Socket.IO non dispo", e);
-      }
-    }
-
-    // --- Events UI ---
-    document.getElementById("btn-open-bank").addEventListener("click", ()=> openModal());
-    document.getElementById("btn-refresh").addEventListener("click", ()=> refreshBalances());
-    document.getElementById("cancel-modal").addEventListener("click", ()=> closeModal());
-    document.getElementById("confirm-modal").addEventListener("click", async ()=>{
-      const pwd = document.getElementById("bank-password").value.trim();
-      if(!pwd){ showToast("Mot de passe requis","error"); return; }
-      try{
-        await connectBank(pwd);
-        closeModal();
-      }catch(err){
-        showToast(err.message || "Échec de connexion","error");
-      }
-    });
-
-    // --- Boot ---
-    (async function init(){
-      renderBalances();
-      setupSocket();
-      await loadMatches();
-    })();
+    // Init
+    chargerSolde();
+    chargerMatches();
   </script>
 </body>
 </html>
