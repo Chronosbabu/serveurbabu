@@ -36,6 +36,22 @@ for file_path, default in [
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
+
+
+RESULTS_FILE = "resultats.json"
+
+# Charger les résultats existants ou créer un fichier vide
+if os.path.exists(RESULTS_FILE):
+    with open(RESULTS_FILE, "r") as f:
+        resultats = json.load(f)
+else:
+    resultats = {}
+
+
+
+
+
+
 # --- Utilitaires ---
 def load_posts():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -633,7 +649,21 @@ def parier():
     socketio.emit("new_bet", new_bet, room=username)
     return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
 
+@app.route("/resultat", methods=["POST"])
+def resultat():
+    data = request.json
+    match_id = str(data.get("match_id"))
+    resultat_match = data.get("resultat")
 
+    if not match_id or not resultat_match:
+        return jsonify({"success": False, "message": "match_id ou resultat manquant"}), 400
+
+    # Stocker le résultat
+    resultats[match_id] = resultat_match
+    with open(RESULTS_FILE, "w") as f:
+        json.dump(resultats, f)
+
+    return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
 
 
 
