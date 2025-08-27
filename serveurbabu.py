@@ -36,22 +36,40 @@ for file_path, default in [
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
-
-
-
 RESULTS_FILE = "resultats.json"
+ACCOUNTS_FILE = "accounts.json"
+BETS_FILE = "bets.json"
 
-# Charger les résultats existants ou créer un fichier vide
+
 if os.path.exists(RESULTS_FILE):
     with open(RESULTS_FILE, "r") as f:
         resultats = json.load(f)
 else:
     resultats = {}
 
-def next_match_id():
-    if resultats:
-        return str(max(int(k) for k in resultats.keys()) + 1)
-    return "1"
+if os.path.exists(ACCOUNTS_FILE):
+    with open(ACCOUNTS_FILE, "r") as f:
+        accounts = json.load(f)
+else:
+    accounts = {}
+
+if os.path.exists(BETS_FILE):
+    with open(BETS_FILE, "r") as f:
+        bets = json.load(f)
+else:
+    bets = []
+
+def save_accounts():
+    with open(ACCOUNTS_FILE, "w") as f:
+        json.dump(accounts, f)
+
+def save_results():
+    with open(RESULTS_FILE, "w") as f:
+        json.dump(resultats, f)
+
+def save_bets():
+    with open(BETS_FILE, "w") as f:
+        json.dump(bets, f)
 
 
 
