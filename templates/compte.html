@@ -37,9 +37,6 @@
     .profile-card h2 {
       margin: 10px 0 5px;
     }
-    .profile-card p {
-      color: #555;
-    }
     .btn {
       display: inline-block;
       margin-top: 15px;
@@ -81,6 +78,9 @@
   </div>
 
   <script>
+    let soldeFrancs = 0;  // garde la valeur actuelle
+    let soldeDollars = 0;
+
     async function ouvrirCompte() {
       let pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
       if (!pwd) return;
@@ -94,16 +94,45 @@
       const data = await res.json();
       if (data.success) {
         alert("Connexion réussie ✅");
+        soldeFrancs = data.francs;
+        soldeDollars = data.dollars;
         document.getElementById("solde-box").style.display = "block";
-        document.getElementById("francs").innerText = data.francs;
-        document.getElementById("dollars").innerText = data.dollars;
+        updateAffichage();
+        listenResultats(); // commencer à écouter les résultats
       } else {
         alert(data.message || "Erreur");
       }
+    }
+
+    function updateAffichage() {
+      document.getElementById("francs").innerText = soldeFrancs;
+      document.getElementById("dollars").innerText = soldeDollars;
+    }
+
+    async function listenResultats() {
+      // vérifie toutes les 5 secondes
+      setInterval(async () => {
+        const res = await fetch("/resultats"); // route GET à créer côté serveur
+        const data = await res.json();
+        
+        data.forEach(match => {
+          const mise = match.mise; // ce que l'utilisateur a parié
+          const resultat = match.resultat; // résultat du match
+          const choix = match.choixUtilisateur; // ce que l'utilisateur a choisi
+
+          // si gagné
+          if (choix === resultat) {
+            soldeFrancs += mise * 0.5;
+            soldeDollars += (mise * 0.5) / 2000; // exemple conversion
+          }
+          // si perdu => ne change rien
+        });
+
+        updateAffichage();
+      }, 5000);
     }
 
     document.getElementById("btnCompte").addEventListener("click", ouvrirCompte);
   </script>
 </body>
 </html>
-
