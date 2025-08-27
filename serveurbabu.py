@@ -605,6 +605,7 @@ def parier():
     return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
 
 
+
 @app.route("/resultat", methods=["POST"])
 def resultat():
     data = request.json
@@ -618,10 +619,10 @@ def resultat():
         match_id = next_match_id()
     match_id = str(match_id)
 
-    # Stocker le résultat
+    # --- Stocker le résultat ---
+    resultats = load_results()
     resultats[match_id] = resultat_match
-    with open(RESULTS_FILE, "w") as f:
-        json.dump(resultats, f)
+    save_results(resultats)
 
     # --- Application des gains ---
     bets = load_bets()
@@ -644,7 +645,6 @@ def resultat():
     save_accounts(accounts)
 
     return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
-
 
 
 
