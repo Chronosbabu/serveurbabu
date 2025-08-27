@@ -36,6 +36,18 @@ for file_path, default in [
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
+
+ACCOUNTS_FILE = "accounts.json"
+
+def load_accounts():
+    if not os.path.exists(ACCOUNTS_FILE):
+        # crée un fichier vide si il n'existe pas
+        with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f)
+    with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 RESULTS_FILE = "resultats.json"
 ACCOUNTS_FILE = "accounts.json"
 BETS_FILE = "bets.json"
