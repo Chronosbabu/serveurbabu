@@ -577,7 +577,6 @@ def matches_add():
     return jsonify({"success": True, "match": new_match})
 
 
-
 @app.route("/parier", methods=["POST"])
 def parier():
     if "username" not in session:
@@ -610,10 +609,15 @@ def parier():
     if montant > solde:
         return jsonify({"success": False, "message": f"Solde insuffisant en {devise}"}), 403
 
+    # --- Vérification des paris existants ---
+    bets = load_bets()
+    if any(bet["username"] == username and bet["match_id"] == match_id for bet in bets):
+        return jsonify({"success": False, "message": "Vous avez déjà parié sur ce match"}), 403
+
+    # Déduire le solde et enregistrer le pari
     acc[devise] -= montant
     save_accounts(accounts)
 
-    bets = load_bets()
     new_bet = {
         "id": len(bets) + 1,
         "username": username,
@@ -628,8 +632,8 @@ def parier():
 
     socketio.emit("new_bet", new_bet, room=username)
     return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
-    if any(bet["username"] == username and bet["match_id"] == match_id for bet in bets):
-        return jsonify({"success": False, "message": "Vous avez déjà parié sur ce match"}), 403
+
+
 
 
 
