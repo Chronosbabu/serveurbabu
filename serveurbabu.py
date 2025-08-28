@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os 
+
 app = Flask(__name__)
 CORS(app)  # pour autoriser les requêtes depuis les fichiers locaux
 
@@ -9,8 +10,7 @@ USERS = {}       # username -> {"francs": 0, "dollars": 0}
 MATCHES = []     # liste de dicts {"equipe1": ..., "equipe2": ...}
 RESULTS = []     # liste de dicts {"match_id": ..., "resultat": ...}
 
-
-
+# --- Routes pages HTML ---
 @app.route("/")
 def accueil():
     return render_template("index.html")
@@ -76,3 +76,4 @@ def add_result():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
