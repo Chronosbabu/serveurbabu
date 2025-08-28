@@ -637,7 +637,6 @@ def get_compte(username):
         "francs": acc.get("francs", 0),
         "dollars": acc.get("dollars", 0)
     })
-
 @app.route("/resultat", methods=["POST"])
 def resultat():
     data = request.get_json(silent=True) or {}
@@ -657,6 +656,7 @@ def resultat():
     accounts = load_accounts()
 
     # 3️⃣ Parcourir tous les paris pour ce match
+    gagnants = []
     for bet in bets:
         if str(bet.get("match_id")) != match_id:
             continue
@@ -679,14 +679,18 @@ def resultat():
             gain = montant * 2  # double la mise
             devise = bet.get("devise", "francs")
 
-            # initialiser la devise si elle n'existe pas
             if devise not in accounts[username]:
                 accounts[username][devise] = 0
 
             accounts[username][devise] += gain
             bet["paid"] = True
+            gagnants.append({
+                "username": username,
+                "gain": gain,
+                "devise": devise
+            })
 
-            # 6️⃣ Notifier uniquement cet utilisateur
+            # Notifier cet utilisateur
             socketio.emit(
                 "account_update",
                 {
@@ -697,20 +701,23 @@ def resultat():
                 room=username,
             )
 
-    # 7️⃣ Sauvegarder les changements
+    # 6️⃣ Sauvegarder les changements
     save_accounts(accounts)
     save_bets(bets)
 
-    # 8️⃣ Notifier tout le monde qu’un résultat vient d’être publié
+    # 7️⃣ Notifier tout le monde du résultat et des gagnants
     socketio.emit("resultat", {
         "match_id": match_id,
-        "resultat": resultat_match
+        "resultat": resultat_match,
+        "gagnants": gagnants
     })
 
     return jsonify({
         "success": True,
-        "message": f"Résultat du match {match_id} publié : {resultat_match}"
+        "message": f"Résultat du match {match_id} publié : {resultat_match}",
+        "gagnants": gagnants
     })
+
 
 
 
