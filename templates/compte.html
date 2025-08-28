@@ -84,6 +84,9 @@
     let soldeDollars = 0;
     let socket;
 
+    // 👉 on reçoit `username` du serveur
+    const CURRENT_USER = "{{ username }}";
+
     async function ouvrirCompte() {
       let pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
       if (!pwd) return;
@@ -111,25 +114,23 @@
       document.getElementById("francs").innerText = soldeFrancs;
       document.getElementById("dollars").innerText = soldeDollars;
     }
-	
-  function listenSocket() {
-    socket = io();
 
-    socket.on("connect", () => {
-        socket.emit("join", document.getElementById("username").innerText);
-    });
+    function listenSocket() {
+      socket = io();
 
-    socket.on("account_update", data => {
-        if (data.username === document.getElementById("username").innerText) {
-            soldeFrancs = data.francs;
-            soldeDollars = data.dollars;
-            updateAffichage();
+      socket.on("connect", () => {
+        // on rejoint notre room personnelle
+        socket.emit("join", CURRENT_USER);
+      });
+
+      socket.on("account_update", (data) => {
+        if (data.username === CURRENT_USER) {
+          soldeFrancs = data.francs;
+          soldeDollars = data.dollars;
+          updateAffichage();
         }
-    });
-}
-
-    
-
+      });
+    }
 
     document.getElementById("btnCompte").addEventListener("click", ouvrirCompte);
   </script>

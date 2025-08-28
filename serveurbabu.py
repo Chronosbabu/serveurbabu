@@ -603,9 +603,19 @@ def parier():
 
     socketio.emit("new_bet", new_bet, room=username)
     return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
+
+@app.route("/compte")
+def compte():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    user = get_user(session["username"])
+    # 👉 On passe explicitement `username` au template
+    return render_template("compte.html", user=user, username=session["username"])
+
+
 @app.route("/resultat", methods=["POST"])
 def resultat():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     match_id = data.get("match_id")
     resultat_match = data.get("resultat")
 
@@ -615,35 +625,42 @@ def resultat():
         match_id = len(load_results()) + 1
     match_id = str(match_id)
 
-    # Charger les résultats existants
+    # Enregistrer le résultat
     results = load_results()
     results[match_id] = resultat_match
     save_results(results)
 
-    # Appliquer les gains
+    # Payer les gagnants (mise + 50%) et marquer "paid"
     bets = load_bets()
     accounts = load_accounts()
+
     for bet in bets:
-        if str(bet["match_id"]) == match_id:
-            username = bet["username"]
-            if username not in accounts:
-                continue
+        if str(bet["match_id"]) != match_id:
+            continue
+
+        username = bet.get("username")
+        if not username or username not in accounts:
+            continue
+
+        # payer une seule fois
+        if bet.get("paid", False):
+            continue
+
+        if bet.get("choix") == resultat_match:
+            gain = float(bet.get("montant", 0)) * 1.5  # mise + 50%
+            devise = bet.get("devise")
             acc = accounts[username]
+            acc[devise] = acc.get(devise, 0) + gain
+            bet["paid"] = True
 
-            # seulement si gagnant et pas déjà payé
-            if bet["choix"] == resultat_match and not bet.get("paid", False):
-                gain = bet["montant"] * 1.5  # mise + 50%
-                acc[bet["devise"]] = acc.get(bet["devise"], 0) + gain
-                bet["paid"] = True
+            # notifier l'utilisateur connecté (room = username)
+            socketio.emit("account_update", {
+                "username": username,
+                "francs": acc.get("francs", 0),
+                "dollars": acc.get("dollars", 0)
+            }, room=username)
 
-                # Notifier l’utilisateur via Socket.IO
-                socketio.emit("account_update", {
-                    "username": username,
-                    "francs": acc.get("francs", 0),
-                    "dollars": acc.get("dollars", 0)
-                }, room=username)
-
-    # Sauvegarder après maj
+    # Sauvegarder comptes + paris (important pour conserver "paid")
     save_accounts(accounts)
     save_bets(bets)
 
