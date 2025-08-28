@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)  # pour autoriser les requêtes depuis les fichiers locaux
@@ -60,4 +61,8 @@ def add_result():
     return jsonify({"success": True, "message": "Résultat publié"})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Ecoute toutes les interfaces et port fourni par Render
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
+
+
