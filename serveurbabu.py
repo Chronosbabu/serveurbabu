@@ -637,7 +637,6 @@ def get_compte(username):
         "francs": acc.get("francs", 0),
         "dollars": acc.get("dollars", 0)
     })
-
 @app.route("/resultat", methods=["POST"])
 def resultat():
     data = request.get_json(silent=True) or {}
@@ -653,14 +652,15 @@ def resultat():
     save_results(results)
 
     # 2️⃣ Charger paris et comptes
-    bets = load_bets()
-    accounts = load_accounts()
+    bets = load_bets() or []
+    accounts = load_accounts() or {}
 
     gagnants = []
 
     # 3️⃣ Parcourir tous les paris pour ce match
     for bet in bets:
-        if str(bet.get("match_id")) != match_id:
+        bet_match_id = str(bet.get("match_id", ""))
+        if bet_match_id != match_id:
             continue
 
         username = bet.get("username")
@@ -670,14 +670,18 @@ def resultat():
         if bet.get("paid", False):
             continue
 
-        if bet.get("choix") == resultat_match:
+        choix = bet.get("choix")
+        if not choix:
+            continue
+
+        if choix == resultat_match:
             try:
                 montant = float(bet.get("montant", 0))
-            except ValueError:
+            except (ValueError, TypeError):
                 montant = 0
 
             gain = montant * 2
-            devise = bet.get("devise", "francs")
+            devise = bet.get("devise") or "francs"
 
             if devise not in accounts[username]:
                 accounts[username][devise] = 0
@@ -692,6 +696,7 @@ def resultat():
                 "devise": devise
             })
 
+            # Envoyer la mise à jour du compte à ce joueur
             socketio.emit(
                 "account_update",
                 {
@@ -702,10 +707,11 @@ def resultat():
                 room=username,
             )
 
+    # 4️⃣ Sauvegarder comptes et paris
     save_accounts(accounts)
     save_bets(bets)
 
-    # Émettre le résultat avec les gagnants
+    # 5️⃣ Émettre le résultat avec les gagnants
     socketio.emit("resultat", {
         "match_id": match_id,
         "resultat": resultat_match,
@@ -714,8 +720,11 @@ def resultat():
 
     return jsonify({
         "success": True,
-        "message": f"Résultat du match {match_id} publié : {resultat_match}"
+        "message": f"Résultat du match {match_id} publié : {resultat_match}",
+        "gagnants": gagnants
     })
+
+
 
 
 
