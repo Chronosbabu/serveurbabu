@@ -686,7 +686,7 @@ def resultat():
             accounts[username][devise] += gain
             bet["paid"] = True
 
-            # 6️⃣ Notifier l’utilisateur via Socket.IO
+            # 6️⃣ Notifier uniquement cet utilisateur
             socketio.emit(
                 "account_update",
                 {
@@ -701,11 +701,16 @@ def resultat():
     save_accounts(accounts)
     save_bets(bets)
 
+    # 8️⃣ Notifier tout le monde qu’un résultat vient d’être publié
+    socketio.emit("resultat", {
+        "match_id": match_id,
+        "resultat": resultat_match
+    })
+
     return jsonify({
         "success": True,
         "message": f"Résultat du match {match_id} publié : {resultat_match}"
     })
-
 
 
 
