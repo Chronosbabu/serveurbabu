@@ -421,12 +421,6 @@ def handle_send_comment(data):
     save_posts(posts)
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
-@app.route("/compte")
-def compte():
-    if "username" not in session:
-        return redirect(url_for("login"))
-    user = get_user(session["username"])
-    return render_template("compte.html", user=user)
 
 @app.route("/compte/ouvrir", methods=["POST"])
 def ouvrir_compte():
