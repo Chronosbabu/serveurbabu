@@ -6,6 +6,7 @@
 <style>
 body { font-family: Arial; padding: 20px; }
 input, button { padding: 5px; margin: 5px; }
+input[readonly] { background-color: #eee; }
 </style>
 </head>
 <body>
@@ -16,10 +17,9 @@ input, button { padding: 5px; margin: 5px; }
 <button onclick="verifierUser()">Vérifier / Ajouter</button><br>
 
 <label>Francs :</label>
-<input id="francs" type="number" value="0"><br>
+<input id="francs" type="number" value="0" readonly><br>
 <label>Dollars :</label>
-<input id="dollars" type="number" value="0"><br>
-<button onclick="faireDepot()">Déposer</button>
+<input id="dollars" type="number" value="0" readonly><br>
 
 <p id="message"></p>
 <p id="solde"></p>
@@ -28,38 +28,35 @@ input, button { padding: 5px; margin: 5px; }
 const BASE_URL = "http://127.0.0.1:5000";
 
 function verifierUser() {
-    const user = document.getElementById("username").value;
+    const user = document.getElementById("username").value.trim();
+    if(!user) {
+        afficher("Veuillez entrer un nom utilisateur.");
+        return;
+    }
+
     fetch(`${BASE_URL}/compte/verifier/${user}`)
         .then(r => r.json())
         .then(data => {
             if(data.exists){
                 afficher("Utilisateur trouvé ✅");
+                mettreAJourSolde(data.solde);
             } else {
                 fetch(`${BASE_URL}/compte/ajouter/${user}`)
                 .then(r => r.json())
-                .then(d => afficher(d.message));
+                .then(d => {
+                    afficher(d.message);
+                    if(d.solde) mettreAJourSolde(d.solde);
+                });
             }
-        });
+        })
+        .catch(err => afficher("Erreur serveur : " + err));
 }
 
-function faireDepot() {
-    const user = document.getElementById("username").value;
-    const francs = parseInt(document.getElementById("francs").value) || 0;
-    const dollars = parseInt(document.getElementById("dollars").value) || 0;
-
-    fetch(`${BASE_URL}/compte/depot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({username: user, francs, dollars})
-    })
-    .then(r => r.json())
-    .then(d => {
-        afficher(d.message);
-        if(d.solde){
-            document.getElementById("solde").innerText = 
-                `Solde actuel : ${d.solde.francs} Francs, ${d.solde.dollars} Dollars`;
-        }
-    });
+function mettreAJourSolde(solde) {
+    document.getElementById("francs").value = solde.francs || 0;
+    document.getElementById("dollars").value = solde.dollars || 0;
+    document.getElementById("solde").innerText = 
+        `Solde actuel : ${solde.francs} Francs, ${solde.dollars} Dollars`;
 }
 
 function afficher(msg) {
