@@ -611,61 +611,6 @@ def compte():
 
 
 
-@app.route("/resultat", methods=["POST"])
-def resultat():
-    data = request.get_json(silent=True) or {}
-    match_id = data.get("match_id")
-    resultat_match = data.get("resultat")
-
-    if not resultat_match:
-        return jsonify({"success": False, "message": "Résultat manquant"}), 400
-    if not match_id:
-        match_id = len(load_results()) + 1
-    match_id = str(match_id)
-
-    # Enregistrer le résultat
-    results = load_results()
-    results[match_id] = resultat_match
-    save_results(results)
-
-    # Payer les gagnants (mise + 50%) et marquer "paid"
-    bets = load_bets()
-    accounts = load_accounts()
-
-    for bet in bets:
-        if str(bet["match_id"]) != match_id:
-            continue
-
-        username = bet.get("username")
-        if not username or username not in accounts:
-            continue
-
-        # payer une seule fois
-        if bet.get("paid", False):
-            continue
-
-        if bet.get("choix") == resultat_match:
-            gain = float(bet.get("montant", 0)) * 1.5  # mise + 50%
-            devise = bet.get("devise")
-            acc = accounts[username]
-            acc[devise] = acc.get(devise, 0) + gain
-            bet["paid"] = True
-
-            # notifier l'utilisateur connecté (room = username)
-            socketio.emit("account_update", {
-                "username": username,
-                "francs": acc.get("francs", 0),
-                "dollars": acc.get("dollars", 0)
-            }, room=username)
-
-    # Sauvegarder comptes + paris (important pour conserver "paid")
-    save_accounts(accounts)
-    save_bets(bets)
-
-    return jsonify({
-        "success": True,
-        "message": f"Résultat du match {match_id} publié : {resultat_match}"
-    })
 
 
 
@@ -681,9 +626,59 @@ def get_resultats():
 def on_join(username):
     join_room(username)
 
+@app.route("/compte/<username>", methods=["GET"])
+def get_compte(username):
+    accounts = load_accounts()
+    acc = accounts.get(username)
+    if not acc:
+        return jsonify({"success": False, "message": "Utilisateur inconnu"}), 404
+    return jsonify({
+        "success": True,
+        "francs": acc.get("francs", 0),
+        "dollars": acc.get("dollars", 0)
+    })
 
+@app.route("/resultat", methods=["POST"])
+def resultat():
+    data = request.get_json(silent=True) or {}
+    match_id = str(data.get("match_id") or len(load_results()) + 1)
+    resultat_match = data.get("resultat")
+    if not resultat_match:
+        return jsonify({"success": False, "message": "Résultat manquant"}), 400
 
+    results = load_results()
+    results[match_id] = resultat_match
+    save_results(results)
 
+    bets = load_bets()
+    accounts = load_accounts()
+
+    for bet in bets:
+        if str(bet["match_id"]) != match_id:
+            continue
+        username = bet.get("username")
+        if not username or username not in accounts:
+            continue
+        if bet.get("paid", False):
+            continue
+        if bet.get("choix") == resultat_match:
+            gain = float(bet.get("montant", 0)) * 1.5
+            devise = bet.get("devise")
+            acc = accounts[username]
+            acc[devise] = float(acc.get(devise, 0)) + gain
+            bet["paid"] = True
+
+            # notifier l'utilisateur via Socket.IO
+            socketio.emit("account_update", {
+                "username": username,
+                "francs": acc.get("francs", 0),
+                "dollars": acc.get("dollars", 0)
+            }, room=username)
+
+    save_accounts(accounts)
+    save_bets(bets)
+
+    return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
 
 
 
