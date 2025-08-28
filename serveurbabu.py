@@ -608,13 +608,7 @@ def compte():
     # 👉 On passe explicitement `username` au template
     return render_template("compte.html", user=user, username=session["username"])
 
-@app.route("/compte")
-def compte():
-    if "username" not in session:
-        return redirect(url_for("login"))
-    user = get_user(session["username"])
-    # 👉 On passe explicitement `username` au template
-    return render_template("compte.html", user=user, username=session["username"])
+
 
 
 @app.route("/resultat", methods=["POST"])
