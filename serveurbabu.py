@@ -643,42 +643,58 @@ def resultat():
     data = request.get_json(silent=True) or {}
     match_id = str(data.get("match_id") or len(load_results()) + 1)
     resultat_match = data.get("resultat")
+
     if not resultat_match:
         return jsonify({"success": False, "message": "Résultat manquant"}), 400
 
+    # 1️⃣ Sauvegarder le résultat
     results = load_results()
     results[match_id] = resultat_match
     save_results(results)
 
+    # 2️⃣ Charger paris et comptes
     bets = load_bets()
     accounts = load_accounts()
 
+    # 3️⃣ Parcourir tous les paris pour ce match
     for bet in bets:
         if str(bet["match_id"]) != match_id:
             continue
+
         username = bet.get("username")
         if not username or username not in accounts:
             continue
+
+        # 4️⃣ Ignorer les paris déjà payés
         if bet.get("paid", False):
             continue
+
+        # 5️⃣ Vérifier si le pari est gagnant
         if bet.get("choix") == resultat_match:
-            gain = float(bet.get("montant", 0)) * 1.5
-            devise = bet.get("devise")
-            acc = accounts[username]
-            acc[devise] = float(acc.get(devise, 0)) + gain
+            gain = float(bet.get("montant", 0)) * 1.5  # mise + 50%
+            devise = bet.get("devise", "francs")
+            accounts[username][devise] = accounts[username].get(devise, 0) + gain
             bet["paid"] = True
 
-            # notifier l'utilisateur via Socket.IO
-            socketio.emit("account_update", {
-                "username": username,
-                "francs": acc.get("francs", 0),
-                "dollars": acc.get("dollars", 0)
-            }, room=username)
+            # 6️⃣ Notifier l’utilisateur via Socket.IO
+            socketio.emit(
+                "account_update",
+                {
+                    "username": username,
+                    "francs": accounts[username].get("francs", 0),
+                    "dollars": accounts[username].get("dollars", 0),
+                },
+                room=username,
+            )
 
+    # 7️⃣ Sauvegarder les changements
     save_accounts(accounts)
     save_bets(bets)
 
-    return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
+    return jsonify(
+        {"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"}
+    )
+
 
 
 
