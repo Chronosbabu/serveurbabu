@@ -724,7 +724,19 @@ def resultat():
         "gagnants": gagnants
     })
 
-
+@socketio.on("force_account_update")
+def force_account_update(data):
+    username = data.get("username")
+    if username:
+        # Joindre la room correspondant à l'utilisateur
+        join_room(username)
+        # Envoyer les soldes actuels à cet utilisateur
+        emit(
+            "account_update",
+            {"username": username, "francs": data.get("francs", 0), "dollars": data.get("dollars", 0)},
+            room=username
+        )
+        print(f"🔔 Account update forcé pour {username}")
 
 
 
