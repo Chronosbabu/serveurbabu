@@ -6,7 +6,7 @@
 <style>
 body { font-family: Arial; padding: 20px; }
 input, button { padding: 5px; margin: 5px; }
-input[readonly] { background-color: #eee; }
+input[readonly] { background-color: #f0f0f0; }
 </style>
 </head>
 <body>
@@ -28,41 +28,54 @@ input[readonly] { background-color: #eee; }
 const BASE_URL = "http://127.0.0.1:5000";
 
 function verifierUser() {
-    const user = document.getElementById("username").value.trim();
-    if(!user) {
-        afficher("Veuillez entrer un nom utilisateur.");
-        return;
-    }
-
+    const user = document.getElementById("username").value;
+    if (!user) return afficher("Entrez un nom d'utilisateur");
+    
     fetch(`${BASE_URL}/compte/verifier/${user}`)
-        .then(r => r.json())
+        .then(r => {
+            if(r.status===404) return {exists:false};
+            return r.json();
+        })
         .then(data => {
             if(data.exists){
                 afficher("Utilisateur trouvé ✅");
-                mettreAJourSolde(data.solde);
+                updateSolde(user);
             } else {
                 fetch(`${BASE_URL}/compte/ajouter/${user}`)
                 .then(r => r.json())
                 .then(d => {
                     afficher(d.message);
-                    if(d.solde) mettreAJourSolde(d.solde);
+                    updateSolde(user);
                 });
             }
         })
         .catch(err => afficher("Erreur serveur : " + err));
 }
 
-function mettreAJourSolde(solde) {
-    document.getElementById("francs").value = solde.francs || 0;
-    document.getElementById("dollars").value = solde.dollars || 0;
-    document.getElementById("solde").innerText = 
-        `Solde actuel : ${solde.francs} Francs, ${solde.dollars} Dollars`;
+function updateSolde(user){
+    fetch(`${BASE_URL}/compte/verifier/${user}`)
+    .then(r => r.json())
+    .then(data => {
+        if(data.exists){
+            fetch(`${BASE_URL}/compte/depot`, {  // Appel simulé pour récupérer le solde
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({username: user, francs: 0, dollars: 0})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if(d.solde){
+                    document.getElementById("francs").value = d.solde.francs;
+                    document.getElementById("dollars").value = d.solde.dollars;
+                }
+            });
+        }
+    });
 }
 
-function afficher(msg) {
+function afficher(msg){
     document.getElementById("message").innerText = msg;
 }
 </script>
 </body>
 </html>
-
