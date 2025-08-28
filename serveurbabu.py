@@ -603,8 +603,6 @@ def parier():
 
     socketio.emit("new_bet", new_bet, room=username)
     return jsonify({"success": True, "message": "Pari effectué avec succès", "solde": acc[devise]})
-
-
 @app.route("/resultat", methods=["POST"])
 def resultat():
     data = request.json
@@ -631,16 +629,28 @@ def resultat():
             if username not in accounts:
                 continue
             acc = accounts[username]
-            if bet["choix"] == resultat_match:
-                acc[bet["devise"]] = acc.get(bet["devise"], 0) + bet["montant"] * 0.5
+
+            # seulement si gagnant et pas déjà payé
+            if bet["choix"] == resultat_match and not bet.get("paid", False):
+                gain = bet["montant"] * 1.5  # mise + 50%
+                acc[bet["devise"]] = acc.get(bet["devise"], 0) + gain
+                bet["paid"] = True
+
+                # Notifier l’utilisateur via Socket.IO
                 socketio.emit("account_update", {
                     "username": username,
                     "francs": acc.get("francs", 0),
                     "dollars": acc.get("dollars", 0)
                 }, room=username)
-    save_accounts(accounts)
 
-    return jsonify({"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"})
+    # Sauvegarder après maj
+    save_accounts(accounts)
+    save_bets(bets)
+
+    return jsonify({
+        "success": True,
+        "message": f"Résultat du match {match_id} publié : {resultat_match}"
+    })
 
 
 
