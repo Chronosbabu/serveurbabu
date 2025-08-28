@@ -647,7 +647,7 @@ def resultat():
     if not resultat_match:
         return jsonify({"success": False, "message": "Résultat manquant"}), 400
 
-    # 1️⃣ Sauvegarder le résultat
+    # 1️⃣ Sauvegarder le résultat du match
     results = load_results()
     results[match_id] = resultat_match
     save_results(results)
@@ -658,7 +658,7 @@ def resultat():
 
     # 3️⃣ Parcourir tous les paris pour ce match
     for bet in bets:
-        if str(bet["match_id"]) != match_id:
+        if str(bet.get("match_id")) != match_id:
             continue
 
         username = bet.get("username")
@@ -671,9 +671,19 @@ def resultat():
 
         # 5️⃣ Vérifier si le pari est gagnant
         if bet.get("choix") == resultat_match:
-            gain = float(bet.get("montant", 0)) * 1.5  # mise + 50%
+            try:
+                montant = float(bet.get("montant", 0))
+            except ValueError:
+                montant = 0
+
+            gain = montant * 2  # double la mise
             devise = bet.get("devise", "francs")
-            accounts[username][devise] = accounts[username].get(devise, 0) + gain
+
+            # initialiser la devise si elle n'existe pas
+            if devise not in accounts[username]:
+                accounts[username][devise] = 0
+
+            accounts[username][devise] += gain
             bet["paid"] = True
 
             # 6️⃣ Notifier l’utilisateur via Socket.IO
@@ -691,9 +701,10 @@ def resultat():
     save_accounts(accounts)
     save_bets(bets)
 
-    return jsonify(
-        {"success": True, "message": f"Résultat du match {match_id} publié : {resultat_match}"}
-    )
+    return jsonify({
+        "success": True,
+        "message": f"Résultat du match {match_id} publié : {resultat_match}"
+    })
 
 
 
