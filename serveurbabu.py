@@ -637,6 +637,7 @@ def get_compte(username):
         "francs": acc.get("francs", 0),
         "dollars": acc.get("dollars", 0)
     })
+
 @app.route("/resultat", methods=["POST"])
 def resultat():
     data = request.get_json(silent=True) or {}
@@ -655,8 +656,9 @@ def resultat():
     bets = load_bets()
     accounts = load_accounts()
 
-    # 3️⃣ Parcourir tous les paris pour ce match
     gagnants = []
+
+    # 3️⃣ Parcourir tous les paris pour ce match
     for bet in bets:
         if str(bet.get("match_id")) != match_id:
             continue
@@ -665,18 +667,16 @@ def resultat():
         if not username or username not in accounts:
             continue
 
-        # 4️⃣ Ignorer les paris déjà payés
         if bet.get("paid", False):
             continue
 
-        # 5️⃣ Vérifier si le pari est gagnant
         if bet.get("choix") == resultat_match:
             try:
                 montant = float(bet.get("montant", 0))
             except ValueError:
                 montant = 0
 
-            gain = montant * 2  # double la mise
+            gain = montant * 2
             devise = bet.get("devise", "francs")
 
             if devise not in accounts[username]:
@@ -684,13 +684,14 @@ def resultat():
 
             accounts[username][devise] += gain
             bet["paid"] = True
+
+            # Ajouter dans la liste des gagnants
             gagnants.append({
                 "username": username,
                 "gain": gain,
                 "devise": devise
             })
 
-            # Notifier cet utilisateur
             socketio.emit(
                 "account_update",
                 {
@@ -701,11 +702,10 @@ def resultat():
                 room=username,
             )
 
-    # 6️⃣ Sauvegarder les changements
     save_accounts(accounts)
     save_bets(bets)
 
-    # 7️⃣ Notifier tout le monde du résultat et des gagnants
+    # Émettre le résultat avec les gagnants
     socketio.emit("resultat", {
         "match_id": match_id,
         "resultat": resultat_match,
@@ -714,8 +714,7 @@ def resultat():
 
     return jsonify({
         "success": True,
-        "message": f"Résultat du match {match_id} publié : {resultat_match}",
-        "gagnants": gagnants
+        "message": f"Résultat du match {match_id} publié : {resultat_match}"
     })
 
 
