@@ -1,6 +1,5 @@
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
 
 app = Flask(__name__)
 CORS(app)  # pour autoriser les requêtes depuis les fichiers locaux
@@ -10,79 +9,7 @@ USERS = {}       # username -> {"francs": 0, "dollars": 0}
 MATCHES = []     # liste de dicts {"equipe1": ..., "equipe2": ...}
 RESULTS = []     # liste de dicts {"match_id": ..., "resultat": ...}
 
-# --- Page principale : inscription utilisateur ---
-@app.route("/", methods=["GET", "POST"])
-def accueil():
-    if request.method == "POST":
-        username = request.form.get("username")
-        if not username:
-            return "Nom d'utilisateur requis", 400
-        
-        # Création automatique si nouveau
-        if username not in USERS:
-            USERS[username] = {"francs": 0, "dollars": 0}
-        
-        # Rediriger vers la page de dépôt
-        return redirect(url_for("page_depot", username=username))
-    
-    html = """
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head><meta charset="UTF-8"><title>Connexion</title></head>
-    <body>
-        <h1>Connexion / Inscription</h1>
-        <form method="post">
-            <label>Nom d'utilisateur :</label>
-            <input type="text" name="username" required>
-            <button type="submit">Valider</button>
-        </form>
-    </body>
-    </html>
-    """
-    return render_template_string(html)
-
-# --- Page dépôt ---
-@app.route("/depot/<username>", methods=["GET", "POST"])
-def page_depot(username):
-    if username not in USERS:
-        return "Utilisateur introuvable", 404
-    
-    if request.method == "POST":
-        francs = int(request.form.get("francs", 0))
-        dollars = int(request.form.get("dollars", 0))
-        USERS[username]["francs"] += francs
-        USERS[username]["dollars"] += dollars
-        return redirect(url_for("page_compte"))
-    
-    html = f"""
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head><meta charset="UTF-8"><title>Dépôt</title></head>
-    <body>
-        <h1>Dépôt pour {username}</h1>
-        <form method="post">
-            <label>Francs :</label>
-            <input type="number" name="francs" min="0" value="0"><br>
-            <label>Dollars :</label>
-            <input type="number" name="dollars" min="0" value="0"><br>
-            <button type="submit">Déposer</button>
-        </form>
-        <a href="/">Retour accueil</a>
-    </body>
-    </html>
-    """
-    return render_template_string(html)
-
-# --- Page compte : afficher tous les utilisateurs ---
-@app.route("/compte")
-def page_compte():
-    html = "<h2>Gestion des comptes :</h2><ul>"
-    for user, solde in USERS.items():
-        html += f"<li>{user} - Francs: {solde['francs']}, Dollars: {solde['dollars']}</li>"
-    html += "</ul><a href='/'>Retour accueil</a>"
-    return render_template_string(html)
-
-# --- API JSON existante (toujours dispo si besoin) ---
+# --- Routes utilisateur / compte ---
 @app.route("/compte/verifier/<username>")
 def verifier_user(username):
     if username in USERS:
@@ -131,15 +58,6 @@ def add_result():
 
     RESULTS.append({"match_id": match_id, "resultat": resultat})
     return jsonify({"success": True, "message": "Résultat publié"})
-
-# --- Liste matches ---
-@app.route("/matches")
-def liste_matches():
-    html = "<h2>Liste des matches :</h2><ul>"
-    for m in MATCHES:
-        html += f"<li>{m['equipe1']} vs {m['equipe2']} (ID: {m['id']})</li>"
-    html += "</ul><a href='/'>Retour</a>"
-    return render_template_string(html)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
