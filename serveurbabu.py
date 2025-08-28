@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import os
 
@@ -10,11 +10,24 @@ USERS = {}       # username -> {"francs": 0, "dollars": 0}
 MATCHES = []     # liste de dicts {"equipe1": ..., "equipe2": ...}
 RESULTS = []     # liste de dicts {"match_id": ..., "resultat": ...}
 
+# --- Page d'accueil simple ---
 @app.route("/")
 def accueil():
-    return "Serveur actif !"
-
-
+    html = """
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <title>Serveur Paris</title>
+    </head>
+    <body>
+        <h1>Bienvenue sur le serveur de paris</h1>
+        <button onclick="window.location.href='/matches'">Parier</button>
+        <button onclick="window.location.href='/compte'">Compte</button>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
 
 # --- Routes utilisateur / compte ---
 @app.route("/compte/verifier/<username>")
@@ -66,9 +79,26 @@ def add_result():
     RESULTS.append({"match_id": match_id, "resultat": resultat})
     return jsonify({"success": True, "message": "Résultat publié"})
 
+# --- Page pour voir les matches (simple test) ---
+@app.route("/matches")
+def liste_matches():
+    html = "<h2>Liste des matches :</h2><ul>"
+    for m in MATCHES:
+        html += f"<li>{m['equipe1']} vs {m['equipe2']} (ID: {m['id']})</li>"
+    html += "</ul><a href='/'>Retour</a>"
+    return render_template_string(html)
+
+# --- Page compte (simple test) ---
+@app.route("/compte")
+def page_compte():
+    html = "<h2>Gestion des comptes :</h2>"
+    html += "<ul>"
+    for user, solde in USERS.items():
+        html += f"<li>{user} - Francs: {solde['francs']}, Dollars: {solde['dollars']}</li>"
+    html += "</ul><a href='/'>Retour</a>"
+    return render_template_string(html)
+
 if __name__ == "__main__":
-    # Ecoute toutes les interfaces et port fourni par Render
+    # Écoute toutes les interfaces et port fourni par Render
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
-
-
 
