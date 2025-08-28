@@ -606,62 +606,49 @@ def compte():
     # 👉 On passe explicitement `username` au template
     return render_template("compte.html", user=user, username=session["username"])
 
-
 @app.route("/resultat", methods=["POST"])
 def resultat():
-    data = request.get_json(silent=True) or {}
+    data = request.json
     match_id = data.get("match_id")
     resultat_match = data.get("resultat")
 
-    if not resultat_match:
-        return jsonify({"success": False, "message": "Résultat manquant"}), 400
-    if not match_id:
-        match_id = len(load_results()) + 1
-    match_id = str(match_id)
+    if not match_id or not resultat_match:
+        return jsonify({"success": False, "message": "Deux équipes requises"}), 400
 
-    # Enregistrer le résultat
-    results = load_results()
-    results[match_id] = resultat_match
-    save_results(results)
+    try:
+        # Charger les comptes et les paris depuis les fichiers JSON
+        accounts = load_accounts()  # fonction pour lire accounts.json
+        bets = load_bets()          # fonction pour lire bets.json
 
-    # Payer les gagnants (mise + 50%) et marquer "paid"
-    bets = load_bets()
-    accounts = load_accounts()
+        # Parcourir tous les paris
+        for bet in bets.get(match_id, []):
+            username = bet["username"]
+            montant = bet["montant"]
+            choix = bet["choix"]
+            devise = bet["devise"]
 
-    for bet in bets:
-        if str(bet["match_id"]) != match_id:
-            continue
+            # Vérifier si le pari est gagné et non encore payé
+            if choix == resultat_match and not bet.get("paid", False):
+                gain = montant * 1.5  # mise + 50%
+                accounts[username][devise] = accounts[username].get(devise, 0) + gain
+                bet["paid"] = True  # marquer le pari comme payé
 
-        username = bet.get("username")
-        if not username or username not in accounts:
-            continue
+                # Notifier le client via SocketIO
+                socketio.emit("account_update", {
+                    "username": username,
+                    "francs": accounts[username].get("francs", 0),
+                    "dollars": accounts[username].get("dollars", 0)
+                }, room=username)
 
-        # payer une seule fois
-        if bet.get("paid", False):
-            continue
+        # Sauvegarder les comptes et les paris mis à jour
+        save_accounts(accounts)
+        save_bets(bets)
 
-        if bet.get("choix") == resultat_match:
-            gain = float(bet.get("montant", 0)) * 1.5  # mise + 50%
-            devise = bet.get("devise")
-            acc = accounts[username]
-            acc[devise] = acc.get(devise, 0) + gain
-            bet["paid"] = True
+        return jsonify({"success": True, "message": "Résultat appliqué avec succès"}), 200
 
-            # notifier l'utilisateur connecté (room = username)
-            socketio.emit("account_update", {
-                "username": username,
-                "francs": acc.get("francs", 0),
-                "dollars": acc.get("dollars", 0)
-            }, room=username)
-
-    # Sauvegarder comptes + paris (important pour conserver "paid")
-    save_accounts(accounts)
-    save_bets(bets)
-
-    return jsonify({
-        "success": True,
-        "message": f"Résultat du match {match_id} publié : {resultat_match}"
-    })
+    except Exception as e:
+        print("Erreur /resultat :", e)
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 
