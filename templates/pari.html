@@ -7,6 +7,7 @@
 <style>
 body { font-family: Arial; padding: 20px; }
 button { margin: 5px; padding: 5px; }
+select { margin: 5px; padding: 3px; }
 </style>
 </head>
 <body>
@@ -32,18 +33,42 @@ function chargerMatches(){
     .then(data => {
         const cont = document.getElementById("matches");
         cont.innerHTML = "";
-        data.forEach(m=>{
+
+        data.forEach(m => {
+            const divMatch = document.createElement("div");
+            divMatch.style.marginBottom = "10px";
+
+            const titre = document.createElement("span");
+            titre.innerText = `${m.equipe1} vs ${m.equipe2} `;
+            divMatch.appendChild(titre);
+
+            // Sélecteur d'équipe
+            const select = document.createElement("select");
+            const option1 = document.createElement("option");
+            option1.value = m.equipe1;
+            option1.innerText = m.equipe1;
+            select.appendChild(option1);
+            const option2 = document.createElement("option");
+            option2.value = m.equipe2;
+            option2.innerText = m.equipe2;
+            select.appendChild(option2);
+            divMatch.appendChild(select);
+
+            // Bouton parier
             const btn = document.createElement("button");
-            btn.innerText = `${m.equipe1} vs ${m.equipe2} (Parier)`;
-            btn.onclick = ()=>parier(m.id);
-            cont.appendChild(btn);
-            cont.appendChild(document.createElement("br"));
+            btn.innerText = "Parier";
+            btn.onclick = () => parier(m.id, select.value);
+            divMatch.appendChild(btn);
+
+            cont.appendChild(divMatch);
         });
     });
 }
 
-function parier(match_id){
+function parier(match_id, equipe_choisie){
     const user = document.getElementById("username").value;
+    if(!user){ alert("Entrer le nom d'utilisateur"); return; }
+
     let devise = prompt("Devise pour le pari (francs/dollars) :");
     if(devise!=="francs" && devise!=="dollars"){ alert("Devise invalide"); return; }
     let montant = parseInt(prompt("Montant à parier :"));
@@ -52,8 +77,15 @@ function parier(match_id){
     fetch(`${BASE_URL}/pari`,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({username:user, match_id:match_id, devise:devise, montant:montant})
-    }).then(r=>r.json()).then(d=>{
+        body:JSON.stringify({
+            username: user,
+            match_id: match_id,
+            devise: devise,
+            montant: montant,
+            equipe_choisie: equipe_choisie
+        })
+    }).then(r => r.json())
+    .then(d => {
         alert(d.message);
     });
 }
