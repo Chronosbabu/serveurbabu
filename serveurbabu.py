@@ -54,4 +54,27 @@ def get_matches():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
+    
+    
+    
+@app.route("/compte/depot", methods=["POST"])
+def depot():
+    data = request.json
+    username = data.get("username")
+    francs = data.get("francs", 0)
+    dollars = data.get("dollars", 0)
+
+    if username not in USERS:
+        return jsonify({"success": False, "message": "Utilisateur non trouvé"}), 404
+
+    USERS[username]["francs"] += francs
+    USERS[username]["dollars"] += dollars
+
+    return jsonify({
+        "success": True,
+        "message": f"Dépôt effectué : {francs} Francs, {dollars} Dollars",
+        "solde": USERS[username]
+    })
+    
+    
 
