@@ -1,87 +1,65 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mon Compte</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; }
-    header { background:#6200ea; color:#fff; padding:15px; text-align:center; }
-    .container { padding:20px; }
-    .profile-card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.15); text-align:center; max-width:400px; margin:auto; }
-    .profile-card img { width:100px; height:100px; border-radius:50%; object-fit:cover; }
-    .profile-card h2 { margin:10px 0 5px; }
-    .btn { display:inline-block; margin-top:15px; padding:10px 20px; border:none; border-radius:8px; background:#6200ea; color:#fff; cursor:pointer; }
-    .btn:hover { background:#4b00b5; }
-    .solde { margin-top:20px; font-weight:bold; font-size:1.2em; }
-  </style>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<meta charset="UTF-8">
+<title>Compte</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+input, button { padding: 5px; margin: 5px; }
+</style>
 </head>
 <body>
-  <header><h1>Mon Compte</h1></header>
-  <div class="container">
-    <div class="profile-card">
-      <img id="profilePic" src="https://via.placeholder.com/100" alt="Photo de profil">
-      <h2 id="username">{{ username }}</h2>
-      <div id="solde-box" style="display:none;">
-        <p class="solde">Solde en Francs : <span id="francs">0</span></p>
-        <p class="solde">Solde en Dollars : <span id="dollars">0</span></p>
-      </div>
-      <button class="btn" id="btnCompte">Ouvrir mon compte</button>
-    </div>
-  </div>
+<h2>Gestion Compte</h2>
 
-  <script>
-    let soldeFrancs = 0;
-    let soldeDollars = 0;
-    let socket;
-    const CURRENT_USER = "{{ username }}";
+<label>Nom utilisateur :</label>
+<input id="username" type="text">
+<button onclick="verifierUser()">Vérifier / Ajouter</button><br>
 
-    async function ouvrirCompte() {
-      const pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
-      if (!pwd) return;
+<label>Francs :</label>
+<input id="francs" type="number" value="0"><br>
+<label>Dollars :</label>
+<input id="dollars" type="number" value="0"><br>
+<button onclick="faireDepot()">Déposer</button>
 
-      const res = await fetch("/compte/ouvrir", {
+<p id="message"></p>
+
+<script>
+const BASE_URL = "http://127.0.0.1:5000";
+
+function verifierUser() {
+    const user = document.getElementById("username").value;
+    fetch(`${BASE_URL}/compte/verifier/${user}`)
+        .then(r => r.json())
+        .then(data => {
+            if(data.exists){
+                afficher("Utilisateur trouvé ✅");
+            } else {
+                // Ajouter automatiquement
+                fetch(`${BASE_URL}/compte/ajouter/${user}`)
+                .then(r => r.json())
+                .then(d => afficher(d.message));
+            }
+        });
+}
+
+function faireDepot() {
+    const user = document.getElementById("username").value;
+    const francs = parseInt(document.getElementById("francs").value) || 0;
+    const dollars = parseInt(document.getElementById("dollars").value) || 0;
+
+    fetch(`${BASE_URL}/compte/depot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pwd })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert("Connexion réussie ✅");
-        soldeFrancs = data.francs;
-        soldeDollars = data.dollars;
-        document.getElementById("solde-box").style.display = "block";
-        updateAffichage();
-        listenSocket();
-      } else {
-        alert(data.message || "Erreur");
-      }
-    }
+        body: JSON.stringify({username: user, francs, dollars})
+    })
+    .then(r => r.json())
+    .then(d => afficher(d.message));
+}
 
-    function updateAffichage() {
-      document.getElementById("francs").innerText = soldeFrancs;
-      document.getElementById("dollars").innerText = soldeDollars;
-    }
-
-    function listenSocket() {
-      socket = io();
-
-      socket.on("connect", () => {
-        socket.emit("join", CURRENT_USER);
-      });
-
-      socket.on("account_update", (data) => {
-        if (data.username === CURRENT_USER) {
-          soldeFrancs = data.francs;
-          soldeDollars = data.dollars;
-          updateAffichage();
-        }
-      });
-    }
-
-    document.getElementById("btnCompte").addEventListener("click", ouvrirCompte);
-  </script>
+function afficher(msg) {
+    document.getElementById("message").innerText = msg;
+}
+</script>
 </body>
 </html>
-

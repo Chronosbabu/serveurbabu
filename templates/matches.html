@@ -1,146 +1,53 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Paris en Direct</title>
-  <style>
-    body { font-family: system-ui, Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; }
-    header { background:#e91e63; color:#fff; padding:16px; text-align:center; font-size:1.4em; }
-    .container { max-width:720px; margin:20px auto; padding:0 16px; }
-    .match-card { background:#fff; border-radius:14px; box-shadow:0 3px 8px rgba(0,0,0,0.12); padding:16px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; }
-    .teams { font-weight:600; font-size:1.1em; }
-    .btn { padding:10px 16px; border:none; border-radius:10px; background:#e91e63; color:#fff; cursor:pointer; font-weight:600; transition:0.2s; }
-    .btn:hover { background:#b0003a; }
-  </style>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<meta charset="UTF-8">
+<title>Pari</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+input, button { margin: 5px; padding: 5px; }
+</style>
 </head>
 <body>
-  <header>⚽ Matches disponibles</header>
-  <div class="container" id="matchesList"></div>
+<h2>Pari</h2>
 
-  <script>
-    const socket = io();
-    let soldeFrancs = 0;
-    let soldeDollars = 0;
-    let bankConnected = false;
-    const CURRENT_USER = "{{ username }}";
+<h3>Publier Match</h3>
+<label>Équipe 1 :</label><input id="eq1"><br>
+<label>Équipe 2 :</label><input id="eq2"><br>
+<button onclick="publierMatch()">Publier Match</button>
 
-    async function connecterBanque() {
-      const pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
-      if (!pwd) return false;
+<h3>Publier Résultat</h3>
+<label>Match ID :</label><input id="match_id"><br>
+<label>Résultat :</label><input id="resultat"><br>
+<button onclick="publierResultat()">Publier Résultat</button>
 
-      const res = await fetch("/compte/ouvrir", {
+<p id="msg"></p>
+
+<script>
+const BASE_URL = "http://127.0.0.1:5000";
+
+function publierMatch(){
+    const eq1 = document.getElementById("eq1").value;
+    const eq2 = document.getElementById("eq2").value;
+    fetch(`${BASE_URL}/matches/add`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pwd })
-      });
-      const data = await res.json();
-      if (data.success) {
-        bankConnected = true;
-        soldeFrancs = data.francs;
-        soldeDollars = data.dollars;
-        alert("Connexion bancaire réussie ✅\nFrancs: " + soldeFrancs + " | Dollars: " + soldeDollars);
-        joinRoom();
-        return true;
-      } else {
-        alert("❌ " + (data.message || "Mot de passe incorrect"));
-        return false;
-      }
-    }
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({equipe1: eq1, equipe2: eq2})
+    }).then(r => r.json()).then(d => afficher(d.message));
+}
 
-    function joinRoom() {
-      socket.emit("join", CURRENT_USER);
-    }
+function publierResultat(){
+    const match_id = document.getElementById("match_id").value || null;
+    const resultat = document.getElementById("resultat").value;
+    fetch(`${BASE_URL}/resultat`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({match_id, resultat})
+    }).then(r => r.json()).then(d => afficher(d.message));
+}
 
-    function afficherMatch(match) {
-      const card = document.createElement("div");
-      card.className = "match-card";
-      card.innerHTML = `
-        <div class="teams">${match.equipe1} vs ${match.equipe2}</div>
-        <button class="btn" onclick='parier(${JSON.stringify(match)})'>Parier</button>
-      `;
-      document.getElementById("matchesList").appendChild(card);
-    }
-
-    async function chargerMatches() {
-      try {
-        const res = await fetch("/matches/list");
-        const matches = await res.json();
-        const list = document.getElementById("matchesList");
-        list.innerHTML = "";
-        matches.forEach(m => afficherMatch(m));
-      } catch (e) {
-        console.error("Erreur matches:", e);
-      }
-    }
-
-    async function parier(match) {
-      try {
-        if (!bankConnected) {
-          const ok = await connecterBanque();
-          if (!ok) return;
-        }
-
-        const choix = prompt(`Choisissez le vainqueur :
-1 = ${match.equipe1}
-2 = ${match.equipe2}
-3 = Match nul`);
-        if (!["1","2","3"].includes(choix)) return alert("Choix invalide.");
-
-        const deviseChoix = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars");
-        if (!["1","2"].includes(deviseChoix)) return alert("Devise invalide.");
-        const devise = deviseChoix === "1" ? "francs" : "dollars";
-
-        const montant = parseFloat(prompt("Entrez le montant à parier :"));
-        if (isNaN(montant) || montant <= 0) return alert("Montant invalide.");
-
-        if (devise==="francs" && montant>soldeFrancs) return alert("Solde insuffisant en Francs.");
-        if (devise==="dollars" && montant>soldeDollars) return alert("Solde insuffisant en Dollars.");
-
-        const pwd = prompt("Confirmez avec votre mot de passe bancaire :");
-        if (!pwd) return alert("Mot de passe requis.");
-
-        const pari = {
-          match_id: match.id,
-          choix: parseInt(choix),
-          devise,
-          montant,
-          password: pwd
-        };
-
-        const res = await fetch("/parier", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(pari)
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          alert("✅ Pari confirmé !");
-          if(devise==="francs") soldeFrancs=data.solde;
-          else soldeDollars=data.solde;
-        } else {
-          alert("❌ " + (data.message || "Erreur lors du pari"));
-        }
-      } catch(err) {
-        console.error(err);
-        alert("Erreur lors du pari.");
-      }
-    }
-
-    // Socket : nouveaux matches & mise à jour compte
-    socket.on("new_match", afficherMatch);
-    socket.on("account_update", (data) => {
-      if(data.username===CURRENT_USER){
-        soldeFrancs=data.francs;
-        soldeDollars=data.dollars;
-        alert(`💰 Nouveau solde: Francs ${soldeFrancs} | Dollars ${soldeDollars}`);
-      }
-    });
-
-    chargerMatches();
-  </script>
+function afficher(msg){ document.getElementById("msg").innerText = msg; }
+</script>
 </body>
 </html>
 
