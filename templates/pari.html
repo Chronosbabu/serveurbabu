@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Pari</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+button { margin: 5px; padding: 5px; }
+</style>
+</head>
+<body>
+<h2>Parier sur un Match</h2>
+
+<label>Nom utilisateur :</label>
+<input id="username" type="text">
+<button onclick="chargerMatches()">Afficher Matchs</button>
+
+<div id="matches"></div>
+
+<p id="message"></p>
+
+<script>
+const BASE_URL = "http://127.0.0.1:5000";
+
+function chargerMatches(){
+    const user = document.getElementById("username").value;
+    if(!user){ alert("Entrer le nom d'utilisateur"); return; }
+
+    fetch(`${BASE_URL}/matches`)
+    .then(r => r.json())
+    .then(data => {
+        const cont = document.getElementById("matches");
+        cont.innerHTML = "";
+        data.forEach(m=>{
+            const btn = document.createElement("button");
+            btn.innerText = `${m.equipe1} vs ${m.equipe2} (Parier)`;
+            btn.onclick = ()=>parier(m.id);
+            cont.appendChild(btn);
+            cont.appendChild(document.createElement("br"));
+        });
+    });
+}
+
+function parier(match_id){
+    const user = document.getElementById("username").value;
+    let devise = prompt("Devise pour le pari (francs/dollars) :");
+    if(devise!=="francs" && devise!=="dollars"){ alert("Devise invalide"); return; }
+    let montant = parseInt(prompt("Montant à parier :"));
+    if(isNaN(montant) || montant <=0){ alert("Montant invalide"); return; }
+
+    fetch(`${BASE_URL}/pari`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({username:user, match_id:match_id, devise:devise, montant:montant})
+    }).then(r=>r.json()).then(d=>{
+        alert(d.message);
+    });
+}
+</script>
+</body>
+</html>
+
