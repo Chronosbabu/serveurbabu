@@ -1,3 +1,4 @@
+<!-- templates/pari.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -20,7 +21,7 @@ button { margin: 5px; padding: 5px; }
 <p id="message"></p>
 
 <script>
-const BASE_URL = "http://127.0.0.1:5000";
+const BASE_URL = "";  // URL relative pour éviter localhost en prod
 
 function chargerMatches(){
     const user = document.getElementById("username").value;
