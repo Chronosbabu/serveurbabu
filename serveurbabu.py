@@ -9,6 +9,20 @@ USERS = {}       # username -> {"francs": 0, "dollars": 0}
 MATCHES = []     # liste de dicts {"equipe1": ..., "equipe2": ...}
 RESULTS = []     # liste de dicts {"match_id": ..., "resultat": ...}
 
+
+
+@app.route("/")
+def accueil():
+    return render_template("index.html")
+
+@app.route("/compte")
+def compte():
+    return render_template("compte.html")
+
+@app.route("/pari")
+def pari():
+    return render_template("pari.html")
+
 # --- Routes utilisateur / compte ---
 @app.route("/compte/verifier/<username>")
 def verifier_user(username):
