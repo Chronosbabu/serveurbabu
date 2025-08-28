@@ -100,7 +100,32 @@ def ajouter_pari():
 
     return jsonify({"success": True, "message": f"Pari de {montant} {devise} sur le match {match_id} enregistré"})
 
+# --- Route pour publier un résultat et créditer les gagnants ---
+@app.route("/resultat", methods=["POST"])
+def publier_resultat():
+    data = request.json
+    match_id = data.get("match_id")
+    resultat = data.get("resultat")
+
+    if not match_id or not resultat:
+        return jsonify({"success": False, "message": "Match ID et résultat requis"}), 400
+
+    # Enregistrement du résultat
+    RESULTS.append({"match_id": match_id, "resultat": resultat})
+
+    # Vérification des paris gagnants
+    for username, user_data in USERS.items():
+        for pari in user_data["paris"]:
+            if pari["match_id"] == match_id and pari["devise"] in ("francs", "dollars"):
+                if resultat.lower() == pari.get("equipe_gagne", resultat).lower():
+                    # Double le montant pour le gagnant
+                    gain = pari["montant"] * 2
+                    USERS[username][pari["devise"]] += gain
+
+    return jsonify({"success": True, "message": f"Résultat publié pour le match {match_id}"})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
+
 
