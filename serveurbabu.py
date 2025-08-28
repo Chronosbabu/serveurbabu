@@ -70,7 +70,6 @@ def add_match():
 @app.route("/matches")
 def get_matches():
     return jsonify(MATCHES)
-
 # --- Route pour enregistrer un pari ---
 @app.route("/pari", methods=["POST"])
 def ajouter_pari():
@@ -79,6 +78,7 @@ def ajouter_pari():
     match_id = data.get("match_id")
     devise = data.get("devise")
     montant = data.get("montant")
+    equipe_choisie = data.get("equipe_choisie")  # ajout de l'équipe choisie
 
     if username not in USERS:
         return jsonify({"success": False, "message": "Utilisateur non trouvé"}), 404
@@ -89,17 +89,28 @@ def ajouter_pari():
     if USERS[username][devise] < montant:
         return jsonify({"success": False, "message": "Solde insuffisant"}), 400
 
+    # Vérifie que l'équipe choisie est bien dans le match
+    match = next((m for m in MATCHES if m["id"] == match_id), None)
+    if not match:
+        return jsonify({"success": False, "message": "Match introuvable"}), 404
+    if equipe_choisie not in (match["equipe1"], match["equipe2"]):
+        return jsonify({"success": False, "message": "Équipe choisie invalide"}), 400
+
     # Débit du montant
     USERS[username][devise] -= montant
-    # Ajout du pari
+    # Ajout du pari avec l'équipe choisie
     USERS[username]["paris"].append({
         "match_id": match_id,
         "devise": devise,
-        "montant": montant
+        "montant": montant,
+        "equipe_choisie": equipe_choisie
     })
 
-    return jsonify({"success": True, "message": f"Pari de {montant} {devise} sur le match {match_id} enregistré"})
+    return jsonify({"success": True, "message": f"Pari de {montant} {devise} sur {equipe_choisie} (match {match_id}) enregistré"})
 
+
+
+# --- Route pour publier un résultat et créditer les gagnants ---
 # --- Route pour publier un résultat et créditer les gagnants ---
 @app.route("/resultat", methods=["POST"])
 def publier_resultat():
@@ -116,13 +127,13 @@ def publier_resultat():
     # Vérification des paris gagnants
     for username, user_data in USERS.items():
         for pari in user_data["paris"]:
-            if pari["match_id"] == match_id and pari["devise"] in ("francs", "dollars"):
-                if resultat.lower() == pari.get("equipe_gagne", resultat).lower():
-                    # Double le montant pour le gagnant
-                    gain = pari["montant"] * 2
-                    USERS[username][pari["devise"]] += gain
+            if pari["match_id"] == match_id and pari.get("equipe_choisie") == resultat:
+                # Double le montant pour le gagnant
+                gain = pari["montant"] * 2
+                USERS[username][pari["devise"]] += gain
 
     return jsonify({"success": True, "message": f"Résultat publié pour le match {match_id}"})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
