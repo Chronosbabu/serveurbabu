@@ -10,6 +10,12 @@ USERS = {}       # username -> {"francs": 0, "dollars": 0}
 MATCHES = []     # liste de dicts {"equipe1": ..., "equipe2": ...}
 RESULTS = []     # liste de dicts {"match_id": ..., "resultat": ...}
 
+@app.route("/")
+def accueil():
+    return "Serveur actif !"
+
+
+
 # --- Routes utilisateur / compte ---
 @app.route("/compte/verifier/<username>")
 def verifier_user(username):
