@@ -5,76 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mon Compte</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 0;
-      background: #f5f5f5;
-    }
-    header {
-      background: #6200ea;
-      color: #fff;
-      padding: 15px;
-      text-align: center;
-    }
-    .container {
-      padding: 20px;
-    }
-    .profile-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-      text-align: center;
-      max-width: 400px;
-      margin: auto;
-    }
-    .profile-card img {
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-    .profile-card h2 {
-      margin: 10px 0 5px;
-    }
-    .btn {
-      display: inline-block;
-      margin-top: 15px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      background: #6200ea;
-      color: #fff;
-      cursor: pointer;
-    }
-    .btn:hover {
-      background: #4b00b5;
-    }
-    .solde {
-      margin-top: 20px;
-      font-weight: bold;
-      font-size: 1.2em;
-    }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; }
+    header { background:#6200ea; color:#fff; padding:15px; text-align:center; }
+    .container { padding:20px; }
+    .profile-card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.15); text-align:center; max-width:400px; margin:auto; }
+    .profile-card img { width:100px; height:100px; border-radius:50%; object-fit:cover; }
+    .profile-card h2 { margin:10px 0 5px; }
+    .btn { display:inline-block; margin-top:15px; padding:10px 20px; border:none; border-radius:8px; background:#6200ea; color:#fff; cursor:pointer; }
+    .btn:hover { background:#4b00b5; }
+    .solde { margin-top:20px; font-weight:bold; font-size:1.2em; }
   </style>
-  <!-- Socket.IO client -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>Mon Compte</h1>
-  </header>
-
+  <header><h1>Mon Compte</h1></header>
   <div class="container">
     <div class="profile-card">
       <img id="profilePic" src="https://via.placeholder.com/100" alt="Photo de profil">
       <h2 id="username">{{ username }}</h2>
-
-      <!-- Zone solde -->
       <div id="solde-box" style="display:none;">
         <p class="solde">Solde en Francs : <span id="francs">0</span></p>
         <p class="solde">Solde en Dollars : <span id="dollars">0</span></p>
       </div>
-
       <button class="btn" id="btnCompte">Ouvrir mon compte</button>
     </div>
   </div>
@@ -83,12 +35,10 @@
     let soldeFrancs = 0;
     let soldeDollars = 0;
     let socket;
-
-    // 👉 on reçoit `username` du serveur
     const CURRENT_USER = "{{ username }}";
 
     async function ouvrirCompte() {
-      let pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
+      const pwd = prompt("Entrez le mot de passe de votre compte bancaire :");
       if (!pwd) return;
 
       const res = await fetch("/compte/ouvrir", {
@@ -96,7 +46,6 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: pwd })
       });
-
       const data = await res.json();
       if (data.success) {
         alert("Connexion réussie ✅");
@@ -104,7 +53,7 @@
         soldeDollars = data.dollars;
         document.getElementById("solde-box").style.display = "block";
         updateAffichage();
-        listenSocket(); // écoute des mises à jour via socket.io
+        listenSocket();
       } else {
         alert(data.message || "Erreur");
       }
@@ -119,7 +68,6 @@
       socket = io();
 
       socket.on("connect", () => {
-        // on rejoint notre room personnelle
         socket.emit("join", CURRENT_USER);
       });
 
