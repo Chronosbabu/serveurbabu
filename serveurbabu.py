@@ -73,6 +73,37 @@ def depot():
         "solde": USERS[username]
     })
     
+@app.route("/pari", methods=["POST"])
+def ajouter_pari():
+    data = request.json
+    username = data.get("username")
+    match_id = data.get("match_id")
+    devise = data.get("devise")
+    montant = data.get("montant")
+
+    if username not in USERS:
+        return jsonify({"success": False, "message": "Utilisateur non trouvé"}), 404
+
+    if devise not in ("francs","dollars"):
+        return jsonify({"success": False, "message": "Devise invalide"}), 400
+
+    if USERS[username][devise] < montant:
+        return jsonify({"success": False, "message": "Solde insuffisant"}), 400
+
+    # Débit du montant
+    USERS[username][devise] -= montant
+    # Ajout du pari
+    USERS[username]["paris"].append({
+        "match_id": match_id,
+        "devise": devise,
+        "montant": montant
+    })
+
+    return jsonify({"success": True, "message": f"Pari de {montant} {devise} sur le match {match_id} enregistré"})
+    
+    
+    
+    
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
