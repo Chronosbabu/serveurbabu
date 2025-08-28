@@ -3,12 +3,12 @@ from flask_cors import CORS
 import os 
 
 app = Flask(__name__)
-CORS(app)  # pour autoriser les requêtes depuis les fichiers locaux
+CORS(app)
 
-# Base de données simple en mémoire (à remplacer par JSON ou vraie DB)
+# Base de données simple en mémoire
 USERS = {}       # username -> {"francs": 0, "dollars": 0}
-MATCHES = []     # liste de dicts {"equipe1": ..., "equipe2": ...}
-RESULTS = []     # liste de dicts {"match_id": ..., "resultat": ...}
+MATCHES = []     
+RESULTS = []     
 
 # --- Routes pages HTML ---
 @app.route("/")
@@ -34,15 +34,16 @@ def verifier_user(username):
 def depot():
     data = request.json
     username = data.get("username")
-    francs = data.get("francs", 0)
-    dollars = data.get("dollars", 0)
+    francs = int(data.get("francs", 0))
+    dollars = int(data.get("dollars", 0))
 
     if username not in USERS:
         return jsonify({"success": False, "message": "Utilisateur introuvable"}), 404
 
     USERS[username]["francs"] += francs
     USERS[username]["dollars"] += dollars
-    return jsonify({"success": True, "message": f"Dépôt effectué pour {username}"})
+    return jsonify({"success": True, "message": f"Dépôt effectué pour {username}", 
+                    "solde": USERS[username]})
 
 @app.route("/compte/ajouter/<username>")
 def ajouter_user(username):
