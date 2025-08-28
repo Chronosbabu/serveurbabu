@@ -30,10 +30,17 @@ def verifier_user(username):
         return jsonify({"exists": True})
     return jsonify({"exists": False}), 404
 
-@app.route("/compte/ajouter/<username>")
-def ajouter_user(username):
+# Support POST pour ajouter utilisateur (évite "Failed to fetch")
+@app.route("/compte/ajouter", methods=["POST"])
+def ajouter_user():
+    data = request.json
+    username = data.get("username")
+    if not username:
+        return jsonify({"success": False, "message": "Nom d'utilisateur manquant"}), 400
+
     if username in USERS:
         return jsonify({"success": False, "message": "Utilisateur existe déjà"}), 400
+
     USERS[username] = {"francs":0, "dollars":0, "paris":[]}
     return jsonify({"success": True, "message": f"Utilisateur {username} ajouté"})
 
@@ -98,4 +105,3 @@ def faire_pari():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
-

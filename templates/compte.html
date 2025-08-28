@@ -57,7 +57,7 @@ function updateSolde(user){
     .then(r => r.json())
     .then(data => {
         if(data.exists){
-            fetch(`${BASE_URL}/compte/depot`, {  // Appel simulé pour récupérer le solde
+            fetch(`${BASE_URL}/compte/depot`, {  
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({username: user, francs: 0, dollars: 0})
