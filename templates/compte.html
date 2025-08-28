@@ -22,10 +22,9 @@ input[readonly] { background-color: #f0f0f0; }
 <input id="dollars" type="number" value="0" readonly><br>
 
 <p id="message"></p>
-<p id="solde"></p>
 
 <script>
-const BASE_URL = "http://127.0.0.1:5000";
+const BASE_URL = ""  // Flask sert les fichiers directement, donc chemin relatif
 
 function verifierUser() {
     const user = document.getElementById("username").value;
@@ -39,38 +38,24 @@ function verifierUser() {
         .then(data => {
             if(data.exists){
                 afficher("Utilisateur trouvé ✅");
-                updateSolde(user);
+                updateSolde(data.solde);
             } else {
                 fetch(`${BASE_URL}/compte/ajouter/${user}`)
                 .then(r => r.json())
                 .then(d => {
                     afficher(d.message);
-                    updateSolde(user);
+                    updateSolde(d.solde);
                 });
             }
         })
         .catch(err => afficher("Erreur serveur : " + err));
 }
 
-function updateSolde(user){
-    fetch(`${BASE_URL}/compte/verifier/${user}`)
-    .then(r => r.json())
-    .then(data => {
-        if(data.exists){
-            fetch(`${BASE_URL}/compte/depot`, {  
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({username: user, francs: 0, dollars: 0})
-            })
-            .then(r => r.json())
-            .then(d => {
-                if(d.solde){
-                    document.getElementById("francs").value = d.solde.francs;
-                    document.getElementById("dollars").value = d.solde.dollars;
-                }
-            });
-        }
-    });
+function updateSolde(solde){
+    if(solde){
+        document.getElementById("francs").value = solde.francs;
+        document.getElementById("dollars").value = solde.dollars;
+    }
 }
 
 function afficher(msg){
@@ -79,3 +64,4 @@ function afficher(msg){
 </script>
 </body>
 </html>
+

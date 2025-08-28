@@ -27,36 +27,15 @@ def pari():
 @app.route("/compte/verifier/<username>")
 def verifier_user(username):
     if username in USERS:
-        return jsonify({"exists": True})
+        return jsonify({"exists": True, "solde": USERS[username]})
     return jsonify({"exists": False}), 404
 
-# Support POST pour ajouter utilisateur (évite "Failed to fetch")
-@app.route("/compte/ajouter", methods=["POST"])
-def ajouter_user():
-    data = request.json
-    username = data.get("username")
-    if not username:
-        return jsonify({"success": False, "message": "Nom d'utilisateur manquant"}), 400
-
+@app.route("/compte/ajouter/<username>")
+def ajouter_user(username):
     if username in USERS:
         return jsonify({"success": False, "message": "Utilisateur existe déjà"}), 400
-
     USERS[username] = {"francs":0, "dollars":0, "paris":[]}
-    return jsonify({"success": True, "message": f"Utilisateur {username} ajouté"})
-
-@app.route("/compte/depot", methods=["POST"])
-def depot():
-    data = request.json
-    username = data.get("username")
-    francs = int(data.get("francs",0))
-    dollars = int(data.get("dollars",0))
-
-    if username not in USERS:
-        return jsonify({"success": False, "message": "Utilisateur introuvable"}), 404
-
-    USERS[username]["francs"] += francs
-    USERS[username]["dollars"] += dollars
-    return jsonify({"success": True, "message": f"Dépôt effectué pour {username}", "solde": USERS[username]})
+    return jsonify({"success": True, "message": f"Utilisateur {username} ajouté", "solde": USERS[username]})
 
 # --- Routes pour les matches ---
 @app.route("/matches/add", methods=["POST"])
@@ -72,36 +51,7 @@ def add_match():
 def get_matches():
     return jsonify(MATCHES)
 
-# --- Route pour parier ---
-@app.route("/pari", methods=["POST"])
-def faire_pari():
-    data = request.json
-    username = data.get("username")
-    match_id = int(data.get("match_id"))
-    devise = data.get("devise")
-    montant = int(data.get("montant"))
-
-    if username not in USERS:
-        return jsonify({"success": False, "message": "Utilisateur introuvable"}), 404
-
-    # Vérifier si match existe
-    match = next((m for m in MATCHES if m["id"]==match_id), None)
-    if not match:
-        return jsonify({"success": False, "message": "Match introuvable"}), 404
-
-    # Vérifier si déjà parié
-    if match_id in USERS[username]["paris"]:
-        return jsonify({"success": False, "message": "Vous avez déjà parié sur ce match"}), 400
-
-    # Vérifier solde
-    if USERS[username][devise] < montant:
-        return jsonify({"success": False, "message": "Solde insuffisant"}), 400
-
-    # Retirer montant et enregistrer pari
-    USERS[username][devise] -= montant
-    USERS[username]["paris"].append(match_id)
-    return jsonify({"success": True, "message": f"Pari placé sur {match['equipe1']} vs {match['equipe2']}", "solde": USERS[username]})
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
+
