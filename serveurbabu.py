@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
@@ -70,6 +69,7 @@ def add_match():
 @app.route("/matches")
 def get_matches():
     return jsonify(MATCHES)
+
 # --- Route pour enregistrer un pari ---
 @app.route("/pari", methods=["POST"])
 def ajouter_pari():
@@ -78,7 +78,7 @@ def ajouter_pari():
     match_id = data.get("match_id")
     devise = data.get("devise")
     montant = data.get("montant")
-    equipe_choisie = data.get("equipe_choisie")  # ajout de l'équipe choisie
+    equipe_choisie = data.get("equipe_choisie")
 
     if username not in USERS:
         return jsonify({"success": False, "message": "Utilisateur non trouvé"}), 404
@@ -89,12 +89,12 @@ def ajouter_pari():
     if USERS[username][devise] < montant:
         return jsonify({"success": False, "message": "Solde insuffisant"}), 400
 
-    # Vérifie que l'équipe choisie est bien dans le match
+    # Vérifie que l'équipe choisie est bien valide
     match = next((m for m in MATCHES if m["id"] == match_id), None)
     if not match:
         return jsonify({"success": False, "message": "Match introuvable"}), 404
-    if equipe_choisie not in (match["equipe1"], match["equipe2"]):
-        return jsonify({"success": False, "message": "Équipe choisie invalide"}), 400
+    if equipe_choisie not in (match["equipe1"], match["equipe2"], "nul"):
+        return jsonify({"success": False, "message": "Choix invalide"}), 400
 
     # Débit du montant
     USERS[username][devise] -= montant
@@ -108,9 +108,6 @@ def ajouter_pari():
 
     return jsonify({"success": True, "message": f"Pari de {montant} {devise} sur {equipe_choisie} (match {match_id}) enregistré"})
 
-
-
-# --- Route pour publier un résultat et créditer les gagnants ---
 # --- Route pour publier un résultat et créditer les gagnants ---
 @app.route("/resultat", methods=["POST"])
 def publier_resultat():
@@ -134,9 +131,7 @@ def publier_resultat():
 
     return jsonify({"success": True, "message": f"Résultat publié pour le match {match_id}"})
 
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
-
 

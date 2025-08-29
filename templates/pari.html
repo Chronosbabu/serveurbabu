@@ -1,4 +1,3 @@
-<!-- templates/pari.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -42,16 +41,23 @@ function chargerMatches(){
             titre.innerText = `${m.equipe1} vs ${m.equipe2} `;
             divMatch.appendChild(titre);
 
-            // Sélecteur d'équipe
+            // Sélecteur d'équipe + nul
             const select = document.createElement("select");
             const option1 = document.createElement("option");
             option1.value = m.equipe1;
             option1.innerText = m.equipe1;
             select.appendChild(option1);
+
             const option2 = document.createElement("option");
             option2.value = m.equipe2;
             option2.innerText = m.equipe2;
             select.appendChild(option2);
+
+            const optionNul = document.createElement("option");
+            optionNul.value = "nul";
+            optionNul.innerText = "Nul";
+            select.appendChild(optionNul);
+
             divMatch.appendChild(select);
 
             // Bouton parier
