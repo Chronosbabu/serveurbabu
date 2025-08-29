@@ -48,7 +48,7 @@
             </a>
 
             <!-- 🔘 NOUVEAUX BOUTONS -->
-            <a href="{{ url_for('compte') }}" title="Compte bancaire">
+            <a href="{{ url_for('ouvrir_compte') }}" title="Compte bancaire">
                 <i class="fa-solid fa-wallet"></i>
             </a>
             <a href="{{ url_for('matches') }}" title="Matches">
@@ -56,7 +56,7 @@
             </a>
             <!-- 🔘 FIN AJOUT -->
 
-            <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn">
+            <a href="{{ url_for('logout') }}" title="Déconnexion" class="logout-btn">
                 <i class="fa-solid fa-right-from-bracket"></i>
             </a>
         </nav>
@@ -159,7 +159,6 @@ function updateUnreadBadge() {
 // Quand un nouveau message arrive
 socket.on('new_message', function(message) {
     const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-    // Si le message n'est pas dans le chat en cours, incrémente le compteur
     if (!currentChatUser || currentChatUser !== message.sender) {
         unreadCount++;
         updateUnreadBadge();
