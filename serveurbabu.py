@@ -5,10 +5,15 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Base de données en mémoire
+# --- Base de données en mémoire ---
 USERS = {}         # username -> {"francs":0,"dollars":0,"paris":[]}
-MATCHES = []       # liste de dicts {"id":..., "equipe1":..., "equipe2":...}
-RESULTS = []       # liste de dicts {"match_id":..., "resultat":...}
+MATCHES = []       # {"id":..., "equipe1":..., "equipe2":...}
+RESULTS = []       # {"match_id":..., "resultat":...}
+
+# --- Routes de santé ---
+@app.route("/ping")
+def ping():
+    return jsonify({"status": "ok"}), 200
 
 # --- Routes pages HTML ---
 @app.route("/")
@@ -89,7 +94,7 @@ def ajouter_pari():
     if USERS[username][devise] < montant:
         return jsonify({"success": False, "message": "Solde insuffisant"}), 400
 
-    # Vérifie que l'équipe choisie est bien valide
+    # Vérifie que l'équipe choisie est valide (ajout de "nul")
     match = next((m for m in MATCHES if m["id"] == match_id), None)
     if not match:
         return jsonify({"success": False, "message": "Match introuvable"}), 404
@@ -98,7 +103,6 @@ def ajouter_pari():
 
     # Débit du montant
     USERS[username][devise] -= montant
-    # Ajout du pari avec l'équipe choisie
     USERS[username]["paris"].append({
         "match_id": match_id,
         "devise": devise,
@@ -108,7 +112,7 @@ def ajouter_pari():
 
     return jsonify({"success": True, "message": f"Pari de {montant} {devise} sur {equipe_choisie} (match {match_id}) enregistré"})
 
-# --- Route pour publier un résultat et créditer les gagnants ---
+# --- Route pour publier un résultat ---
 @app.route("/resultat", methods=["POST"])
 def publier_resultat():
     data = request.json
@@ -118,20 +122,18 @@ def publier_resultat():
     if not match_id or not resultat:
         return jsonify({"success": False, "message": "Match ID et résultat requis"}), 400
 
-    # Enregistrement du résultat
     RESULTS.append({"match_id": match_id, "resultat": resultat})
 
-    # Vérification des paris gagnants
+    # Vérifie les paris gagnants
     for username, user_data in USERS.items():
         for pari in user_data["paris"]:
-            if pari["match_id"] == match_id and pari.get("equipe_choisie") == resultat:
-                # Double le montant pour le gagnant
+            if pari["match_id"] == match_id and pari["equipe_choisie"] == resultat:
                 gain = pari["montant"] * 2
                 USERS[username][pari["devise"]] += gain
 
     return jsonify({"success": True, "message": f"Résultat publié pour le match {match_id}"})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT",5000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
