@@ -16,35 +16,36 @@
            color:#fff; cursor:pointer; font-weight:600; transition:0.2s; }
     .btn:hover { background:#b0003a; }
   </style>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
 </head>
 <body>
-  <header>
-    ⚽ Matches disponibles
-  </header>
+  <header>⚽ Matches disponibles</header>
 
   <div style="text-align:center; margin:10px;">
     <input type="text" id="username" placeholder="Nom utilisateur">
+    <input type="password" id="password" placeholder="Mot de passe du compte principal">
     <button onclick="chargerMatches()">Charger Matchs</button>
   </div>
 
   <div class="container" id="matchesList"></div>
 
   <script>
-    const BASE_URL = "https://serveurbabu.onrender.com"; // Mettre ton URL serveur
+    const BASE_URL = "";
+    const socket = io();
 
     async function chargerMatches() {
       const user = document.getElementById("username").value.trim();
-      if (!user) return alert("Entrez un nom d'utilisateur");
+      const pwd = document.getElementById("password").value.trim();
+      if (!user || !pwd) return alert("Entrez votre nom et mot de passe");
 
       try {
-        const res = await fetch(`${BASE_URL}/matches`);
+        const res = await fetch(`${BASE_URL}/matches/list`);
         const matches = await res.json();
         const list = document.getElementById("matchesList");
         list.innerHTML = "";
         matches.forEach(m => afficherMatch(m));
       } catch (e) {
         console.error("Erreur matches:", e);
-        alert("Impossible de récupérer les matchs");
       }
     }
 
@@ -59,44 +60,39 @@
     }
 
     async function parier(match) {
-      const user = document.getElementById("username").value.trim();
-      if (!user) return alert("Entrez un nom d'utilisateur");
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!username || !password) return alert("Nom et mot de passe requis");
 
       const choix = prompt(`Choisissez :
 1 = ${match.equipe1}
 2 = ${match.equipe2}
 3 = Match nul`);
       if (!["1","2","3"].includes(choix)) return alert("Choix invalide.");
-      const equipe_choisie = choix === "1" ? match.equipe1 : choix === "2" ? match.equipe2 : "nul";
+      const equipe_choisie = choix==="1"?match.equipe1:choix==="2"?match.equipe2:"nul";
 
-      const deviseChoix = prompt("Choisissez la devise :\n1 = Francs\n2 = Dollars");
+      const deviseChoix = prompt("Devise : 1=Francs, 2=Dollars");
       if (!["1","2"].includes(deviseChoix)) return alert("Devise invalide.");
-      const devise = deviseChoix === "1" ? "francs" : "dollars";
+      const devise = deviseChoix==="1"?"francs":"dollars";
 
-      const montant = parseInt(prompt("Entrez le montant à parier :"));
-      if (isNaN(montant) || montant <= 0) return alert("Montant invalide.");
+      const montant = parseInt(prompt("Montant à parier :"));
+      if (isNaN(montant) || montant<=0) return alert("Montant invalide.");
 
-      const pari = {
-        username: user,
-        match_id: match.id,
-        devise: devise,
-        montant: montant,
-        equipe_choisie: equipe_choisie
-      };
-
-      try {
-        const res = await fetch(`${BASE_URL}/pari`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pari)
-        });
-        const data = await res.json();
-        alert(data.message);
-      } catch (e) {
-        console.error("Erreur pari:", e);
-        alert("Impossible de contacter le serveur");
-      }
+      const res = await fetch(`${BASE_URL}/pari`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          username, password, match_id: match.id,
+          devise, montant, equipe_choisie
+        })
+      });
+      const data = await res.json();
+      alert(data.message);
     }
+
+    // SocketIO updates
+    socket.on("new_match", match => afficherMatch(match));
+    socket.on("new_bet", data => console.log("Nouvelle mise:", data));
   </script>
 </body>
 </html>
