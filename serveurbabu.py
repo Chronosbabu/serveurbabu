@@ -553,7 +553,7 @@ def matches_add():
 
 
 @app.route("/compte/depot", methods=["POST"])
-def depot():
+def depot_nouveau():
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "").strip()
