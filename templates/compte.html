@@ -1,67 +1,74 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Compte</title>
-<style>
-body { font-family: Arial; padding: 20px; }
-input, button { padding: 5px; margin: 5px; }
-input[readonly] { background-color: #f0f0f0; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Compte</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; }
+    header { background:#6200ea; color:#fff; padding:15px; text-align:center; }
+    .container { padding:20px; }
+    .profile-card { background:#fff; padding:20px; border-radius:12px;
+                    box-shadow:0 2px 6px rgba(0,0,0,0.15); text-align:center;
+                    max-width:400px; margin:auto; }
+    .profile-card img { width:100px; height:100px; border-radius:50%; object-fit:cover; }
+    .profile-card h2 { margin:10px 0 5px; }
+    .btn { display:inline-block; margin-top:15px; padding:10px 20px;
+           border:none; border-radius:8px; background:#6200ea; color:#fff;
+           cursor:pointer; }
+    .btn:hover { background:#4b00b5; }
+    .solde { margin-top:20px; font-weight:bold; font-size:1.2em; }
+  </style>
 </head>
 <body>
-<h2>Gestion Compte</h2>
+  <header>
+    <h1>Mon Compte</h1>
+  </header>
 
-<label>Nom utilisateur :</label>
-<input id="username" type="text">
-<button onclick="verifierUser()">Vérifier / Ajouter</button><br>
+  <div class="container">
+    <div class="profile-card">
+      <img src="https://via.placeholder.com/100" alt="Photo de profil">
+      <h2 id="usernameDisplay">Utilisateur</h2>
 
-<label>Francs :</label>
-<input id="francs" type="number" value="0" readonly><br>
-<label>Dollars :</label>
-<input id="dollars" type="number" value="0" readonly><br>
+      <!-- Zone solde -->
+      <div id="solde-box" style="display:none;">
+        <p class="solde">Francs : <span id="francs">0</span></p>
+        <p class="solde">Dollars : <span id="dollars">0</span></p>
+      </div>
 
-<p id="message"></p>
+      <input type="text" id="usernameInput" placeholder="Nom utilisateur">
+      <button class="btn" onclick="ouvrirCompte()">Ouvrir mon compte</button>
+    </div>
+  </div>
 
-<script>
-const BASE_URL = ""  // Flask sert les fichiers directement, donc chemin relatif
+  <script>
+    const BASE_URL = "";
 
-function verifierUser() {
-    const user = document.getElementById("username").value;
-    if (!user) return afficher("Entrez un nom d'utilisateur");
-    
-    fetch(`${BASE_URL}/compte/verifier/${user}`)
-        .then(r => {
-            if(r.status===404) return {exists:false};
-            return r.json();
-        })
-        .then(data => {
-            if(data.exists){
-                afficher("Utilisateur trouvé ✅");
-                updateSolde(data.solde);
-            } else {
-                fetch(`${BASE_URL}/compte/ajouter/${user}`)
-                .then(r => r.json())
-                .then(d => {
-                    afficher(d.message);
-                    updateSolde(d.solde);
-                });
-            }
-        })
-        .catch(err => afficher("Erreur serveur : " + err));
-}
+    async function ouvrirCompte() {
+      const user = document.getElementById("usernameInput").value.trim();
+      if (!user) return alert("Entrez un nom d'utilisateur");
 
-function updateSolde(solde){
-    if(solde){
-        document.getElementById("francs").value = solde.francs;
-        document.getElementById("dollars").value = solde.dollars;
+      const res = await fetch(`${BASE_URL}/compte/verifier/${user}`);
+      if (res.status === 404) {
+        // Ajouter automatiquement
+        const addRes = await fetch(`${BASE_URL}/compte/ajouter/${user}`);
+        const d = await addRes.json();
+        alert(d.message);
+        updateAffichage(user, d.solde);
+      } else {
+        const data = await res.json();
+        alert("Utilisateur trouvé ✅");
+        updateAffichage(user, data.solde);
+      }
     }
-}
 
-function afficher(msg){
-    document.getElementById("message").innerText = msg;
-}
-</script>
+    function updateAffichage(user, solde) {
+      document.getElementById("usernameDisplay").innerText = user;
+      document.getElementById("francs").innerText = solde.francs;
+      document.getElementById("dollars").innerText = solde.dollars;
+      document.getElementById("solde-box").style.display = "block";
+    }
+  </script>
 </body>
 </html>
 
