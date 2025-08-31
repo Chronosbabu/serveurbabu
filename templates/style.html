@@ -7,9 +7,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script defer src="{{ url_for('static', filename='js/style.js') }}"></script>
 <style>
-  /* Badge style pour messages non lus */
   .message-badge {
     position: absolute;
     top: 0;
@@ -21,117 +19,166 @@
     border-radius: 50%;
     font-weight: bold;
   }
-  .header-icons a {
-    position: relative;
-  }
+  .header-icons a { position: relative; }
 </style>
 </head>
 <body data-username="{{ username }}">
 <div class="main-container">
+<header class="main-header">
+    <h2 class="logo">CHRONOS</h2>
+    <nav class="header-icons">
+        <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        </a>
+        <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+    </nav>
+</header>
 
-    <!-- HEADER -->
-    <header class="main-header">
-        <h2 class="logo">CHRONOS</h2>
-        <nav class="header-icons">
-            <a href="{{ url_for('search_users') }}" title="Rechercher">
-                <i class="fa-solid fa-magnifying-glass"></i>
+<main class="scroll-box" id="posts">
+    {% for post in posts %}
+    <div class="post" data-post-id="{{ post.id }}">
+        <div class="user-info">
+            {% if post.avatar %}
+            <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+              <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
             </a>
-            <a href="{{ url_for('add_post') }}" title="Nouvelle publication">
-                <i class="fa-solid fa-circle-plus"></i>
+            {% else %}
+            <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+              <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
             </a>
-            <a href="{{ url_for('profile', username=username) }}" title="Profil">
-                <i class="fa-regular fa-user"></i>
-            </a>
-            <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
-                <i class="fa-regular fa-message"></i>
-                <span class="message-badge" id="unread-count" style="display:none;">0</span>
-            </a>
-            <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn">
-                <i class="fa-solid fa-right-from-bracket"></i>
-            </a>
-        </nav>
-    </header>
-
-    <!-- LISTE DES PUBLICATIONS -->
-    <main class="scroll-box" id="posts">
-        {% for post in posts %}
-        <div class="post" data-post-id="{{ post.id }}">
-            <div class="user-info">
-                {% if post.avatar %}
-                <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-                    <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
-                </a>
-                {% else %}
-                <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-                    <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
-                </a>
-                {% endif %}
-                <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-                    <p class="username">{{ post.username }}</p>
-                </a>
-            </div>
-
-            <p class="description">{{ post.description }}</p>
-
-            {% if post.type == "image" %}
-            <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-            {% elif post.type == "video" %}
-            <!-- Suppression de loop pour contrôle play/pause -->
-            <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
             {% endif %}
-
-            <div class="post-actions">
-                <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
-                <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-                <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-                    <i class="fa-regular fa-comment"></i>
-                    <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-                </a>
-            </div>
-
-            <p class="date">Publié le {{ post.date }}</p>
+            <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+              <p class="username">{{ post.username }}</p>
+            </a>
         </div>
-        {% endfor %}
-    </main>
+        <p class="description">{{ post.description }}</p>
+        {% if post.type == "image" %}
+        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+        {% elif post.type == "video" %}
+        <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
+        {% endif %}
+        <div class="post-actions">
+            <button class="like-btn {{ 'liked' if post.liked_by_user else '' }}">❤️</button>
+            <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+            <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+              <i class="fa-regular fa-comment"></i>
+              <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+            </a>
+        </div>
+        <p class="date">Publié le {{ post.date }}</p>
+    </div>
+    {% endfor %}
+</main>
 </div>
 
 <script>
-const socket = io();
+document.addEventListener('DOMContentLoaded', () => {
+  const currentUsername = document.body.dataset.username;
 
-// --- Gestion des nouveaux posts ---
-socket.on('new_post', function(post) {
-    const postsContainer = document.getElementById('posts');
-    const postDiv = document.createElement('div');
-    postDiv.classList.add('post');
-    postDiv.dataset.postId = post.id;
+  // --- Likes ---
+  async function toggleLike(button) {
+    const post = button.closest('.post');
+    const postId = post.dataset.postId;
+    const countEl = post.querySelector('.like-count');
+    try {
+      const res = await fetch(`/like/${postId}`, { method: 'POST' });
+      if (!res.ok) return;
+      const data = await res.json();
+      countEl.textContent = data.likes;
+      button.classList.toggle('liked', data.liked);
+    } catch (err) { console.error(err); }
+  }
+  document.querySelectorAll('.post').forEach(post => {
+    const btn = post.querySelector('.like-btn');
+    if(btn) btn.addEventListener('click', () => toggleLike(btn));
+  });
 
-    let avatarHtml = post.avatar
-        ? `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" alt="avatar" class="avatar-post" /></a>`
-        : `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+  // --- Videos Intersection Observer ---
+  const videos = new Set();
+  let currentVideo = null;
+  const io = new IntersectionObserver((entries) => {
+    let best = null;
+    entries.forEach(entry => {
+      const vid = entry.target;
+      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+      if(visible && !best) best = vid;
+      if(!visible && !vid.paused) vid.pause();
+    });
+    if(best && currentVideo !== best) {
+      if(currentVideo) currentVideo.pause();
+      currentVideo = best;
+      currentVideo.play().catch(()=>{});
+    }
+  }, { threshold:[0,0.25,0.5,0.75,1] });
 
-    postDiv.innerHTML = `
-        <div class="user-info">
-            ${avatarHtml}
-            <a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a>
-        </div>
-        <p class="description">${post.description}</p>
-        ${post.type === 'image'
-            ? `<img src="/uploads/${post.file}" alt="image" class="post-image" />`
-            : `<video src="/uploads/${post.file}" controls muted></video>`}
-        <div class="post-actions">
-            <button class="like-btn">❤️</button>
-            <span class="like-count">0</span>
-            <a href="/comments/${post.id}" class="comment-btn">
-                <i class="fa-regular fa-comment"></i>
-                <span class="comment-count">0</span>
-            </a>
-        </div>
-        <p class="date">Publié le ${post.date}</p>
+  function observeVideo(v) {
+    if(!videos.has(v)) {
+      videos.add(v);
+      io.observe(v);
+      v.pause();
+    }
+  }
+  document.querySelectorAll('.post video').forEach(observeVideo);
+
+  // --- Pause onglet ou blur ---
+  document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
+  window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
+
+  // --- Pause clic image ---
+  document.querySelectorAll('.post img').forEach(img => {
+    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
+  });
+
+  // --- Mutation Observer pour posts dynamiques ---
+  const postsContainer = document.getElementById('posts');
+  if(postsContainer) {
+    const mo = new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if(node.classList && node.classList.contains('post')) {
+            const btn = node.querySelector('.like-btn');
+            if(btn) btn.addEventListener('click', () => toggleLike(btn));
+            node.querySelectorAll('video').forEach(observeVideo);
+            node.querySelectorAll('img').forEach(img => {
+              img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
+            });
+          }
+        });
+      });
+    });
+    mo.observe(postsContainer, { childList:true, subtree:true });
+  }
+
+  // --- Socket.IO: Ajout de post dynamique ---
+  const socket = io();
+  socket.on('new_post', post => {
+    const div = document.createElement('div');
+    div.classList.add('post');
+    div.dataset.postId = post.id;
+    let avatarHtml = post.avatar ? `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post"></a>`
+                                 : `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+    div.innerHTML = `
+      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
+      <p class="description">${post.description}</p>
+      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
+      <div class="post-actions">
+        <button class="like-btn">❤️</button>
+        <span class="like-count">0</span>
+      </div>
+      <p class="date">Publié le ${post.date}</p>
     `;
-    postsContainer.prepend(postDiv);
+    postsContainer.prepend(div);
+    div.querySelectorAll('video').forEach(observeVideo);
+    const btn = div.querySelector('.like-btn');
+    if(btn) btn.addEventListener('click', () => toggleLike(btn));
+  });
+
 });
 </script>
-
 </body>
 </html>
 
