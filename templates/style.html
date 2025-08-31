@@ -4,23 +4,119 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CHRONOS</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
+  /* ---------- GLOBAL ---------- */
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f0f2f5;
+    color: #333;
+  }
+  a { text-decoration: none; color: inherit; }
+  .main-container { max-width: 900px; margin: 0 auto; }
+
+  /* ---------- HEADER ---------- */
+  .main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; }
+  .header-icons a { margin-left: 15px; position: relative; color: #555; font-size: 1.3rem; }
   .message-badge {
     position: absolute;
-    top: 0;
-    right: -5px;
+    top: -5px;
+    right: -10px;
     background: red;
     color: white;
     font-size: 0.7rem;
-    padding: 2px 5px;
+    padding: 2px 6px;
     border-radius: 50%;
     font-weight: bold;
   }
-  .header-icons a { position: relative; }
-  .like-btn.liked { color: green; }
+
+  /* ---------- POSTS ---------- */
+  .scroll-box {
+    padding: 15px 10px;
+  }
+  .post {
+    background: #fff;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+  }
+  .post:hover { transform: translateY(-2px); }
+  .user-info {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+  }
+  .avatar-post, .avatar-fallback {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #fff;
+  }
+  .username-link { margin-left: 10px; font-weight: bold; font-size: 1rem; }
+  .description { padding: 0 10px 10px 10px; font-size: 0.95rem; }
+
+  /* ---------- MEDIA ---------- */
+  .post-image, video {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    display: block;
+  }
+  video { border-radius: 0 0 12px 12px; }
+
+  /* ---------- ACTIONS ---------- */
+  .post-actions {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+  }
+  .like-btn {
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .like-btn:hover { transform: scale(1.2); }
+  .like-btn.liked { color: #00c853; }
+  .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
+  .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
+
+  /* ---------- DATE ---------- */
+  .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
+
+  /* ---------- COMMENTS ---------- */
+  .comments-list { padding: 0 10px 10px 10px; list-style: none; margin: 0; }
+  .comments-list li { margin-bottom: 5px; font-size: 0.85rem; }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 600px) {
+    .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
+    .post-image, video { max-height: 300px; }
+  }
 </style>
 </head>
 <body data-username="{{ username }}">
@@ -87,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const socket = io();
 
-  // ------------------ Likes ------------------
+  /* ---------- Likes ---------- */
   async function toggleLike(button) {
     const post = button.closest('.post');
     const postId = post.dataset.postId;
@@ -107,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(btn) btn.addEventListener('click', () => toggleLike(btn));
   }
 
-  // ------------------ Commentaires ------------------
+  /* ---------- Comments ---------- */
   function bindCommentForm(post) {
     const form = post.querySelector('.comment-form');
     if (!form) return;
@@ -139,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.appendChild(li);
   }
 
-  // ------------------ Vidéos auto-play ------------------
+  /* ---------- Video autoplay ---------- */
   const ioObserver = new IntersectionObserver((entries) => {
     let best = null;
     entries.forEach(entry => {
@@ -163,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ------------------ Initialisation ------------------
+  /* ---------- Init posts ---------- */
   document.querySelectorAll('.post').forEach(post => {
     bindLikes(post);
     bindCommentForm(post);
@@ -174,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
   });
 
-  // ------------------ Mutation Observer ------------------
+  /* ---------- Mutation Observer ---------- */
   if(postsContainer) {
     const mo = new MutationObserver(mutations => {
       mutations.forEach(m => {
@@ -193,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mo.observe(postsContainer, { childList:true, subtree:true });
   }
 
-  // ------------------ Socket.IO ------------------
+  /* ---------- Socket.IO ---------- */
   socket.on('update_like', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
@@ -233,11 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
     div.querySelectorAll('video').forEach(observeVideo);
   });
 
-  // ------------------ Pause onglet ou blur ------------------
+  /* ---------- Pause onglet / blur ---------- */
   document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
   window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
 
-  // ------------------ Messages non lus ------------------
+  /* ---------- Messages non lus ---------- */
   let unreadCount = 0;
 
   function updateUnreadBadge() {
