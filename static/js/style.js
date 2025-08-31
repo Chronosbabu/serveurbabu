@@ -80,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---- MESSAGES EN TEMPS RÉEL ----
   socket.on('new_message', data => {
-    // si on est sur chat.html et que la conversation correspond
     const chatContainer = document.getElementById('messages'); // zone de chat
     if (chatContainer && data.recipient === currentUsername || data.sender === currentUsername) {
       const div = document.createElement('div');
@@ -133,47 +132,33 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.comment-form').forEach(bindCommentForm);
 
   // ------------------ OBSERVER VIDÉOS ------------------
-  const videos = new Set();
+  const videos = document.querySelectorAll('.post video');
   let current = null;
 
-  function observeVideo(vid) {
-    if (!videos.has(vid)) {
-      videos.add(vid);
-      intersectionObserver.observe(vid);
-      vid.pause();
-      vid.addEventListener('play', () => {
-        videos.forEach(v => { if (v !== vid && !v.paused) v.pause(); });
-        current = vid;
-      });
-    }
-  }
-
   const intersectionObserver = new IntersectionObserver((entries) => {
-    entries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-
-    let best = null;
-    for (const entry of entries) {
+    entries.forEach(entry => {
       const vid = entry.target;
-      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-      if (visible && !best) best = vid;
-      if (!visible && !vid.paused) vid.pause();
-    }
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        // pause toute autre vidéo
+        if (current && current !== vid) current.pause();
+        videos.forEach(v => { if (v !== vid && !v.paused) v.pause(); });
 
-    if (best) {
-      if (current && current !== best) current.pause();
-      videos.forEach(v => { if (v !== best && !v.paused) v.pause(); });
-      current = best;
-      const p = best.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } else {
-      videos.forEach(v => { if (!v.paused) v.pause(); });
-      current = null;
-    }
-  }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
+        // joue celle-ci
+        current = vid;
+        const p = vid.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } else {
+        if (!vid.paused) vid.pause();
+      }
+    });
+  }, { threshold: [0.6] });
 
-  document.querySelectorAll('.post video').forEach(observeVideo);
+  videos.forEach(v => {
+    v.pause();
+    intersectionObserver.observe(v);
+  });
 
-  // ---- pause quand on change d’onglet ou qu’on ouvre une image ----
+  // ---- pause quand on change d’onglet ----
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       videos.forEach(v => v.pause());
@@ -185,13 +170,11 @@ document.addEventListener('DOMContentLoaded', () => {
     current = null;
   });
 
-  // ---- pause aussi quand on clique sur une image (lightbox ou autre) ----
+  // ---- pause aussi quand on clique sur une image ----
   document.querySelectorAll('.post img').forEach(img => {
     img.addEventListener('click', () => {
-      if (current && !current.paused) {
-        current.pause();
-        current = null;
-      }
+      videos.forEach(v => v.pause());
+      current = null;
     });
   });
 });
