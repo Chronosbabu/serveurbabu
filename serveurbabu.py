@@ -536,47 +536,6 @@ def verifier_user(username):
         return jsonify({"success": False}), 404
     return jsonify({"success": True})
 
-@app.route("/compte/depot", methods=["POST"])
-def depot():
-    # Cette route peut être appelée par ton script local (sans session)
-    data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
-    try:
-        francs = int(data.get("francs", 0))
-    except:
-        francs = 0
-    try:
-        dollars = int(data.get("dollars", 0))
-    except:
-        dollars = 0
-
-    if not username:
-        return jsonify({"success": False, "message": "username requis"}), 400
-
-    user = get_user(username)
-    if not user:
-        return jsonify({"success": False, "message": "Utilisateur introuvable"}), 404
-
-    accounts = load_accounts()
-    # si pas de compte, on le crée (sans mot de passe). Tu peux changer ce comportement si tu veux exiger un compte créé par l'utilisateur.
-    if username not in accounts:
-        accounts[username] = {
-            "bank_password": None,  # pas encore créé
-            "francs": 0,
-            "dollars": 0,
-            "created_at": datetime.now().isoformat()
-        }
-
-    acc = accounts[username]
-    acc["francs"] = acc.get("francs", 0) + francs
-    acc["dollars"] = acc.get("dollars", 0) + dollars
-    save_accounts(accounts)
-
-    # Optionnel : notifier l'utilisateur via socketio (s'il est connecté)
-    socketio.emit("account_update", {"username": username, "francs": acc["francs"], "dollars": acc["dollars"]}, room=username)
-
-    return jsonify({"success": True, "francs": acc["francs"], "dollars": acc["dollars"]})
-
 @app.route("/matches")
 def matches():
     if "username" not in session:
