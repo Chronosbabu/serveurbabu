@@ -18,6 +18,7 @@
     padding: 2px 5px;
     border-radius: 50%;
     font-weight: bold;
+    display: none;
   }
   .header-icons a { position: relative; }
   .like-btn.liked { color: green; }
@@ -34,7 +35,7 @@
     <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
     <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
       <i class="fa-regular fa-message"></i>
-      <span class="message-badge" id="unread-count" style="display:none;">0</span>
+      <span class="message-badge" id="unread-count">0</span>
     </a>
     <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
   </nav>
@@ -84,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const postsContainer = document.getElementById('posts');
   const videos = new Set();
   let currentVideo = null;
-
   const socket = io();
 
   // ------------------ Likes ------------------
@@ -101,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('update_like', { post_id: parseInt(postId), user: currentUsername, likes: data.likes });
     } catch (err) { console.error(err); }
   }
-
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
     if(btn) btn.addEventListener('click', () => toggleLike(btn));
@@ -121,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
       input.value = '';
     });
   }
-
   function updateComments(postId, username, content) {
     const post = document.querySelector(`.post[data-post-id="${postId}"]`);
     if (!post) return;
@@ -233,6 +231,24 @@ document.addEventListener('DOMContentLoaded', () => {
     div.querySelectorAll('video').forEach(observeVideo);
   });
 
+  // ------------------ Badge messages non lus ------------------
+  const unreadBadge = document.getElementById('unread-count');
+  function updateUnread(count) {
+    if(count > 0) {
+      unreadBadge.style.display = 'inline-block';
+      unreadBadge.textContent = count;
+    } else {
+      unreadBadge.style.display = 'none';
+    }
+  }
+
+  socket.on('new_message', data => {
+    if(data.receiver === currentUsername) {
+      let currentCount = parseInt(unreadBadge.textContent || "0") + 1;
+      updateUnread(currentCount);
+    }
+  });
+
   // ------------------ Pause onglet ou blur ------------------
   document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
   window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
@@ -241,5 +257,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
 
