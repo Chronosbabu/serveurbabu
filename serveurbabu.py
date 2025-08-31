@@ -432,20 +432,20 @@ def handle_send_comment(data):
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
 
+# ------------------- ROUTES COMPTE -------------------
+
 @app.route("/compte/ouvrir", methods=["POST"])
 def ouvrir_compte():
-    if "username" not in session:
-        return jsonify({"success": False, "message": "Non connecté"}), 401
-
     data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
     pwd = (data.get("password") or "").strip()
-    if not pwd:
-        return jsonify({"success": False, "message": "Mot de passe requis"}), 400
+
+    if not username or not pwd:
+        return jsonify({"success": False, "message": "Nom et mot de passe requis"}), 400
 
     accounts = load_accounts()
-    username = session["username"]
 
-    # Si pas d'account on crée (mot de passe stocké haché)
+    # Si le compte n'existe pas, on le crée
     if username not in accounts:
         accounts[username] = {
             "bank_password": hash_password(pwd),
@@ -456,12 +456,106 @@ def ouvrir_compte():
         save_accounts(accounts)
         return jsonify({"success": True, "francs": 0, "dollars": 0})
 
-    # Si existe, vérifier mot de passe
+    # Vérifier mot de passe
     acc = accounts[username]
     if acc.get("bank_password") != hash_password(pwd):
         return jsonify({"success": False, "message": "Mot de passe incorrect"}), 403
 
     return jsonify({"success": True, "francs": acc.get("francs", 0), "dollars": acc.get("dollars", 0)})
+
+
+@app.route("/compte/depot", methods=["POST"])
+def depot():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    francs = int(data.get("francs", 0))
+    dollars = int(data.get("dollars", 0))
+
+    if not username or not password:
+        return jsonify({"success": False, "message": "Identifiants requis"}), 400
+    if not check_account_password(username, password):
+        return jsonify({"success": False, "message": "Mot de passe incorrect"}), 403
+
+    accounts = load_accounts()
+    acc = accounts.get(username)
+    if not acc:
+        return jsonify({"success": False, "message": "Compte introuvable"}), 404
+
+    acc["francs"] += francs
+    acc["dollars"] += dollars
+    save_accounts(accounts)
+
+    socketio.emit("account_update", {
+        "username": username,
+        "francs": acc["francs"],
+        "dollars": acc["dollars"]
+    }, room=username)
+
+    return jsonify({"success": True, "francs": acc["francs"], "dollars": acc["dollars"]})
+# ------------------- ROUTES COMPTE -------------------
+
+@app.route("/compte/ouvrir", methods=["POST"])
+def ouvrir_compte():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    pwd = (data.get("password") or "").strip()
+
+    if not username or not pwd:
+        return jsonify({"success": False, "message": "Nom et mot de passe requis"}), 400
+
+    accounts = load_accounts()
+
+    # Si le compte n'existe pas, on le crée
+    if username not in accounts:
+        accounts[username] = {
+            "bank_password": hash_password(pwd),
+            "francs": 0,
+            "dollars": 0,
+            "created_at": datetime.now().isoformat()
+        }
+        save_accounts(accounts)
+        return jsonify({"success": True, "francs": 0, "dollars": 0})
+
+    # Vérifier mot de passe
+    acc = accounts[username]
+    if acc.get("bank_password") != hash_password(pwd):
+        return jsonify({"success": False, "message": "Mot de passe incorrect"}), 403
+
+    return jsonify({"success": True, "francs": acc.get("francs", 0), "dollars": acc.get("dollars", 0)})
+
+
+@app.route("/compte/depot", methods=["POST"])
+def depot():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    francs = int(data.get("francs", 0))
+    dollars = int(data.get("dollars", 0))
+
+    if not username or not password:
+        return jsonify({"success": False, "message": "Identifiants requis"}), 400
+    if not check_account_password(username, password):
+        return jsonify({"success": False, "message": "Mot de passe incorrect"}), 403
+
+    accounts = load_accounts()
+    acc = accounts.get(username)
+    if not acc:
+        return jsonify({"success": False, "message": "Compte introuvable"}), 404
+
+    acc["francs"] += francs
+    acc["dollars"] += dollars
+    save_accounts(accounts)
+
+    socketio.emit("account_update", {
+        "username": username,
+        "francs": acc["francs"],
+        "dollars": acc["dollars"]
+    }, room=username)
+
+    return jsonify({"success": True, "francs": acc["francs"], "dollars": acc["dollars"]})
+
+
 
 @app.route("/compte/verifier/<username>", methods=["GET"])
 def verifier_user(username):
