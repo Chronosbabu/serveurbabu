@@ -434,34 +434,6 @@ def handle_send_comment(data):
 
 # ------------------- ROUTES COMPTE -------------------
 
-@app.route("/compte/ouvrir", methods=["POST"])
-def ouvrir_compte():
-    data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
-    pwd = (data.get("password") or "").strip()
-
-    if not username or not pwd:
-        return jsonify({"success": False, "message": "Nom et mot de passe requis"}), 400
-
-    accounts = load_accounts()
-
-    # Si le compte n'existe pas, on le crée
-    if username not in accounts:
-        accounts[username] = {
-            "bank_password": hash_password(pwd),
-            "francs": 0,
-            "dollars": 0,
-            "created_at": datetime.now().isoformat()
-        }
-        save_accounts(accounts)
-        return jsonify({"success": True, "francs": 0, "dollars": 0})
-
-    # Vérifier mot de passe
-    acc = accounts[username]
-    if acc.get("bank_password") != hash_password(pwd):
-        return jsonify({"success": False, "message": "Mot de passe incorrect"}), 403
-
-    return jsonify({"success": True, "francs": acc.get("francs", 0), "dollars": acc.get("dollars", 0)})
 
 
 @app.route("/compte/depot", methods=["POST"])
