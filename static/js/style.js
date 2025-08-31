@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('.post video').forEach(observeVideo);
 
+  // ---- pause quand on change d’onglet ou qu’on ouvre une image ----
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       videos.forEach(v => v.pause());
@@ -182,6 +183,16 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('blur', () => {
     videos.forEach(v => v.pause());
     current = null;
+  });
+
+  // ---- pause aussi quand on clique sur une image (lightbox ou autre) ----
+  document.querySelectorAll('.post img').forEach(img => {
+    img.addEventListener('click', () => {
+      if (current && !current.paused) {
+        current.pause();
+        current = null;
+      }
+    });
   });
 });
 
