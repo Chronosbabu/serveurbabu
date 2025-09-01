@@ -20,12 +20,9 @@ DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
-
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
-
 user_notifications = {}  # clé = user_id, valeur = liste de notifications
-
 
 # --- Fonctions notifications ---
 def notify_like(target_user_id, liker_username, post_id):
@@ -33,12 +30,10 @@ def notify_like(target_user_id, liker_username, post_id):
     user_notifications.setdefault(target_user_id, []).append(msg)
     socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
 
-
 def notify_comment(target_user_id, commenter_username, post_id):
     msg = f"{commenter_username} a commenté votre publication"
     user_notifications.setdefault(target_user_id, []).append(msg)
     socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
-
 
 @socketio.on("join")
 def handle_join(data):
@@ -46,53 +41,43 @@ def handle_join(data):
     if user_id:
         join_room(str(user_id))
 
-
 # --- Initialisation fichiers ---
 for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
 
-
 # --- Utilitaires ---
 def load_posts():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
 def save_posts(posts):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(posts, f, ensure_ascii=False, indent=2)
-
 
 def load_users():
     with open(USER_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
 def save_users(users):
     with open(USER_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
-
 
 def load_messages():
     with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
 def save_messages(messages):
     with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=2)
 
-
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
-
 
 def get_user(username):
     users = load_users()
     return next((u for u in users if u.get("username") == username), None)
-
 
 def append_message(sender, receiver, text, msg_type="text", url=None):
     messages = load_messages()
@@ -111,6 +96,28 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
+# --- Gestion follow/unfollow persistant ---
+def toggle_follow(current_user, target_user):
+    users = load_users()
+    cu = next((u for u in users if u["username"] == current_user), None)
+    if not cu:
+        return False
+    following_list = cu.setdefault("following", [])
+    if target_user in following_list:
+        following_list.remove(target_user)
+        following = False
+    else:
+        following_list.append(target_user)
+        following = True
+    save_users(users)
+    return following
+
+def is_following(current_user, target_user):
+    users = load_users()
+    cu = next((u for u in users if u["username"] == current_user), None)
+    if not cu:
+        return False
+    return target_user in cu.get("following", [])
 
 # --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
@@ -136,12 +143,12 @@ def register():
             "password": hash_password(password),
             "avatar": avatar_filename,
             "bio": "",
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
+            "following": []
         })
         save_users(users)
         return redirect(url_for("login"))
     return render_template("register.html")
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -159,14 +166,12 @@ def login():
         return "Nom ou mot de passe incorrect !", 401
     return render_template("login.html")
 
-
 @app.route("/logout")
 def logout():
     session.pop("username", None)
     session.pop("avatar", None)
     session.pop("user_id", None)
     return redirect(url_for("login"))
-
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -177,8 +182,21 @@ def index():
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
+        p['following'] = is_following(session["username"], p["username"])  # ajoute suivi
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
+@app.route("/follow/<username>", methods=["POST"])
+def follow_user(username):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    current_user = session["username"]
+    following = toggle_follow(current_user, username)  # persistant
+    return jsonify({"following": following})
+
+# --- Le reste du fichier reste identique ---  
+# (routes add_post, like_post, comments, profile, search, uploads, avatars, send_file_route, conversations, chat, send_message_http, SocketIO events, notifications, send_comment)
+# Pour conserver la réponse concise, je garde cette partie inchangée.
+# Tu peux réutiliser le code que tu avais pour ces routes exactement comme avant.
 
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
@@ -507,11 +525,7 @@ def follow_user(username):
     # logique follow / unfollow ici, ex : toggle dans un dict ou DB
     following = toggle_follow(current_user, username)  # renvoie True si maintenant suivi, False sinon
     return jsonify({"following": following})
-
-
-
 # --- Run server ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
