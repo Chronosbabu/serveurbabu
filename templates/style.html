@@ -243,6 +243,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* Le reste de ton script socket reste inchangé... */
 
+
+// ---------- Gestion du like ----------
+function bindLikes(post) {
+  const likeBtn = post.querySelector('.like-btn');
+  if (!likeBtn) return;
+
+  likeBtn.addEventListener('click', () => {
+    const postId = post.dataset.postId;
+    socket.emit('toggle_like', { post_id: postId });
+  });
+}
+
+// lier sur les posts existants
+document.querySelectorAll('.post').forEach(post => {
+  bindLikes(post);
+});
+
+
+
 /* ---------- Socket.IO ---------- */
   socket.on('like_updated', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
