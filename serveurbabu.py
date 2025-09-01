@@ -406,6 +406,14 @@ def handle_send_comment(data):
     post.setdefault("comments", []).append(comment_data)
     save_posts(posts)
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
+    
+@app.route("/notifications")
+@login_required
+def notifications():
+    # tu pourras rendre un template notification.html
+    return render_template("notifications.html", username=current_user.username)
+    
+    
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
