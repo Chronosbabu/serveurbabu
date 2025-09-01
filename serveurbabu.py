@@ -21,6 +21,8 @@ USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
 
+socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
+
 
 # quand quelqu'un like une publication
 def notify_like(target_user_id, liker_username, post_id):
@@ -35,11 +37,6 @@ def notify_comment(target_user_id, commenter_username, post_id):
     socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
 
 # Lier l'utilisateur à une "room" socket avec son user_id
-@socketio.on("join")
-def handle_join(data):
-    user_id = data.get("user_id")
-    if user_id:
-        join_room(str(user_id))
 
 
 
@@ -51,7 +48,7 @@ for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
 
-socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
+
 
 # --- Utilitaires ---
 def load_posts():
@@ -101,6 +98,15 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
 
     save_messages(messages)
     return entry
+
+
+@socketio.on("join")
+def handle_join(data):
+    user_id = data.get("user_id")
+    if user_id:
+        join_room(str(user_id))
+
+
 
 # --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
