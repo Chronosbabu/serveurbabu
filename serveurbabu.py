@@ -231,17 +231,25 @@ def like_post(post_id):
         return jsonify({"error": "Post non trouvé"}), 404
 
     username = session["username"]
-    if username in post.get("liked_by", []):
+    liked_before = username in post.get("liked_by", [])
+
+    if liked_before:
         post["liked_by"].remove(username)
         liked = False
     else:
         post.setdefault("liked_by", []).append(username)
         liked = True
 
+        # ⚡ Ajouter notification ici
+        post_owner = post.get("username")
+        if post_owner != username:  # pas de notification si on like soi-même
+            notify_like(target_user_id=post_owner, liker_username=username, post_id=post_id)
+
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
+
 
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
@@ -462,7 +470,14 @@ def handle_send_comment(data):
     }
     post.setdefault("comments", []).append(comment_data)
     save_posts(posts)
+
+    # ⚡ Ajouter notification ici
+    post_owner = post.get("username")
+    if post_owner != session["username"]:
+        notify_comment(target_user_id=post_owner, commenter_username=session["username"], post_id=post_id)
+
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
+
 
 
 # --- Notifications route ---
