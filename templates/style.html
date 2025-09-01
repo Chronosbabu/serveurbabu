@@ -245,20 +245,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // ---------- Gestion du like ----------
-function bindLikes(post) {
-  const likeBtn = post.querySelector('.like-btn');
-  if (!likeBtn) return;
 
-  likeBtn.addEventListener('click', () => {
-    const postId = post.dataset.postId;
-    socket.emit('toggle_like', { post_id: postId });
-  });
-}
 
-// lier sur les posts existants
-document.querySelectorAll('.post').forEach(post => {
-  bindLikes(post);
-});
+  function bindLikes(post) {
+    const btn = post.querySelector('.like-btn');
+    if(!btn) return;
+    btn.addEventListener('click', () => toggleLike(btn));
+
+    const icon = btn.querySelector('i');
+    const isLiked = btn.classList.contains('liked');
+    icon.classList.toggle('fa-solid', isLiked);
+    icon.classList.toggle('fa-regular', !isLiked);
+  }
 
 
 
