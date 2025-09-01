@@ -25,6 +25,32 @@ socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 user_notifications = {}  # clé = user_id, valeur = liste de notifications
 
 # --- Fonctions notifications ---
+
+# --- Gestion follow/unfollow persistant ---
+def toggle_follow(current_user, target_user):
+    users = load_users()
+    cu = next((u for u in users if u["username"] == current_user), None)
+    if not cu:
+        return False
+    following_list = cu.setdefault("following", [])
+    if target_user in following_list:
+        following_list.remove(target_user)
+        following = False
+    else:
+        following_list.append(target_user)
+        following = True
+    save_users(users)
+    return following
+
+def is_following(current_user, target_user):
+    users = load_users()
+    cu = next((u for u in users if u["username"] == current_user), None)
+    if not cu:
+        return False
+    return target_user in cu.get("following", [])
+
+
+
 def notify_like(target_user_id, liker_username, post_id):
     msg = f"{liker_username} a aimé votre publication"
     user_notifications.setdefault(target_user_id, []).append(msg)
