@@ -119,17 +119,17 @@
     display: flex;
     align-items: center;
     transition: background 0.2s;
-}
+  }
   .follow-btn i {
     margin-right: 5px;
-}
+  }
   .follow-btn.following {
     background: #ccc;
     color: #333;
-}
+  }
   .follow-btn:hover {
     opacity: 0.8;
-}
+  }
 
   /* ---------- DATE ---------- */
   .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
@@ -144,6 +144,8 @@
     .post-image, video { max-height: 70vh; }
   }
 </style>
+
+
 </head>
 <body data-username="{{ username }}">
 <div class="main-container">
@@ -201,15 +203,17 @@
         <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
       </a>
 
-      {# Bouton follow avec état rendu par le serveur pour persistance au rechargement #}
-      {% if post.username != username %}
-        <button
-          class="follow-btn{% if post.get('following') %} following{% endif %}"
-          data-following="{{ 'true' if post.get('following') else 'false' }}"
-          data-post-owner="{{ post.username | e }}">
-          {% if post.get('following') %}Abonné ✔{% else %}<i class="fa-solid fa-plus"></i> Suivre{% endif %}
-        </button>
-      {% endif %}
+      <!-- Follow button: état initial rendu côté serveur via post.following -->
+      <button
+        class="follow-btn{% if post.following %} following{% endif %}"
+        data-following="{{ 'true' if post.following else 'false' }}"
+      >
+        {% if post.following %}
+          Abonné ✔
+        {% else %}
+          <i class="fa-solid fa-plus"></i> Suivre
+        {% endif %}
+      </button>
 
     </div>
     <p class="date">Publié le {{ post.date }}</p>
@@ -234,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const postId = post.dataset.postId;
     const countEl = post.querySelector('.like-count');
     try {
-      const res = await fetch(`/like/${postId}`, { method: 'POST' });
+      const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
       if (!res.ok) return;
       const data = await res.json();
 
@@ -281,21 +285,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = post.querySelector('.follow-btn');
     if (!btn) return;
 
-    // leave initial state as rendered by server (dataset and class)
+    // Initialise l'état visuel à partir de data-following rendu côté serveur
+    const initialFollowing = btn.dataset.following === "true";
+    if (initialFollowing) {
+      btn.classList.add('following');
+      btn.innerHTML = 'Abonné ✔';
+      // Empêche toute interaction client pour "ne pas se désabonner" via UI
+      btn.disabled = true;
+      return;
+    }
+
+    // Si non suivi initialement, on autorise le clic une seule fois pour suivre.
     btn.addEventListener('click', async () => {
-      const owner = btn.dataset.postOwner || post.querySelector('.username').textContent.trim();
+      // Si déjà suivi (sécurité), sortir
+      if (btn.dataset.following === "true") return;
 
+      const postUsername = post.querySelector('.username').textContent;
       try {
-        const res = await fetch('/follow/' + encodeURIComponent(owner), { method: 'POST' });
+        const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
+          method: 'POST',
+          credentials: 'same-origin'
+        });
         if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
 
-        const following = !!data.following;
-        btn.dataset.following = following.toString();
-        if (following) {
+        const data = await res.json(); // attend { "following": true/false }
+
+        // Si serveur confirme suivi, on verrouille l'UI en état "Abonné"
+        if (data.following) {
+          btn.dataset.following = "true";
           btn.classList.add('following');
           btn.innerHTML = 'Abonné ✔';
+          btn.disabled = true; // empêche le désabonnement via le bouton
         } else {
+          // Si serveur a renvoyé false (cas rare si toggle/unexpected), on laisse l'état initial
+          btn.dataset.following = "false";
           btn.classList.remove('following');
           btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
         }
@@ -408,8 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
       `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
       `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
-    // new_post provenant du serveur n'inclut pas nécessairement "following" côté client,
-    // on met par défaut data-following false pour les posts ajoutés en temps réel.
     div.innerHTML = `
       <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
       <p class="description">${post.description}</p>
@@ -420,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
         <span class="like-count">${post.likes || 0}</span>
         <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-        <button class="follow-btn" data-following="false" data-post-owner="${post.username}"><i class="fa-solid fa-plus"></i> Suivre</button>
+        <button class="follow-btn" data-following="false"><i class="fa-solid fa-plus"></i> Suivre</button>
       </div>
       <p class="date">Publié le ${post.date}</p>
     `;
