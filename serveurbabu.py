@@ -21,10 +21,7 @@ USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
 
-# configuration de Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = "login"
+
 
 for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
     if not os.path.exists(file_path):
@@ -414,10 +411,12 @@ def handle_send_comment(data):
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
     
 @app.route("/notifications")
-@login_required
 def notifications():
-    # tu pourras rendre un template notification.html
-    return render_template("notifications.html", username=current_user.username)
+    if not session.get("user_id"):  # on vérifie si l'utilisateur est "connecté"
+        return redirect(url_for("login"))  # sinon on renvoie vers la page de login
+    username = session.get("username")  # récupère le nom depuis la session
+    return render_template("notifications.html", username=username)
+
     
     
 
