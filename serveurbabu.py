@@ -543,15 +543,7 @@ def notifications():
     )
 
 
-@app.route("/follow/<username>", methods=["POST"])
-def follow_user(username):
-    if "username" not in session:
-        return jsonify({"error": "Non connecté"}), 401
-    current_user = session["username"]
-    # logique follow / unfollow ici, ex : toggle dans un dict ou DB
-    following = toggle_follow(current_user, username)  # renvoie True si maintenant suivi, False sinon
-    return jsonify({"following": following})
-# --- Run server ---
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
