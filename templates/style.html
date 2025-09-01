@@ -127,6 +127,12 @@
 <header class="main-header">
   <h2 class="logo">CHRONOS</h2>
   <nav class="header-icons">
+    <!-- 🔔 Nouvelle icône notifications -->
+    <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+      <i class="fa-regular fa-bell"></i>
+      <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+    </a>
+    <!-- fin ajout icône -->
     <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
     <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
     <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
@@ -374,6 +380,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
       unreadCount = 0;
       updateUnreadBadge();
+    }
+  });
+
+  /* ---------- Notifications ---------- */
+  let notifCount = 0;
+  function updateNotifBadge() {
+    const badge = document.getElementById('notifications-count');
+    if (notifCount > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = notifCount;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  socket.on('new_notification', function(notification) {
+    notifCount++;
+    updateNotifBadge();
+  });
+
+  window.addEventListener('load', () => {
+    if (window.location.pathname.includes('/notifications')) {
+      notifCount = 0;
+      updateNotifBadge();
     }
   });
 
