@@ -162,7 +162,9 @@
     <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
     {% endif %}
     <div class="post-actions">
-      <button class="like-btn {% if post.liked_by_user %}liked{% endif %}"><i class="fa-regular fa-heart"></i></button>
+      <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+        <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+      </button>
       <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
       <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
         <i class="fa-regular fa-comment"></i>
@@ -194,25 +196,31 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`/like/${postId}`, { method: 'POST' });
       if (!res.ok) return;
       const data = await res.json();
-      countEl.textContent = data.likes;
-      button.classList.toggle('liked', data.liked);
-      socket.emit('update_like', { post_id: parseInt(postId), user: currentUsername, likes: data.likes });
 
-      // changer icône (vide ou plein)
-      const icon = button.querySelector("i");
-      if (data.liked) {
-        icon.classList.remove("fa-regular");
-        icon.classList.add("fa-solid");
-      } else {
-        icon.classList.remove("fa-solid");
-        icon.classList.add("fa-regular");
-      }
+      // compteur
+      countEl.textContent = data.likes;
+
+      // état local (uniquement pour l'utilisateur courant)
+      button.classList.toggle('liked', data.liked);
+      const icon = button.querySelector('i');
+      icon.classList.toggle('fa-solid', data.liked);
+      icon.classList.toggle('fa-regular', !data.liked);
+
+      // diffusion: ne contient QUE le compteur
+      socket.emit('update_like', { post_id: parseInt(postId), likes: data.likes });
     } catch (err) { console.error(err); }
   }
 
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
-    if(btn) btn.addEventListener('click', () => toggleLike(btn));
+    if(!btn) return;
+    btn.addEventListener('click', () => toggleLike(btn));
+
+    // assurer cohérence icône au chargement (selon classe .liked rendue par Jinja)
+    const icon = btn.querySelector('i');
+    const isLiked = btn.classList.contains('liked');
+    icon.classList.toggle('fa-solid', isLiked);
+    icon.classList.toggle('fa-regular', !isLiked);
   }
 
   /* ---------- Comments ---------- */
@@ -302,22 +310,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ---------- Socket.IO ---------- */
+  // MAJ temps réel: on met à jour UNIQUEMENT le compteur pour tout le monde
   socket.on('update_like', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
-      post.querySelector('.like-count').textContent = data.likes;
-      const btn = post.querySelector('.like-btn');
-      if(btn) {
-        btn.classList.toggle('liked', data.liked);
-        const icon = btn.querySelector("i");
-        if (data.liked) {
-          icon.classList.remove("fa-regular");
-          icon.classList.add("fa-solid");
-        } else {
-          icon.classList.remove("fa-solid");
-          icon.classList.add("fa-regular");
-        }
-      }
+      const countEl = post.querySelector('.like-count');
+      if (countEl) countEl.textContent = data.likes;
     }
   });
 
@@ -331,13 +329,13 @@ document.addEventListener('DOMContentLoaded', () => {
     div.dataset.postId = post.id;
 
     let avatarHtml = post.avatar ? 
-      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post"></a>` :
+      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
       `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
     div.innerHTML = `
       <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
       <p class="description">${post.description}</p>
-      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
+      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
       <div class="post-actions">
         <button class="like-btn"><i class="fa-regular fa-heart"></i></button>
         <span class="like-count">0</span>
