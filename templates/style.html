@@ -281,45 +281,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function bindFollowButtons(post) {
   const btn = post.querySelector('.follow-btn');
-  if(!btn) return;
+  if (!btn) return;
+
   btn.addEventListener('click', async () => {
     const following = btn.dataset.following === "true";
     const postUsername = post.querySelector('.username').textContent;
 
-    // toggle état visuel
-    btn.dataset.following = (!following).toString();
-    if(following){
-      btn.classList.remove('following');
-      btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-    } else {
-      btn.classList.add('following');
-      btn.innerHTML = 'Abonné';
-    }
-
-    // ⚡ Envoi au serveur via fetch / socketio (à adapter)
     try {
-      await fetch(`/follow/${postUsername}`, { method: 'POST' });
-    } catch(e){ console.error(e); }
+      const res = await fetch(`/follow/${postUsername}`, { method: 'POST' });
+      if (!res.ok) throw new Error('Erreur serveur');
+      const data = await res.json(); // le serveur doit renvoyer { following: true/false }
+
+      // toggle état visuel
+      btn.dataset.following = data.following.toString();
+      if (data.following) {
+        btn.classList.add('following');
+        btn.innerHTML = 'Abonné ✔';
+      } else {
+        btn.classList.remove('following');
+        btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+      }
+
+      // Optionnel : message temporaire
+      const msg = document.createElement('div');
+      msg.textContent = data.following ? `Vous suivez ${postUsername}` : `Vous ne suivez plus ${postUsername}`;
+      msg.style.position = 'fixed';
+      msg.style.top = '20px';
+      msg.style.right = '20px';
+      msg.style.background = '#0077ff';
+      msg.style.color = '#fff';
+      msg.style.padding = '10px 15px';
+      msg.style.borderRadius = '5px';
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 2000);
+
+    } catch (e) {
+      console.error(e);
+      alert('Impossible de suivre pour le moment.');
+    }
   });
 }
 
-// bind au chargement initial
-document.querySelectorAll('.post').forEach(bindFollowButtons);
-
-// bind au MutationObserver si de nouveaux posts sont ajoutés
-const postsContainer = document.getElementById('posts');
-if(postsContainer){
-  const moFollow = new MutationObserver(mutations => {
-    mutations.forEach(m => {
-      m.addedNodes.forEach(node => {
-        if(node.classList && node.classList.contains('post')){
-          bindFollowButtons(node);
-        }
-      });
-    });
-  });
-  moFollow.observe(postsContainer, { childList: true, subtree: true });
-}
 
 
 
