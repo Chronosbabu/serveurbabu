@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -270,49 +271,26 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
       input.value = '';
     });
+  }
 
-    function bindFollowButtons(post) {
-      const btn = post.querySelector('.follow-btn');
-      if (!btn) return;
+  /* ---------- Follow ---------- */
+  function bindFollowButtons(post) {
+    const btn = post.querySelector('.follow-btn');
+    if (!btn) return;
 
-      btn.addEventListener('click', async () => {
-        const following = btn.dataset.following === "true";
-        const postUsername = post.querySelector('.username').textContent;
+    btn.addEventListener('click', async () => {
+      const postUsername = post.querySelector('.username').textContent;
 
-        try {
-          const res = await fetch(`/follow/${postUsername}`, { method: 'POST' });
-          if (!res.ok) throw new Error('Erreur serveur');
-          const data = await res.json(); // le serveur doit renvoyer { following: true/false }
-
-          // toggle état visuel
-          btn.dataset.following = data.following.toString();
-          if (data.following) {
-            btn.classList.add('following');
-            btn.innerHTML = 'Abonné ✔';
-          } else {
-            btn.classList.remove('following');
-            btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-          }
-
-          // Optionnel : message temporaire
-          const msg = document.createElement('div');
-          msg.textContent = data.following ? `Vous suivez ${postUsername}` : `Vous ne suivez plus ${postUsername}`;
-          msg.style.position = 'fixed';
-          msg.style.top = '20px';
-          msg.style.right = '20px';
-          msg.style.background = '#0077ff';
-          msg.style.color = '#fff';
-          msg.style.padding = '10px 15px';
-          msg.style.borderRadius = '5px';
-          document.body.appendChild(msg);
-          setTimeout(() => msg.remove(), 2000);
-
-        } catch (e) {
-          console.error(e);
-          alert('Impossible de suivre pour le moment.');
-        }
-      });
-    }
+      try {
+        await fetch(`/follow/${postUsername}`, { method: 'POST' });
+        btn.dataset.following = "true";
+        btn.classList.add('following');
+        btn.innerHTML = 'Abonné ✔';
+      } catch (e) {
+        console.error(e);
+        alert('Impossible de suivre pour le moment.');
+      }
+    });
   }
 
   function updateComments(postId, username, content) {
@@ -360,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.post').forEach(post => {
     bindLikes(post);
     bindCommentForm(post);
+    bindFollowButtons(post);
     post.querySelectorAll('video').forEach(observeVideo);
   });
 
@@ -375,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if(node.classList && node.classList.contains('post')) {
             bindLikes(node);
             bindCommentForm(node);
+            bindFollowButtons(node);
             node.querySelectorAll('video').forEach(observeVideo);
             node.querySelectorAll('img').forEach(img => {
               img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
@@ -425,12 +405,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
         <span class="like-count">${post.likes || 0}</span>
         <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
+        <button class="follow-btn" data-following="false"><i class="fa-solid fa-plus"></i> Suivre</button>
       </div>
       <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(div);
     bindLikes(div);
     bindCommentForm(div);
+    bindFollowButtons(div);
     div.querySelectorAll('video').forEach(observeVideo);
   });
 
