@@ -55,6 +55,7 @@
     overflow: hidden;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     transition: transform 0.2s;
+    position: relative;
   }
   .post:hover { transform: translateY(-2px); }
   .user-info {
@@ -93,6 +94,11 @@
     display: flex;
     align-items: center;
     padding: 10px;
+    justify-content: space-between;
+  }
+  .like-comment {
+    display: flex;
+    align-items: center;
   }
   .like-btn {
     border: none;
@@ -106,6 +112,20 @@
   .like-btn.liked { color: red; }
   .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
+
+  /* ---------- FOLLOW BUTTON ---------- */
+  .follow-btn {
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: #0077ff;
+    transition: transform 0.2s, color 0.2s;
+  }
+  .follow-btn.following {
+    color: green;
+    font-weight: bold;
+  }
 
   /* ---------- DATE ---------- */
   .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
@@ -127,12 +147,10 @@
 <header class="main-header">
   <h2 class="logo">CHRONOS</h2>
   <nav class="header-icons">
-    <!-- 🔔 Nouvelle icône notifications -->
     <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
       <i class="fa-regular fa-bell"></i>
       <span class="message-badge" id="notifications-count" style="display:none;">0</span>
     </a>
-    <!-- fin ajout icône -->
     <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
     <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
     <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
@@ -168,14 +186,18 @@
     <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
     {% endif %}
     <div class="post-actions">
-      <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-        <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-      </button>
-      <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-      <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-        <i class="fa-regular fa-comment"></i>
-        <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-      </a>
+      <div class="like-comment">
+        <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+          <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+        </button>
+        <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+        <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+          <i class="fa-regular fa-comment"></i>
+          <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+        </a>
+      </div>
+      <!-- 🔹 Bouton suivre -->
+      <button class="follow-btn"><i class="fa-solid fa-plus"></i></button>
     </div>
     <p class="date">Publié le {{ post.date }}</p>
   </div>
@@ -188,10 +210,23 @@
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
   const postsContainer = document.getElementById('posts');
-  const videos = new Set();
-  let currentVideo = null;
-
   const socket = io();
+
+  /* ---------- Follow ---------- */
+  function bindFollow(post) {
+    const followBtn = post.querySelector('.follow-btn');
+    if(!followBtn) return;
+
+    followBtn.addEventListener('click', () => {
+      if(followBtn.classList.contains('following')) {
+        followBtn.classList.remove('following');
+        followBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+      } else {
+        followBtn.classList.add('following');
+        followBtn.innerHTML = 'Suivi';
+      }
+    });
+  }
 
   /* ---------- Likes ---------- */
   async function toggleLike(button) {
@@ -210,7 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
       icon.classList.toggle('fa-solid', data.liked);
       icon.classList.toggle('fa-regular', !data.liked);
 
-      // ⚡ Mise à jour Socket.IO pour autres utilisateurs
       socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
     } catch (err) { console.error(err); }
   }
@@ -219,98 +253,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = post.querySelector('.like-btn');
     if(!btn) return;
     btn.addEventListener('click', () => toggleLike(btn));
-
     const icon = btn.querySelector('i');
     const isLiked = btn.classList.contains('liked');
     icon.classList.toggle('fa-solid', isLiked);
     icon.classList.toggle('fa-regular', !isLiked);
   }
 
-  /* ---------- Comments ---------- */
-  function bindCommentForm(post) {
-    const form = post.querySelector('.comment-form');
-    if (!form) return;
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const input = form.querySelector('input[name="comment"]');
-      const content = input.value.trim();
-      if (!content) return;
-      const postId = post.dataset.postId;
-      socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
-      input.value = '';
-    });
-  }
-
-  function updateComments(postId, username, content) {
-    const post = document.querySelector(`.post[data-post-id="${postId}"]`);
-    if (!post) return;
-    let countEl = post.querySelector('.comment-count');
-    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-
-    let list = post.querySelector('.comments-list');
-    if (!list) {
-      list = document.createElement('ul');
-      list.className = 'comments-list';
-      post.appendChild(list);
-    }
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${username}</strong>: ${content}`;
-    list.appendChild(li);
-  }
-
-  /* ---------- Video autoplay ---------- */
-  const ioObserver = new IntersectionObserver((entries) => {
-    let best = null;
-    entries.forEach(entry => {
-      const vid = entry.target;
-      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-      if (visible && !best) best = vid;
-      if (!visible && !vid.paused) vid.pause();
-    });
-    if(best && currentVideo !== best) {
-      if(currentVideo) currentVideo.pause();
-      currentVideo = best;
-      currentVideo.play().catch(()=>{});
-    }
-  }, { threshold: [0,0.25,0.5,0.75,1] });
-
-  function observeVideo(vid) {
-    if(!videos.has(vid)) {
-      videos.add(vid);
-      ioObserver.observe(vid);
-      vid.pause();
-    }
-  }
-
   /* ---------- Init posts ---------- */
   document.querySelectorAll('.post').forEach(post => {
     bindLikes(post);
-    bindCommentForm(post);
-    post.querySelectorAll('video').forEach(observeVideo);
+    bindFollow(post);
   });
-
-  document.querySelectorAll('.post img').forEach(img => {
-    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-  });
-
-  /* ---------- Mutation Observer ---------- */
-  if(postsContainer) {
-    const mo = new MutationObserver(mutations => {
-      mutations.forEach(m => {
-        m.addedNodes.forEach(node => {
-          if(node.classList && node.classList.contains('post')) {
-            bindLikes(node);
-            bindCommentForm(node);
-            node.querySelectorAll('video').forEach(observeVideo);
-            node.querySelectorAll('img').forEach(img => {
-              img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-            });
-          }
-        });
-      });
-    });
-    mo.observe(postsContainer, { childList:true, subtree:true });
-  }
 
   /* ---------- Socket.IO ---------- */
   socket.on('like_updated', data => {
@@ -318,103 +271,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if(post) {
       const countEl = post.querySelector('.like-count');
       if(countEl) countEl.textContent = data.likes;
-
       const btn = post.querySelector('.like-btn');
       if(btn) btn.classList.toggle('liked', data.liked);
-
       const icon = btn.querySelector('i');
       icon.classList.toggle('fa-solid', data.liked);
       icon.classList.toggle('fa-regular', !data.liked);
     }
   });
-
-  socket.on('new_comment', data => {
-    updateComments(data.post_id, data.username, data.content);
-  });
-
-  socket.on('new_post', post => {
-    const div = document.createElement('div');
-    div.classList.add('post');
-    div.dataset.postId = post.id;
-
-    let avatarHtml = post.avatar ? 
-      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
-      `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
-
-    div.innerHTML = `
-      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
-      <p class="description">${post.description}</p>
-      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
-      <div class="post-actions">
-        <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
-          <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-        </button>
-        <span class="like-count">${post.likes || 0}</span>
-        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-      </div>
-      <p class="date">Publié le ${post.date}</p>
-    `;
-    postsContainer.prepend(div);
-    bindLikes(div);
-    bindCommentForm(div);
-    div.querySelectorAll('video').forEach(observeVideo);
-  });
-
-  /* ---------- Pause onglet / blur ---------- */
-  document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
-  window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
-
-  /* ---------- Messages non lus ---------- */
-  let unreadCount = 0;
-  function updateUnreadBadge() {
-    const badge = document.getElementById('unread-count');
-    if (unreadCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = unreadCount;
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-
-  socket.on('new_message', function(message) {
-    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-    if (!currentChatUser || currentChatUser !== message.sender) {
-      unreadCount++;
-      updateUnreadBadge();
-    }
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-      unreadCount = 0;
-      updateUnreadBadge();
-    }
-  });
-
-  /* ---------- Notifications ---------- */
-  let notifCount = 0;
-  function updateNotifBadge() {
-    const badge = document.getElementById('notifications-count');
-    if (notifCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = notifCount;
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-
-  socket.on('new_notification', function(notification) {
-    notifCount++;
-    updateNotifBadge();
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/notifications')) {
-      notifCount = 0;
-      updateNotifBadge();
-    }
-  });
-
 });
 </script>
 </body>
