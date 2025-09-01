@@ -280,54 +280,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- Follow ---------- */
-  function bindFollowButtons(post) {
-    const btn = post.querySelector('.follow-btn');
-    if (!btn) return;
+  
+/* ---------- Follow ---------- */
+function bindFollowButtons(post) {
+  const btn = post.querySelector('.follow-btn');
+  if (!btn) return;
 
-    // Initialise l'état visuel à partir de data-following rendu côté serveur
-    const initialFollowing = btn.dataset.following === "true";
-    if (initialFollowing) {
-      btn.classList.add('following');
-      btn.innerHTML = 'Abonné ✔';
-      // Empêche toute interaction client pour "ne pas se désabonner" via UI
-      btn.disabled = true;
-      return;
-    }
-
-    // Si non suivi initialement, on autorise le clic une seule fois pour suivre.
-    btn.addEventListener('click', async () => {
-      // Si déjà suivi (sécurité), sortir
-      if (btn.dataset.following === "true") return;
-
-      const postUsername = post.querySelector('.username').textContent;
-      try {
-        const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
-          method: 'POST',
-          credentials: 'same-origin'
-        });
-        if (!res.ok) throw new Error('Erreur serveur');
-
-        const data = await res.json(); // attend { "following": true/false }
-
-        // Si serveur confirme suivi, on verrouille l'UI en état "Abonné"
-        if (data.following) {
-          btn.dataset.following = "true";
-          btn.classList.add('following');
-          btn.innerHTML = 'Abonné ✔';
-          btn.disabled = true; // empêche le désabonnement via le bouton
-        } else {
-          // Si serveur a renvoyé false (cas rare si toggle/unexpected), on laisse l'état initial
-          btn.dataset.following = "false";
-          btn.classList.remove('following');
-          btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-        }
-      } catch (e) {
-        console.error(e);
-        alert('Impossible de suivre pour le moment.');
-      }
-    });
+  // Initialise l'état visuel à partir de data-following rendu côté serveur
+  const initialFollowing = btn.dataset.following === "true";
+  if (initialFollowing) {
+    btn.classList.add('following');
+    btn.innerHTML = 'Abonné ✔';
+    btn.disabled = true;
+    return;
   }
+
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.following === "true") return;
+
+    const postUsername = post.querySelector('.username').textContent;
+    try {
+      const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+      if (!res.ok) throw new Error('Erreur serveur');
+
+      const data = await res.json(); // attend { "following": true/false }
+
+      if (data.following) {
+        // ⚡ Mise à jour de tous les boutons follow pour cet utilisateur
+        document.querySelectorAll('.post').forEach(p => {
+          const usernameEl = p.querySelector('.username');
+          if (usernameEl && usernameEl.textContent === postUsername) {
+            const b = p.querySelector('.follow-btn');
+            if (b) {
+              b.dataset.following = "true";
+              b.classList.add('following');
+              b.innerHTML = 'Abonné ✔';
+              b.disabled = true;
+            }
+          }
+        });
+      } else {
+        btn.dataset.following = "false";
+        btn.classList.remove('following');
+        btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Impossible de suivre pour le moment.');
+    }
+  });
+}
+
+
+
 
   function updateComments(postId, username, content) {
     const post = document.querySelector(`.post[data-post-id="${postId}"]`);
