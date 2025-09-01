@@ -1,44 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username; // username du client
 
-  // ------------------ GESTION DES LIKES ------------------
-  async function toggleLike(button) {
-    const post = button.closest('.post');
-    const postId = post.dataset.postId;
-    const countEl = post.querySelector('.like-count');
-
-    try {
-      const res = await fetch(`/like/${postId}`, { method: 'POST' });
-      if (!res.ok) return;
-
-      const data = await res.json();
-      countEl.textContent = data.likes;
-
-      if (data.liked) button.classList.add('liked');
-      else button.classList.remove('liked');
-    } catch (err) {
-      console.error("Erreur like:", err);
-    }
-  }
-
-  document.querySelectorAll('.post').forEach(post => {
-    const likeBtn = post.querySelector('.like-btn');
-    if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
-  });
-
   // ------------------ MUTATION OBSERVER (posts dynamiques) ------------------
   const mutationObserver = new MutationObserver(mutations => {
     mutations.forEach(m => {
       m.addedNodes.forEach(node => {
         if (node.classList && node.classList.contains('post')) {
-          const likeBtn = node.querySelector('.like-btn');
-          if (likeBtn) likeBtn.addEventListener('click', () => toggleLike(likeBtn));
-
-          const vids = node.querySelectorAll('video');
-          vids.forEach(v => observeVideo(v));
-
+          // Commentaires
           const commentForm = node.querySelector('.comment-form');
           if (commentForm) bindCommentForm(commentForm);
+
+          // Vidéos
+          const vids = node.querySelectorAll('video');
+          vids.forEach(v => observeVideo(v));
         }
       });
     });
@@ -49,18 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ------------------ SOCKET.IO ------------------
   const socket = io();
-
-  // ---- likes en temps réel ----
-  socket.on('update_like', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if (post) {
-      const countEl = post.querySelector('.like-count');
-      countEl.textContent = data.likes;
-
-      const btn = post.querySelector('.like-btn');
-      if (btn && data.user === currentUsername) btn.classList.toggle('liked');
-    }
-  });
 
   // ---- commentaires en temps réel ----
   socket.on('new_comment', data => {
@@ -81,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---- MESSAGES EN TEMPS RÉEL ----
   socket.on('new_message', data => {
     const chatContainer = document.getElementById('messages'); // zone de chat
-    if (chatContainer && data.recipient === currentUsername || data.sender === currentUsername) {
+    if (chatContainer && (data.recipient === currentUsername || data.sender === currentUsername)) {
       const div = document.createElement('div');
       div.className = data.sender === currentUsername ? 'message from-me' : 'message from-other';
       div.textContent = data.content;
@@ -95,26 +57,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('sendBtn');
   const messagesDiv = document.getElementById('messages');
 
-  btn.addEventListener('click', () => {
-    const text = input.value.trim();
-    if (!text) return;
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const text = input.value.trim();
+      if (!text) return;
 
-    socket.emit('send_message', { recipient: "{{ chat_user }}", content: text });
+      socket.emit('send_message', { recipient: "{{ chat_user }}", content: text });
 
-    const div = document.createElement('div');
-    div.className = 'message from-me';
-    div.textContent = text;
-    messagesDiv.appendChild(div);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    input.value = '';
-  });
+      const div = document.createElement('div');
+      div.className = 'message from-me';
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      input.value = '';
+    });
+  }
 
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      btn.click();
-    }
-  });
+  if (input) {
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btn.click();
+      }
+    });
+  }
 
   // ------------------ FORMULAIRE COMMENTAIRES ------------------
   function bindCommentForm(form) {
@@ -177,5 +143,10 @@ document.addEventListener('DOMContentLoaded', () => {
       current = null;
     });
   });
+
+  // ------------------ FONCTIONS UTILES ------------------
+  function observeVideo(v) {
+    // placeholder si besoin d'ajouter d'autres comportements pour vidéos
+  }
 });
 
