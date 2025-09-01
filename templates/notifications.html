@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications</title>
+<style>
+body { font-family: Arial; background:#f0f2f5; margin:0; }
+.container { max-width:600px; margin:0 auto; padding:20px; }
+h2 { text-align:center; }
+.scroll-box {
+    max-height: 500px;
+    overflow-y: auto;
+    background:#fff;
+    padding:10px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+.notification-item {
+    padding:8px 10px;
+    border-bottom:1px solid #eee;
+    font-size:0.95rem;
+}
+.notification-item:last-child { border-bottom:none; }
+</style>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h2>Notifications</h2>
+    <div class="scroll-box" id="notifications-list">
+        {% for notif in notifications %}
+        <div class="notification-item">{{ notif }}</div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+const socket = io();
+const userId = {{ session["user_id"]|tojson }};
+socket.emit("join", { user_id: userId });
+
+socket.on("new_notification", function(data) {
+    const list = document.getElementById("notifications-list");
+    const div = document.createElement("div");
+    div.className = "notification-item";
+    div.textContent = data.message;
+    list.prepend(div);
+});
+</script>
+</body>
+</html>
