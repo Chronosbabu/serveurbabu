@@ -20,6 +20,12 @@ DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
+
+# configuration de Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+
 for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
