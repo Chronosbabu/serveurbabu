@@ -55,7 +55,6 @@
     overflow: hidden;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     transition: transform 0.2s;
-    position: relative;
   }
   .post:hover { transform: translateY(-2px); }
   .user-info {
@@ -108,22 +107,6 @@
   .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
 
-  /* ---------- FOLLOW BUTTON ---------- */
-  .follow-btn {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    border: none;
-    background: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #0077ff;
-    transition: color 0.2s;
-  }
-  .follow-btn.following {
-    color: #ccc;
-  }
-
   /* ---------- DATE ---------- */
   .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
 
@@ -144,11 +127,12 @@
 <header class="main-header">
   <h2 class="logo">CHRONOS</h2>
   <nav class="header-icons">
-    <!-- Notifications icon -->
+    <!-- 🔔 Nouvelle icône notifications -->
     <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
       <i class="fa-regular fa-bell"></i>
       <span class="message-badge" id="notifications-count" style="display:none;">0</span>
     </a>
+    <!-- fin ajout icône -->
     <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
     <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
     <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
@@ -194,8 +178,6 @@
       </a>
     </div>
     <p class="date">Publié le {{ post.date }}</p>
-    <!-- Nouveau bouton suivre -->
-    <button class="follow-btn" title="Suivre"><i class="fa-solid fa-plus"></i></button>
   </div>
   {% endfor %}
 </main>
@@ -206,46 +188,32 @@
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
   const postsContainer = document.getElementById('posts');
+  const videos = new Set();
+  let currentVideo = null;
+
   const socket = io();
 
-  /* Likes, commentaires, etc. restent identiques... */
+  /* ---------- Likes ---------- */
+  async function toggleLike(button) {
+    const post = button.closest('.post');
+    const postId = post.dataset.postId;
+    const countEl = post.querySelector('.like-count');
+    try {
+      const res = await fetch(`/like/${postId}`, { method: 'POST' });
+      if (!res.ok) return;
+      const data = await res.json();
 
-  // Gestion du bouton Suivre/Unfollow
-  function bindFollowBtn(post) {
-    const btn = post.querySelector('.follow-btn');
-    if (!btn) return;
+      countEl.textContent = data.likes;
 
-    btn.addEventListener('click', () => {
-      const isFollowing = btn.classList.toggle('following');
-      // Ici tu pourrais émettre un événement socket ou appeler une route serveur :
-      // socket.emit('follow', { post_id: post.dataset.postId, follow: !isFollowing });
-      btn.innerHTML = isFollowing ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-plus"></i>';
-    });
+      button.classList.toggle('liked', data.liked);
+      const icon = button.querySelector('i');
+      icon.classList.toggle('fa-solid', data.liked);
+      icon.classList.toggle('fa-regular', !data.liked);
+
+      // ⚡ Mise à jour Socket.IO pour autres utilisateurs
+      socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
+    } catch (err) { console.error(err); }
   }
-
-  document.querySelectorAll('.post').forEach(post => {
-    bindFollowBtn(post);
-    // ... autres binders existants
-  });
-
-  // Si des posts sont ajoutés dynamiquement :
-  const mo = new MutationObserver(mutations => {
-    mutations.forEach(m => {
-      m.addedNodes.forEach(node => {
-        if (node.classList && node.classList.contains('post')) {
-          bindFollowBtn(node);
-          // ... autres binders
-        }
-      });
-    });
-  });
-  mo.observe(postsContainer, { childList: true, subtree: true });
-
-  /* Le reste de ton script socket reste inchangé... */
-
-
-// ---------- Gestion du like ----------
-
 
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
@@ -258,9 +226,93 @@ document.addEventListener('DOMContentLoaded', () => {
     icon.classList.toggle('fa-regular', !isLiked);
   }
 
+  /* ---------- Comments ---------- */
+  function bindCommentForm(post) {
+    const form = post.querySelector('.comment-form');
+    if (!form) return;
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = form.querySelector('input[name="comment"]');
+      const content = input.value.trim();
+      if (!content) return;
+      const postId = post.dataset.postId;
+      socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
+      input.value = '';
+    });
+  }
 
+  function updateComments(postId, username, content) {
+    const post = document.querySelector(`.post[data-post-id="${postId}"]`);
+    if (!post) return;
+    let countEl = post.querySelector('.comment-count');
+    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
 
-/* ---------- Socket.IO ---------- */
+    let list = post.querySelector('.comments-list');
+    if (!list) {
+      list = document.createElement('ul');
+      list.className = 'comments-list';
+      post.appendChild(list);
+    }
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${username}</strong>: ${content}`;
+    list.appendChild(li);
+  }
+
+  /* ---------- Video autoplay ---------- */
+  const ioObserver = new IntersectionObserver((entries) => {
+    let best = null;
+    entries.forEach(entry => {
+      const vid = entry.target;
+      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+      if (visible && !best) best = vid;
+      if (!visible && !vid.paused) vid.pause();
+    });
+    if(best && currentVideo !== best) {
+      if(currentVideo) currentVideo.pause();
+      currentVideo = best;
+      currentVideo.play().catch(()=>{});
+    }
+  }, { threshold: [0,0.25,0.5,0.75,1] });
+
+  function observeVideo(vid) {
+    if(!videos.has(vid)) {
+      videos.add(vid);
+      ioObserver.observe(vid);
+      vid.pause();
+    }
+  }
+
+  /* ---------- Init posts ---------- */
+  document.querySelectorAll('.post').forEach(post => {
+    bindLikes(post);
+    bindCommentForm(post);
+    post.querySelectorAll('video').forEach(observeVideo);
+  });
+
+  document.querySelectorAll('.post img').forEach(img => {
+    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
+  });
+
+  /* ---------- Mutation Observer ---------- */
+  if(postsContainer) {
+    const mo = new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if(node.classList && node.classList.contains('post')) {
+            bindLikes(node);
+            bindCommentForm(node);
+            node.querySelectorAll('video').forEach(observeVideo);
+            node.querySelectorAll('img').forEach(img => {
+              img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
+            });
+          }
+        });
+      });
+    });
+    mo.observe(postsContainer, { childList:true, subtree:true });
+  }
+
+  /* ---------- Socket.IO ---------- */
   socket.on('like_updated', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
@@ -362,11 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
       updateNotifBadge();
     }
   });
-
-
-
-
-
 
 });
 </script>
