@@ -81,8 +81,8 @@
   /* ---------- MEDIA ---------- */
   .post-image, video {
     width: 100%;
-    max-height: 90vh; /* vidéo presque pleine hauteur */
-    object-fit: contain; /* garde tout visible, pas de coupe */
+    max-height: 90vh; /* vidéo presque pleine hauteur écran */
+    object-fit: contain; /* montre toute la vidéo sans couper */
     display: block;
     border-radius: 0 0 12px 12px;
     background: #000;
@@ -97,13 +97,13 @@
   .like-btn {
     border: none;
     background: none;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     cursor: pointer;
     transition: transform 0.2s, color 0.2s;
-    color: #888; /* départ vide/gris */
+    color: #999; /* icône vide par défaut */
   }
   .like-btn:hover { transform: scale(1.2); }
-  .like-btn.liked { color: #00c853; } /* vert quand aimé */
+  .like-btn.liked { color: #ff2e63; } /* couleur like active */
   .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
 
@@ -117,7 +117,7 @@
   /* ---------- RESPONSIVE ---------- */
   @media (max-width: 600px) {
     .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
-    .post-image, video { max-height: 70vh; }
+    .post-image, video { max-height: 60vh; }
   }
 </style>
 </head>
@@ -182,10 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const postsContainer = document.getElementById('posts');
   const videos = new Set();
   let currentVideo = null;
-
   const socket = io();
 
-  /* ---------- Likes ---------- */
+  // Likes
   async function toggleLike(button) {
     const post = button.closest('.post');
     const postId = post.dataset.postId;
@@ -195,17 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) return;
       const data = await res.json();
       countEl.textContent = data.likes;
-      button.classList.toggle('liked', data.liked);
+      // icône démarre vide et devient rouge
+      if(data.liked) button.classList.add('liked');
+      else button.classList.remove('liked');
       socket.emit('update_like', { post_id: parseInt(postId), user: currentUsername, likes: data.likes });
     } catch (err) { console.error(err); }
   }
-
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
     if(btn) btn.addEventListener('click', () => toggleLike(btn));
   }
 
-  /* ---------- Comments ---------- */
+  // Commentaires
   function bindCommentForm(post) {
     const form = post.querySelector('.comment-form');
     if (!form) return;
@@ -219,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
       input.value = '';
     });
   }
-
   function updateComments(postId, username, content) {
     const post = document.querySelector(`.post[data-post-id="${postId}"]`);
     if (!post) return;
@@ -237,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.appendChild(li);
   }
 
-  /* ---------- Video autoplay ---------- */
+  // Video autoplay
   const ioObserver = new IntersectionObserver((entries) => {
     let best = null;
     entries.forEach(entry => {
@@ -261,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /* ---------- Init posts ---------- */
+  // Init posts
   document.querySelectorAll('.post').forEach(post => {
     bindLikes(post);
     bindCommentForm(post);
@@ -272,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
   });
 
-  /* ---------- Mutation Observer ---------- */
+  // Mutation Observer
   if(postsContainer) {
     const mo = new MutationObserver(mutations => {
       mutations.forEach(m => {
@@ -291,13 +290,13 @@ document.addEventListener('DOMContentLoaded', () => {
     mo.observe(postsContainer, { childList:true, subtree:true });
   }
 
-  /* ---------- Socket.IO ---------- */
+  // Socket.IO
   socket.on('update_like', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
       post.querySelector('.like-count').textContent = data.likes;
       const btn = post.querySelector('.like-btn');
-      if(btn) btn.classList.toggle('liked', data.user === currentUsername);
+      if(btn) btn.classList.toggle('liked', data.user === currentUsername && data.likes>0);
     }
   });
 
@@ -331,37 +330,27 @@ document.addEventListener('DOMContentLoaded', () => {
     div.querySelectorAll('video').forEach(observeVideo);
   });
 
-  /* ---------- Pause onglet / blur ---------- */
+  // Pause onglet / blur
   document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
   window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
 
-  /* ---------- Messages non lus ---------- */
+  // Messages non lus
   let unreadCount = 0;
   function updateUnreadBadge() {
     const badge = document.getElementById('unread-count');
-    if (unreadCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = unreadCount;
-    } else {
-      badge.style.display = 'none';
-    }
+    if (unreadCount > 0) { badge.style.display = 'inline'; badge.textContent = unreadCount; }
+    else { badge.style.display = 'none'; }
   }
-
   socket.on('new_message', function(message) {
     const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-    if (!currentChatUser || currentChatUser !== message.sender) {
-      unreadCount++;
-      updateUnreadBadge();
-    }
+    if (!currentChatUser || currentChatUser !== message.sender) { unreadCount++; updateUnreadBadge(); }
   });
-
   window.addEventListener('load', () => {
     if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
       unreadCount = 0;
       updateUnreadBadge();
     }
   });
-
 });
 </script>
 </body>
