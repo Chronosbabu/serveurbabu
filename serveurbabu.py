@@ -22,6 +22,29 @@ MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
 
 
+# quand quelqu'un like une publication
+def notify_like(target_user_id, liker_username, post_id):
+    msg = f"{liker_username} a aimé votre publication"
+    user_notifications.setdefault(target_user_id, []).append(msg)
+    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
+
+# quand quelqu'un commente
+def notify_comment(target_user_id, commenter_username, post_id):
+    msg = f"{commenter_username} a commenté votre publication"
+    user_notifications.setdefault(target_user_id, []).append(msg)
+    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
+
+# Lier l'utilisateur à une "room" socket avec son user_id
+@socketio.on("join")
+def handle_join(data):
+    user_id = data.get("user_id")
+    if user_id:
+        join_room(str(user_id))
+
+
+
+
+
 
 for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
     if not os.path.exists(file_path):
@@ -410,14 +433,34 @@ def handle_send_comment(data):
     save_posts(posts)
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
     
+user_notifications = {}  # clé = user_id, valeur = liste de notifications
+
+
+
+
 @app.route("/notifications")
 def notifications():
-    if not session.get("user_id"):  # on vérifie si l'utilisateur est "connecté"
-        return redirect(url_for("login"))  # sinon on renvoie vers la page de login
-    username = session.get("username")  # récupère le nom depuis la session
-    return render_template("notifications.html", username=username)
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
 
+    user_id = session["user_id"]
+    username = session.get("username")
     
+    # Récupérer toutes les notifications de l'utilisateur
+    notifications_list = user_notifications.get(user_id, [])
+    
+    # Marquer toutes les notifications comme lues
+    user_notifications[user_id] = []
+
+    return render_template(
+        "notifications.html",
+        username=username,
+        notifications=notifications_list
+    )
+
+
+
+
     
 
 if __name__ == "__main__":
