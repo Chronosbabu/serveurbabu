@@ -176,12 +176,6 @@
       </a>
     </div>
     <p class="date">Publié le {{ post.date }}</p>
-    <!-- ✅ Création systématique de la liste des commentaires -->
-    <ul class="comments-list">
-      {% for comment in post.comments %}
-      <li><strong>{{ comment.username }}</strong>: {{ comment.content }}</li>
-      {% endfor %}
-    </ul>
   </div>
   {% endfor %}
 </main>
@@ -231,8 +225,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------- Comments ---------- */
   function bindCommentForm(post) {
-    const form = post.querySelector('.comment-form');
-    if (!form) return;
+    // On crée dynamiquement le formulaire si non existant pour que SocketIO fonctionne
+    let form = post.querySelector('.comment-form');
+    if(!form) {
+      form = document.createElement('form');
+      form.className = 'comment-form';
+      form.innerHTML = `<input type="text" name="comment" placeholder="Écrire un commentaire..." />`;
+      post.appendChild(form);
+    }
     form.addEventListener('submit', e => {
       e.preventDefault();
       const input = form.querySelector('input[name="comment"]');
@@ -308,12 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
             node.querySelectorAll('img').forEach(img => {
               img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
             });
-            // ✅ Créer automatiquement la liste de commentaires si absente
-            if(!node.querySelector('.comments-list')) {
-              const ul = document.createElement('ul');
-              ul.className = 'comments-list';
-              node.appendChild(ul);
-            }
           }
         });
       });
@@ -356,12 +350,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <p class="date">Publié le ${post.date}</p>
     `;
-    // ✅ Ajouter la liste de commentaires vide si absente
-    if(!div.querySelector('.comments-list')) {
-      const ul = document.createElement('ul');
-      ul.className = 'comments-list';
-      div.appendChild(ul);
-    }
     postsContainer.prepend(div);
     bindLikes(div);
     bindCommentForm(div);
