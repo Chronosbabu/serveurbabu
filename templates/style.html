@@ -100,10 +100,10 @@
     font-size: 1.3rem;
     cursor: pointer;
     transition: transform 0.2s, color 0.2s;
-    color: #888; /* départ gris */
+    color: #888;
   }
   .like-btn:hover { transform: scale(1.2); }
-  .like-btn.liked { color: red; } /* rouge quand aimé */
+  .like-btn.liked { color: red; }
   .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
 
@@ -197,16 +197,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) return;
       const data = await res.json();
 
-      // compteur
       countEl.textContent = data.likes;
 
-      // état local (uniquement pour l'utilisateur courant)
       button.classList.toggle('liked', data.liked);
       const icon = button.querySelector('i');
       icon.classList.toggle('fa-solid', data.liked);
       icon.classList.toggle('fa-regular', !data.liked);
 
-      // diffusion: ne contient QUE le compteur
       socket.emit('update_like', { post_id: parseInt(postId), likes: data.likes });
     } catch (err) { console.error(err); }
   }
@@ -216,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!btn) return;
     btn.addEventListener('click', () => toggleLike(btn));
 
-    // assurer cohérence icône au chargement (selon classe .liked rendue par Jinja)
     const icon = btn.querySelector('i');
     const isLiked = btn.classList.contains('liked');
     icon.classList.toggle('fa-solid', isLiked);
@@ -310,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ---------- Socket.IO ---------- */
-  // MAJ temps réel: on met à jour UNIQUEMENT le compteur pour tout le monde
   socket.on('update_like', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
@@ -337,9 +332,11 @@ document.addEventListener('DOMContentLoaded', () => {
       <p class="description">${post.description}</p>
       ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
       <div class="post-actions">
-        <button class="like-btn"><i class="fa-regular fa-heart"></i></button>
-        <span class="like-count">0</span>
-        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">0</span></a>
+        <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
+          <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+        </button>
+        <span class="like-count">${post.likes || 0}</span>
+        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
       </div>
       <p class="date">Publié le ${post.date}</p>
     `;
