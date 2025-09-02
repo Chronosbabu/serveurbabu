@@ -289,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------- Follow ---------- */
 
 
-
 function bindFollowButtons(post) {
   const btn = post.querySelector('.follow-btn');
   if (!btn) return;
@@ -388,7 +387,6 @@ socket.on('new_post', post => {
     followBtn.dataset.following = "true";
   }
 });
-
 
 
 
