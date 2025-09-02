@@ -568,8 +568,14 @@ def notifications():
 
 @socketio.on("join_room")
 def handle_join_room(data):
-    username = data  # tu passes juste le nom d'utilisateur depuis le client
-    join_room(username)
+    # si data est un dict -> récupérer la clé
+    if isinstance(data, dict):
+        username = data.get("username")
+    else:
+        username = data  # data est une string
+    if username:
+        join_room(username)
+
 
 
 

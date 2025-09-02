@@ -5,46 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Profil — {{ profile_user.username }}</title>
 <style>
-/* CSS responsive pour le profil */
-body {
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
+/* === RESET & BASE === */
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
 }
+body {
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: linear-gradient(135deg, #f9fafb, #e5e7eb);
+    color: #333;
+    line-height: 1.5;
+}
+
+/* === CONTAINER === */
 .main-container {
-    max-width: 800px;
-    margin: 20px auto;
-    background: #fff;
+    max-width: 900px;
+    margin: 0 auto;
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* === HEADER === */
+header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
 }
 header h2 {
-    font-size: 20px;
-    margin-bottom: 5px;
+    font-size: 22px;
+    margin-bottom: 8px;
 }
+header p a {
+    color: #2563eb;
+    text-decoration: none;
+    font-size: 14px;
+}
+header p a:hover {
+    text-decoration: underline;
+}
+
+/* === PROFILE HEADER === */
 .profile-header {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     margin-bottom: 20px;
 }
 .profile-avatar, .avatar-post {
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
     object-fit: cover;
 }
 .profile-avatar-fallback {
-    width: 80px;
-    height: 80px;
-    background: #ddd;
+    width: 90px;
+    height: 90px;
+    background: #93c5fd;
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    font-size: 32px;
+    font-size: 36px;
     font-weight: bold;
 }
 .profile-meta {
@@ -53,67 +80,124 @@ header h2 {
 }
 .profile-meta h1 {
     margin: 0;
-    font-size: 24px;
+    font-size: 26px;
     word-break: break-word;
 }
-.follow-count {
-    margin-top: 5px;
-    font-weight: bold;
+.profile-meta p {
+    margin: 6px 0;
     color: #555;
 }
+.follow-count {
+    margin-top: 8px;
+    font-weight: bold;
+    color: #111;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.follow-count span {
+    font-size: 16px;
+    color: #2563eb;
+}
 button {
-    padding: 5px 12px;
+    padding: 6px 14px;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
-    margin-top: 5px;
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s ease;
 }
 button#message-btn {
-    background: #3b82f6;
+    background: #2563eb;
     color: #fff;
 }
-.profile-section-title {
-    font-size: 18px;
-    margin: 15px 0;
+button#message-btn:hover {
+    background: #1d4ed8;
 }
-.scroll-box {
-    max-height: 500px;
-    overflow-y: auto;
+
+/* === SECTION TITLE === */
+.profile-section-title {
+    font-size: 20px;
+    margin: 15px 0;
+    font-weight: bold;
+}
+
+/* === POSTS === */
+.profile-posts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 .post {
-    background: #fafafa;
-    margin-bottom: 15px;
-    padding: 10px;
-    border-radius: 8px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.user-info .avatar-post {
+    width: 40px;
+    height: 40px;
+}
+.user-info .username {
+    font-weight: bold;
+    color: #111;
+}
+.post .description {
+    margin: 8px 0;
+    font-size: 15px;
+    color: #333;
 }
 .post img, .post video {
     width: 100%;
     height: auto;
-    border-radius: 8px;
-    margin-top: 10px;
+    border-radius: 10px;
+    margin-top: 8px;
 }
 .post-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 5px;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 14px;
 }
 .like-btn {
     cursor: pointer;
+    background: none;
+    font-size: 18px;
+}
+.like-btn.liked {
+    color: red;
+}
+.date {
+    font-size: 12px;
+    color: #666;
+    margin-top: 6px;
 }
 
-/* Responsive */
-@media (max-width: 500px) {
+/* === RESPONSIVE === */
+@media (max-width: 600px) {
     .profile-header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
     }
     .profile-meta {
         margin-left: 0;
-        margin-top: 10px;
+        margin-top: 12px;
     }
-    header h2 {
-        font-size: 18px;
+    .profile-meta h1 {
+        font-size: 22px;
+    }
+    .profile-meta p {
+        font-size: 14px;
     }
 }
 </style>
@@ -125,9 +209,9 @@ button#message-btn {
     <header>
         <h2>👤 Profil de {{ profile_user.username }}</h2>
         <p>
-            <a href="{{ url_for('index') }}">← Retour au fil</a>
+            <a href="{{ url_for('index') }}">⬅️ Retour</a>
             {% if current_username %}
-                | Connecté : <a class="username-link" href="{{ url_for('profile', username=current_username) }}">{{ current_username }}</a>
+                | 🔑 <a class="username-link" href="{{ url_for('profile', username=current_username) }}">{{ current_username }}</a>
             {% endif %}
         </p>
     </header>
@@ -142,17 +226,17 @@ button#message-btn {
             <h1>@{{ profile_user.username }}</h1>
             <p>{{ profile_user.bio if profile_user.bio else "Aucune bio pour le moment." }}</p>
 
-            <div class="follow-count">Followers : <span id="follower-count">{{ profile_user.followers|length }}</span></div>
+            <div class="follow-count">👥 <span id="follower-count">{{ profile_user.followers|length }}</span></div>
 
             {% if current_username != profile_user.username %}
-                <button id="message-btn">💬 Envoyer un message</button>
+                <button id="message-btn">💬 Message</button>
             {% endif %}
         </div>
     </div>
 
-    <div class="profile-section-title">Publications de {{ profile_user.username }}</div>
+    <div class="profile-section-title">📝 Publications</div>
 
-    <main class="scroll-box profile-posts" id="profile-posts">
+    <main class="profile-posts" id="profile-posts">
         {% if posts|length == 0 %}
             <p style="color:#6b7280;">Aucune publication pour l’instant.</p>
         {% else %}
@@ -160,13 +244,9 @@ button#message-btn {
                 <div class="post" data-post-id="{{ post.id }}">
                     <div class="user-info">
                         {% if profile_user.avatar %}
-                            <span class="avatar-link">
-                                <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar" class="avatar-post" />
-                            </span>
+                            <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar" class="avatar-post" />
                         {% else %}
-                            <span class="avatar-link">
-                                <div class="avatar-fallback">{{ profile_user.username[:1]|upper }}</div>
-                            </span>
+                            <div class="avatar-fallback">{{ profile_user.username[:1]|upper }}</div>
                         {% endif %}
                         <p class="username">{{ profile_user.username }}</p>
                     </div>
@@ -184,7 +264,7 @@ button#message-btn {
                         <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
                     </div>
 
-                    <p class="date">Publié le {{ post.date }}</p>
+                    <p class="date">📅 {{ post.date }}</p>
                 </div>
             {% endfor %}
         {% endif %}
@@ -194,11 +274,8 @@ button#message-btn {
 <script>
 // SocketIO pour mise à jour follow en temps réel
 const socket = io();
-
-// Rejoindre la room du profil pour recevoir les updates
 socket.emit("join_room", "{{ profile_user.username }}");
 
-// Réception de l'update
 socket.on("update_follow", (data) => {
     if(data.target_user === "{{ profile_user.username }}") {
         const countEl = document.getElementById("follower-count");
