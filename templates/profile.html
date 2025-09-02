@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Profil — {{ profile_user.username }}</title>
 <style>
-/* CSS minimal pour le profile et le compteur */
+/* CSS responsive pour le profil */
 body {
     font-family: Arial, sans-serif;
     background: #f5f5f5;
@@ -20,9 +20,14 @@ body {
     border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
+header h2 {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
 .profile-header {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     margin-bottom: 20px;
 }
 .profile-avatar, .avatar-post {
@@ -44,10 +49,12 @@ body {
 }
 .profile-meta {
     margin-left: 20px;
+    flex: 1;
 }
 .profile-meta h1 {
     margin: 0;
     font-size: 24px;
+    word-break: break-word;
 }
 .follow-count {
     margin-top: 5px;
@@ -65,6 +72,10 @@ button#message-btn {
     background: #3b82f6;
     color: #fff;
 }
+.profile-section-title {
+    font-size: 18px;
+    margin: 15px 0;
+}
 .scroll-box {
     max-height: 500px;
     overflow-y: auto;
@@ -75,6 +86,12 @@ button#message-btn {
     padding: 10px;
     border-radius: 8px;
 }
+.post img, .post video {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-top: 10px;
+}
 .post-actions {
     display: flex;
     align-items: center;
@@ -83,6 +100,21 @@ button#message-btn {
 }
 .like-btn {
     cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .profile-meta {
+        margin-left: 0;
+        margin-top: 10px;
+    }
+    header h2 {
+        font-size: 18px;
+    }
 }
 </style>
 
@@ -142,7 +174,7 @@ button#message-btn {
                     <p class="description">{{ post.description }}</p>
 
                     {% if post.type == "image" %}
-                        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+                        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" />
                     {% elif post.type == "video" %}
                         <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted loop></video>
                     {% endif %}
@@ -166,6 +198,7 @@ const socket = io();
 // Rejoindre la room du profil pour recevoir les updates
 socket.emit("join_room", "{{ profile_user.username }}");
 
+// Réception de l'update
 socket.on("update_follow", (data) => {
     if(data.target_user === "{{ profile_user.username }}") {
         const countEl = document.getElementById("follower-count");

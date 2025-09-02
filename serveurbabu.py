@@ -553,6 +553,15 @@ def notifications():
 
 
 
+
+@socketio.on("join_room")
+def handle_join_room(data):
+    username = data  # tu passes juste le nom d'utilisateur depuis le client
+    join_room(username)
+
+
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
