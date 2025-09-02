@@ -108,7 +108,7 @@
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
 
   .follow-btn {
-    margin-left: auto; /* pour être à droite */
+    margin-left: auto;
     background: #0077ff;
     color: #fff;
     border: none;
@@ -120,16 +120,9 @@
     align-items: center;
     transition: background 0.2s;
   }
-  .follow-btn i {
-    margin-right: 5px;
-  }
-  .follow-btn.following {
-    background: #ccc;
-    color: #333;
-  }
-  .follow-btn:hover {
-    opacity: 0.8;
-  }
+  .follow-btn i { margin-right: 5px; }
+  .follow-btn.following { background: #ccc; color: #333; }
+  .follow-btn:hover { opacity: 0.8; }
 
   /* ---------- DATE ---------- */
   .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
@@ -227,7 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const socket = io();
 
-  /* ---------- TON AJOUT POUR NOTIFICATIONS ---------- */
   socket.emit("join", { user_id: "{{ username }}" });
 
   socket.on("new_notification", data => {
@@ -235,11 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
       badge.style.display = "inline";
       let count = parseInt(badge.textContent || "0");
       badge.textContent = count + 1;
-
-      // Optionnel : toast ou alert visuelle
       alert(data.message);
   });
-  /* ---------- FIN AJOUT ---------- */
 
   /* ---------- Likes ---------- */
   async function toggleLike(button) {
@@ -250,14 +239,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
       if (!res.ok) return;
       const data = await res.json();
-
       countEl.textContent = data.likes;
-
       button.classList.toggle('liked', data.liked);
       const icon = button.querySelector('i');
       icon.classList.toggle('fa-solid', data.liked);
       icon.classList.toggle('fa-regular', !data.liked);
-
       socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
     } catch (err) { console.error(err); }
   }
@@ -266,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = post.querySelector('.like-btn');
     if(!btn) return;
     btn.addEventListener('click', () => toggleLike(btn));
-
     const icon = btn.querySelector('i');
     const isLiked = btn.classList.contains('liked');
     icon.classList.toggle('fa-solid', isLiked);
@@ -296,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
   });
 
-  /* ---------- Follow corrigé ---------- */
+  /* ---------- Follow ---------- */
   function bindFollowButtons(post) {
     const btn = post.querySelector('.follow-btn');
     if (!btn) return;
@@ -318,22 +303,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!window.followingUsers) window.followingUsers = new Set();
 
-    // ⚡ Nouvelle logique : applique l’état correct même si le post est récent
-    const isAlreadyFollowing = window.followingUsers.has(postUsername);
-    updateButton(btn, isAlreadyFollowing);
+    if (window.followingUsers.has(postUsername)) {
+      updateButton(btn, true);
+    } else {
+      updateButton(btn, btn.dataset.following === "true");
+    }
 
     btn.addEventListener('click', async () => {
       if (btn.dataset.following === "true") return;
-
       try {
         const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
           method: 'POST',
           credentials: 'same-origin'
         });
         if (!res.ok) throw new Error('Erreur serveur');
-
         const data = await res.json();
-
         if (data.following) {
           window.followingUsers.add(postUsername);
           document.querySelectorAll('.post').forEach(p => {
@@ -354,30 +338,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function applyFollowStateToNewPosts(newPosts) {
-    newPosts.forEach(post => {
-      bindFollowButtons(post);
-    });
-  }
+  /* ---------- Nouvelle publication ---------- */
+  socket.on('new_post', post => {
+    const div = document.createElement('div');
+    div.classList.add('post');
+    div.dataset.postId = post.id;
+    let avatarHtml = post.avatar ? 
+      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
+      `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+    const isFollowing = window.followingUsers && window.followingUsers.has(post.username);
+    div.innerHTML = `
+      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
+      <p class="description">${post.description}</p>
+      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
+      <div class="post-actions">
+        <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
+          <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+        </button>
+        <span class="like-count">${post.likes || 0}</span>
+        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
+        <button class="follow-btn" data-following="${isFollowing ? 'true' : 'false'}">
+          ${isFollowing ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre'}
+        </button>
+      </div>
+      <p class="date">Publié le ${post.date}</p>
+    `;
+    postsContainer.prepend(div);
+    bindLikes(div);
+    bindCommentForm(div);
+    bindFollowButtons(div);
+    div.querySelectorAll('video').forEach(observeVideo);
+  });
 
-  function updateComments(postId, username, content) {
-    const post = document.querySelector(`.post[data-post-id="${postId}"]`);
-    if (!post) return;
-    let countEl = post.querySelector('.comment-count');
-    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-
-    let list = post.querySelector('.comments-list');
-    if (!list) {
-      list = document.createElement('ul');
-      list.className = 'comments-list';
-      post.appendChild(list);
-    }
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${username}</strong>: ${content}`;
-    list.appendChild(li);
-  }
-
-  /* ---------- Video autoplay ---------- */
+  /* ---------- Vidéo autoplay ---------- */
   const ioObserver = new IntersectionObserver((entries) => {
     let best = null;
     entries.forEach(entry => {
@@ -392,9 +385,6 @@ document.addEventListener('DOMContentLoaded', () => {
       currentVideo.play().catch(()=>{});
     }
   }, { threshold: [0,0.25,0.5,0.75,1] });
-
-
-
 
   function observeVideo(vid) {
     if(!videos.has(vid)) {
@@ -415,136 +405,16 @@ document.addEventListener('DOMContentLoaded', () => {
     img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
   });
 
-  if(postsContainer) {
-    const mo = new MutationObserver(mutations => {
-      mutations.forEach(m => {
-        m.addedNodes.forEach(node => {
-          if(node.classList && node.classList.contains('post')) {
-            bindLikes(node);
-            bindCommentForm(node);
-            bindFollowButtons(node);
-            node.querySelectorAll('video').forEach(observeVideo);
-            node.querySelectorAll('img').forEach(img => {
-              img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-            });
-          }
-        });
-      });
-    });
-    mo.observe(postsContainer, { childList:true, subtree:true });
-  }
-
   socket.on('like_updated', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
       const countEl = post.querySelector('.like-count');
       if(countEl) countEl.textContent = data.likes;
-
       const btn = post.querySelector('.like-btn');
       if(btn) btn.classList.toggle('liked', data.liked);
-
       const icon = btn.querySelector('i');
       icon.classList.toggle('fa-solid', data.liked);
       icon.classList.toggle('fa-regular', !data.liked);
-    }
-  });
-
-  
-
-socket.on('new_post', post => {
-  const div = document.createElement('div');
-  div.classList.add('post');
-  div.dataset.postId = post.id;
-
-  let avatarHtml = post.avatar ? 
-    `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
-    `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
-
-  // ⚡ Vérifie si le posteur est déjà suivi par le client
-  const isFollowing = window.followingUsers && window.followingUsers.has(post.username);
-
-  div.innerHTML = `
-    <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
-    <p class="description">${post.description}</p>
-    ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
-    <div class="post-actions">
-      <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
-        <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-      </button>
-      <span class="like-count">${post.likes || 0}</span>
-      <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-      <button class="follow-btn" data-following="${isFollowing ? 'true' : 'false'}">
-        ${isFollowing ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre'}
-      </button>
-    </div>
-    <p class="date">Publié le ${post.date}</p>
-  `;
-
-  postsContainer.prepend(div);
-  bindLikes(div);
-  bindCommentForm(div);
-  bindFollowButtons(div); // ⚡ maintenant le bouton aura le bon état
-  div.querySelectorAll('video').forEach(observeVideo);
-});
-
-
-
-
-
-
-
-  /* ---------- Pause onglet / blur ---------- */
-  document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
-  window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
-
-  /* ---------- Messages non lus ---------- */
-  let unreadCount = 0;
-  function updateUnreadBadge() {
-    const badge = document.getElementById('unread-count');
-    if (unreadCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = unreadCount;
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-
-  socket.on('new_message', function(message) {
-    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-    if (!currentChatUser || currentChatUser !== message.sender) {
-      unreadCount++;
-      updateUnreadBadge();
-    }
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-      unreadCount = 0;
-      updateUnreadBadge();
-    }
-  });
-
-  /* ---------- Notifications ---------- */
-  let notifCount = 0;
-  function updateNotifBadge() {
-    const badge = document.getElementById('notifications-count');
-    if (notifCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = notifCount;
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-
-  socket.on('new_notification', function(notification) {
-    notifCount++;
-    updateNotifBadge();
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/notifications')) {
-      notifCount = 0;
-      updateNotifBadge();
     }
   });
 
@@ -552,7 +422,4 @@ socket.on('new_post', post => {
 </script>
 </body>
 </html>
-
-
-
 
