@@ -40,13 +40,17 @@ const socket = io();
 const userId = {{ session["user_id"]|tojson }};
 socket.emit("join", { user_id: userId });
 
-socket.on("new_notification", function(data) {
+// Réception des nouvelles notifications
+socket.on("new_notification", data => {
     const list = document.getElementById("notifications-list");
-    const div = document.createElement("div");
-    div.className = "notification-item";
-    div.textContent = data.message;
-    list.prepend(div);
+    if(list){
+        const div = document.createElement("div");
+        div.className = "notification-item"; // garder le style existant
+        div.textContent = data.message;
+        list.prepend(div);
+    }
 });
 </script>
 </body>
 </html>
+

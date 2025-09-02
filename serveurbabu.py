@@ -212,6 +212,8 @@ def index():
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 
+
+
 @app.route("/follow/<username>", methods=["POST"])
 def follow_user(username):
     if "username" not in session:
@@ -219,14 +221,27 @@ def follow_user(username):
     current_user = session["username"]
     following = toggle_follow(current_user, username)  # persistant
 
-    # ⚡ Ajouter émission SocketIO pour mise à jour en temps réel
+    # ⚡ Mise à jour follow en temps réel
     socketio.emit(
         "update_follow",
         {"target_user": username, "follower": current_user, "following": following},
-        room=username  # on envoie dans la "room" du profil suivi
+        room=username
     )
 
+    # ⚡ Ajouter notification uniquement si on suit
+    if following:
+        msg = f"{current_user} a commencé à vous suivre"
+        user_notifications.setdefault(username, []).append(msg)
+        socketio.emit("new_notification", {"message": msg}, room=username)
+
     return jsonify({"following": following})
+
+
+
+
+
+
+
 
 # --- Le reste du fichier reste identique ---  
 # (routes add_post, like_post, comments, profile, search, uploads, avatars, send_file_route, conversations, chat, send_message_http, SocketIO events, notifications, send_comment)
