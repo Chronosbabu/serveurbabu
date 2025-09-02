@@ -284,30 +284,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-/* ---------- Follow ---------- */
 function bindFollowButtons(post) {
   const btn = post.querySelector('.follow-btn');
   if (!btn) return;
-  const postUsername = post.querySelector('.username').textContent;
+  const postUsername = post.querySelector('.username').textContent.trim();
 
   function updateButton(button, isFollowing) {
     if (isFollowing) {
       button.dataset.following = "true";
       button.classList.add('following');
       button.innerHTML = 'Abonné ✔';
-      button.disabled = true; // ⚡ reste bloqué si déjà suivi
+      // button.disabled = true; // ⚡ on ne bloque pas le bouton, sinon nouvel ajout ne pourra pas changer
     } else {
       button.dataset.following = "false";
       button.classList.remove('following');
       button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-      button.disabled = false;
     }
   }
 
   if (!window.followingUsers) window.followingUsers = new Set();
 
-  // ⚡ vérifie correctement l’état au moment de l’affichage
-  const isAlreadyFollowing = window.followingUsers.has(postUsername) || btn.dataset.following === "true";
+  // ⚡ vérifie l’état à chaque affichage
+  const isAlreadyFollowing = window.followingUsers.has(postUsername);
   updateButton(btn, isAlreadyFollowing);
 
   btn.addEventListener('click', async () => {
@@ -324,19 +322,19 @@ function bindFollowButtons(post) {
 
       if (data.following) {
         window.followingUsers.add(postUsername);
-
-        // ⚡ met à jour tous les posts existants pour cet utilisateur
-        document.querySelectorAll('.post').forEach(p => {
-          const usernameEl = p.querySelector('.username');
-          const followBtn = p.querySelector('.follow-btn');
-          if (usernameEl && followBtn && usernameEl.textContent === postUsername) {
-            updateButton(followBtn, true);
-          }
-        });
       } else {
         window.followingUsers.delete(postUsername);
-        updateButton(btn, false);
       }
+
+      // ⚡ met à jour tous les posts existants de cet utilisateur
+      document.querySelectorAll('.post').forEach(p => {
+        const usernameEl = p.querySelector('.username');
+        const followBtn = p.querySelector('.follow-btn');
+        if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+          updateButton(followBtn, data.following);
+        }
+      });
+
     } catch (e) {
       console.error(e);
       alert('Impossible de suivre pour le moment.');
@@ -344,7 +342,6 @@ function bindFollowButtons(post) {
   });
 }
 
-/* ---------- Nouveaux posts socket ---------- */
 socket.on('new_post', post => {
   const div = document.createElement('div');
   div.classList.add('post');
@@ -353,9 +350,6 @@ socket.on('new_post', post => {
   const avatarHtml = post.avatar ? 
     `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
     `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
-
-  // ⚡ vérifie correctement si l’utilisateur est déjà suivi
-  const isFollowing = window.followingUsers && window.followingUsers.has(post.username);
 
   div.innerHTML = `
     <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
@@ -367,8 +361,8 @@ socket.on('new_post', post => {
       </button>
       <span class="like-count">${post.likes || 0}</span>
       <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-      <button class="follow-btn" data-following="${isFollowing ? 'true' : 'false'}">
-        ${isFollowing ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre'}
+      <button class="follow-btn">
+        <i class="fa-solid fa-plus"></i> Suivre
       </button>
     </div>
     <p class="date">Publié le ${post.date}</p>
@@ -377,8 +371,16 @@ socket.on('new_post', post => {
   postsContainer.prepend(div);
   bindLikes(div);
   bindCommentForm(div);
-  bindFollowButtons(div); // ⚡ le bouton aura le bon état dès l’affichage
+  bindFollowButtons(div); // ⚡ bouton maintenant correct
   div.querySelectorAll('video').forEach(observeVideo);
+
+  // ⚡ applique l’état "suivi" si nécessaire
+  const followBtn = div.querySelector('.follow-btn');
+  if (window.followingUsers.has(post.username.trim())) {
+    followBtn.classList.add('following');
+    followBtn.innerHTML = 'Abonné ✔';
+    followBtn.dataset.following = "true";
+  }
 });
 
 
