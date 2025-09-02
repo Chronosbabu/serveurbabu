@@ -344,8 +344,20 @@ def profile(username):
     for p in user_posts:
         p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
-    return render_template("profile.html", profile_user=user, posts=user_posts,
-                           current_username=session.get("username"), current_avatar=session.get("avatar"))
+
+    # Calculer les followers
+    all_users = load_users()
+    followers = [u["username"] for u in all_users if username in u.get("following", [])]
+    user["followers"] = followers  # ajoute la clé followers dynamiquement
+
+    return render_template(
+        "profile.html",
+        profile_user=user,
+        posts=user_posts,
+        current_username=session.get("username"),
+        current_avatar=session.get("avatar")
+    )
+
 
 
 @app.route("/search", methods=["GET"])
