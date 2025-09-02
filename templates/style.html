@@ -281,6 +281,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
+document.addEventListener('DOMContentLoaded', () => {
+  // ⚡ Initialisation de la liste globale des comptes suivis
+  window.followingUsers = new Set([
+    {% for u in following_users %}
+      "{{ u.username }}",
+    {% endfor %}
+  ]);
+
+  // Après ça, bindFollowButtons et applyFollowStateToNewPosts auront la liste complète
+});
+
+
 
 /* ---------- Follow ---------- */
 
