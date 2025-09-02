@@ -487,35 +487,50 @@ function applyFollowStateToNewPosts(newPosts) {
     updateComments(data.post_id, data.username, data.content);
   });
 
-  socket.on('new_post', post => {
-    const div = document.createElement('div');
-    div.classList.add('post');
-    div.dataset.postId = post.id;
 
-    let avatarHtml = post.avatar ? 
-      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
-      `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
-    div.innerHTML = `
-      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
-      <p class="description">${post.description}</p>
-      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
-      <div class="post-actions">
-        <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
-          <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-        </button>
-        <span class="like-count">${post.likes || 0}</span>
-        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-        <button class="follow-btn" data-following="false"><i class="fa-solid fa-plus"></i> Suivre</button>
-      </div>
-      <p class="date">Publié le ${post.date}</p>
-    `;
-    postsContainer.prepend(div);
-    bindLikes(div);
-    bindCommentForm(div);
-    bindFollowButtons(div);
-    div.querySelectorAll('video').forEach(observeVideo);
-  });
+
+socket.on('new_post', post => {
+  const div = document.createElement('div');
+  div.classList.add('post');
+  div.dataset.postId = post.id;
+
+  let avatarHtml = post.avatar ? 
+    `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
+    `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+
+  // ⚡ Vérifie si le posteur est déjà suivi par le client
+  const isFollowing = window.followingUsers && window.followingUsers.has(post.username);
+
+  div.innerHTML = `
+    <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
+    <p class="description">${post.description}</p>
+    ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
+    <div class="post-actions">
+      <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
+        <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+      </button>
+      <span class="like-count">${post.likes || 0}</span>
+      <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
+      <button class="follow-btn" data-following="${isFollowing ? 'true' : 'false'}">
+        ${isFollowing ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre'}
+      </button>
+    </div>
+    <p class="date">Publié le ${post.date}</p>
+  `;
+
+  postsContainer.prepend(div);
+  bindLikes(div);
+  bindCommentForm(div);
+  bindFollowButtons(div); // ⚡ maintenant le bouton aura le bon état
+  div.querySelectorAll('video').forEach(observeVideo);
+});
+
+
+
+
+
+
 
   /* ---------- Pause onglet / blur ---------- */
   document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
