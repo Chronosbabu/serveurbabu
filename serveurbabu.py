@@ -211,12 +211,21 @@ def index():
         p['following'] = is_following(session["username"], p["username"])  # ajoute suivi
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
+
 @app.route("/follow/<username>", methods=["POST"])
 def follow_user(username):
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
     current_user = session["username"]
     following = toggle_follow(current_user, username)  # persistant
+
+    # ⚡ Ajouter émission SocketIO pour mise à jour en temps réel
+    socketio.emit(
+        "update_follow",
+        {"target_user": username, "follower": current_user, "following": following},
+        room=username  # on envoie dans la "room" du profil suivi
+    )
+
     return jsonify({"following": following})
 
 # --- Le reste du fichier reste identique ---  
