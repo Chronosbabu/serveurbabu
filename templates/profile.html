@@ -61,6 +61,7 @@ header p a:hover {
     height: 90px;
     border-radius: 50%;
     object-fit: cover;
+    cursor: pointer;
 }
 .profile-avatar-fallback {
     width: 90px;
@@ -73,6 +74,7 @@ header p a:hover {
     border-radius: 50%;
     font-size: 36px;
     font-weight: bold;
+    cursor: pointer;
 }
 .profile-meta {
     margin-left: 20px;
@@ -182,6 +184,26 @@ button#message-btn:hover {
     margin-top: 6px;
 }
 
+/* === MODAL FULLSCREEN AVATAR === */
+.avatar-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.avatar-modal img {
+    max-width: 95%;
+    max-height: 95%;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.6);
+}
+
 /* === RESPONSIVE === */
 @media (max-width: 600px) {
     .profile-header {
@@ -218,9 +240,12 @@ button#message-btn:hover {
 
     <div class="profile-header">
         {% if profile_user.avatar %}
-            <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar" class="profile-avatar" />
+            <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" 
+                 alt="avatar" class="profile-avatar" id="profile-avatar" />
         {% else %}
-            <div class="profile-avatar-fallback">{{ profile_user.username[:1]|upper }}</div>
+            <div class="profile-avatar-fallback" id="profile-avatar">
+                {{ profile_user.username[:1]|upper }}
+            </div>
         {% endif %}
         <div class="profile-meta">
             <h1>@{{ profile_user.username }}</h1>
@@ -271,6 +296,15 @@ button#message-btn:hover {
     </main>
 </div>
 
+<!-- Modal pour avatar -->
+<div class="avatar-modal" id="avatar-modal">
+    {% if profile_user.avatar %}
+        <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar-zoom" />
+    {% else %}
+        <div style="color:white; font-size:100px;">{{ profile_user.username[:1]|upper }}</div>
+    {% endif %}
+</div>
+
 <script>
 // SocketIO pour mise à jour follow en temps réel
 const socket = io();
@@ -285,6 +319,38 @@ socket.on("update_follow", (data) => {
         countEl.textContent = current;
     }
 });
+
+// Gestion affichage avatar fullscreen
+const avatar = document.getElementById("profile-avatar");
+const modal = document.getElementById("avatar-modal");
+
+if (avatar && modal) {
+    avatar.addEventListener("click", () => {
+        modal.style.display = "flex";
+        // Ajoute un état à l’historique pour gérer le bouton retour mobile
+        history.pushState({ avatarOpen: true }, "");
+    });
+
+    modal.addEventListener("click", () => {
+        modal.style.display = "none";
+        if (history.state && history.state.avatarOpen) {
+            history.back();
+        }
+    });
+
+    // Gestion bouton retour Android/iOS et touche ESC
+    window.addEventListener("popstate", (e) => {
+        modal.style.display = "none";
+    });
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            modal.style.display = "none";
+            if (history.state && history.state.avatarOpen) {
+                history.back();
+            }
+        }
+    });
+}
 
 // Script pour le bouton message
 document.addEventListener("DOMContentLoaded", () => {
