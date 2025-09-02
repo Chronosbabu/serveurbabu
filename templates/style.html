@@ -219,17 +219,11 @@
 </div>
 
 <script>
-
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
   const postsContainer = document.getElementById('posts');
-
-  // ⚡ Initialisation globale
-  if (!window.followingUsers) window.followingUsers = new Set([
-    {% for u in following_users %}
-      "{{ u.username }}",
-    {% endfor %}
-  ]);
+  const videos = new Set();
+  let currentVideo = null;
 
   const socket = io();
 
@@ -237,14 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
   async function toggleLike(button) {
     const post = button.closest('.post');
     const postId = post.dataset.postId;
+    const countEl = post.querySelector('.like-count');
     try {
       const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
       if (!res.ok) return;
       const data = await res.json();
 
-      // Met à jour le bouton et le compteur
-      const countEl = post.querySelector('.like-count');
       countEl.textContent = data.likes;
+
       button.classList.toggle('liked', data.liked);
       const icon = button.querySelector('i');
       icon.classList.toggle('fa-solid', data.liked);
@@ -257,85 +251,142 @@ document.addEventListener('DOMContentLoaded', () => {
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
     if(!btn) return;
-    btn.removeEventListener('click', btn._likeListener);
-    btn._likeListener = () => toggleLike(btn);
-    btn.addEventListener('click', btn._likeListener);
+    btn.addEventListener('click', () => toggleLike(btn));
+
+    const icon = btn.querySelector('i');
+    const isLiked = btn.classList.contains('liked');
+    icon.classList.toggle('fa-solid', isLiked);
+    icon.classList.toggle('fa-regular', !isLiked);
   }
+
+  /* ---------- Comments ---------- */
+  function bindCommentForm(post) {
+    const form = post.querySelector('.comment-form');
+    if (!form) return;
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = form.querySelector('input[name="comment"]');
+      const content = input.value.trim();
+      if (!content) return;
+      const postId = post.dataset.postId;
+      socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
+      input.value = '';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    window.followingUsers = new Set([
+      {% for u in following_users %}
+        "{{ u.username }}",
+      {% endfor %}
+    ]);
+  });
+
+
+
+
 
   /* ---------- Follow ---------- */
-  function bindFollowButtons(post) {
-    const btn = post.querySelector('.follow-btn');
-    if (!btn) return;
-    const postUsername = post.querySelector('.username').textContent.trim();
 
-    function updateButton(button, isFollowing) {
-      button.dataset.following = isFollowing ? "true" : "false";
-      button.classList.toggle('following', isFollowing);
-      button.innerHTML = isFollowing ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre';
+
+
+function bindFollowButtons(post) {
+  const btn = post.querySelector('.follow-btn');
+  if (!btn) return;
+  const postUsername = post.querySelector('.username').textContent.trim();
+
+  function updateButton(button, isFollowing) {
+    if (isFollowing) {
+      button.dataset.following = "true";
+      button.classList.add('following');
+      button.innerHTML = 'Abonné ✔';
+      // button.disabled = true; // ⚡ on ne bloque pas le bouton, sinon nouvel ajout ne pourra pas changer
+    } else {
+      button.dataset.following = "false";
+      button.classList.remove('following');
+      button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
     }
-
-    updateButton(btn, window.followingUsers.has(postUsername));
-
-    btn.removeEventListener('click', btn._followListener);
-    btn._followListener = async () => {
-      try {
-        const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
-          method: 'POST', credentials: 'same-origin'
-        });
-        if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
-
-        if (data.following) window.followingUsers.add(postUsername);
-        else window.followingUsers.delete(postUsername);
-
-        document.querySelectorAll('.post').forEach(p => {
-          const usernameEl = p.querySelector('.username');
-          const followBtn = p.querySelector('.follow-btn');
-          if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
-            updateButton(followBtn, data.following);
-          }
-        });
-      } catch (e) {
-        console.error(e);
-        alert('Impossible de suivre pour le moment.');
-      }
-    };
-    btn.addEventListener('click', btn._followListener);
   }
 
-  /* ---------- Initial binding ---------- */
-  postsContainer.querySelectorAll('.post').forEach(post => {
-    bindLikes(post);
-    bindFollowButtons(post);
+  if (!window.followingUsers) window.followingUsers = new Set();
+
+  // ⚡ vérifie l’état à chaque affichage
+  const isAlreadyFollowing = window.followingUsers.has(postUsername);
+  updateButton(btn, isAlreadyFollowing);
+
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.following === "true") return;
+
+    try {
+      const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+      if (!res.ok) throw new Error('Erreur serveur');
+
+      const data = await res.json();
+
+      if (data.following) {
+        window.followingUsers.add(postUsername);
+      } else {
+        window.followingUsers.delete(postUsername);
+      }
+
+      // ⚡ met à jour tous les posts existants de cet utilisateur
+      document.querySelectorAll('.post').forEach(p => {
+        const usernameEl = p.querySelector('.username');
+        const followBtn = p.querySelector('.follow-btn');
+        if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+          updateButton(followBtn, data.following);
+        }
+      });
+
+    } catch (e) {
+      console.error(e);
+      alert('Impossible de suivre pour le moment.');
+    }
   });
+}
 
-  /* ---------- Nouveaux posts ---------- */
-  socket.on('new_post', post => {
-    const div = document.createElement('div');
-    div.classList.add('post');
-    div.dataset.postId = post.id;
+socket.on('new_post', post => {
+  const div = document.createElement('div');
+  div.classList.add('post');
+  div.dataset.postId = post.id;
 
-    const avatarHtml = post.avatar 
-      ? `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>`
-      : `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+  const avatarHtml = post.avatar ? 
+    `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
+    `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
-    div.innerHTML = `
-      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
-      <p class="description">${post.description}</p>
-      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
-      <div class="post-actions">
-        <button class="like-btn${post.liked_by_user ? ' liked' : ''}"><i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i></button>
-        <span class="like-count">${post.likes || 0}</span>
-        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-        <button class="follow-btn"><i class="fa-solid fa-plus"></i> Suivre</button>
-      </div>
-      <p class="date">Publié le ${post.date}</p>
-    `;
-    postsContainer.prepend(div);
+  div.innerHTML = `
+    <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
+    <p class="description">${post.description}</p>
+    ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
+    <div class="post-actions">
+      <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
+        <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+      </button>
+      <span class="like-count">${post.likes || 0}</span>
+      <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
+      <button class="follow-btn">
+        <i class="fa-solid fa-plus"></i> Suivre
+      </button>
+    </div>
+    <p class="date">Publié le ${post.date}</p>
+  `;
 
-    bindLikes(div);
-    bindFollowButtons(div);
-  });
+  postsContainer.prepend(div);
+  bindLikes(div);
+  bindCommentForm(div);
+  bindFollowButtons(div); // ⚡ bouton maintenant correct
+  div.querySelectorAll('video').forEach(observeVideo);
+
+  // ⚡ applique l’état "suivi" si nécessaire
+  const followBtn = div.querySelector('.follow-btn');
+  if (window.followingUsers.has(post.username.trim())) {
+    followBtn.classList.add('following');
+    followBtn.innerHTML = 'Abonné ✔';
+    followBtn.dataset.following = "true";
+  }
 });
 
 
