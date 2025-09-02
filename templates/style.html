@@ -280,24 +280,46 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+
+
 /* ---------- Follow ---------- */
+
+// Fonction principale pour gérer un bouton Follow sur un post
 function bindFollowButtons(post) {
   const btn = post.querySelector('.follow-btn');
-  if (!btn) return;
+  if (!btn) return; // Si pas de bouton, on sort
 
-  // Initialise l'état visuel à partir de data-following rendu côté serveur
-  const initialFollowing = btn.dataset.following === "true";
-  if (initialFollowing) {
-    btn.classList.add('following');
-    btn.innerHTML = 'Abonné ✔';
-    btn.disabled = true;
-    return;
+  const postUsername = post.querySelector('.username').textContent;
+
+  // Fonction interne pour mettre à jour le bouton selon l'état
+  function updateButton(button, isFollowing) {
+    if (isFollowing) {
+      button.dataset.following = "true";
+      button.classList.add('following');
+      button.innerHTML = 'Abonné ✔';
+      button.disabled = true;
+    } else {
+      button.dataset.following = "false";
+      button.classList.remove('following');
+      button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+      button.disabled = false;
+    }
   }
 
+  // ⚡ Initialisation de la liste globale si inexistante
+  if (!window.followingUsers) window.followingUsers = new Set();
+
+  // ⚡ Vérifie immédiatement si l'utilisateur suit déjà ce compte
+  if (window.followingUsers.has(postUsername)) {
+    updateButton(btn, true);
+  } else {
+    updateButton(btn, btn.dataset.following === "true");
+  }
+
+  // ⚡ Gestion du click
   btn.addEventListener('click', async () => {
     if (btn.dataset.following === "true") return;
 
-    const postUsername = post.querySelector('.username').textContent;
     try {
       const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
         method: 'POST',
@@ -308,23 +330,22 @@ function bindFollowButtons(post) {
       const data = await res.json(); // attend { "following": true/false }
 
       if (data.following) {
-        // ⚡ Mise à jour de tous les boutons follow pour cet utilisateur
+        // Ajoute ce username à la liste globale JS
+        window.followingUsers.add(postUsername);
+
+        // ⚡ Met à jour tous les boutons existants pour cet utilisateur
         document.querySelectorAll('.post').forEach(p => {
           const usernameEl = p.querySelector('.username');
-          if (usernameEl && usernameEl.textContent === postUsername) {
-            const b = p.querySelector('.follow-btn');
-            if (b) {
-              b.dataset.following = "true";
-              b.classList.add('following');
-              b.innerHTML = 'Abonné ✔';
-              b.disabled = true;
-            }
+          const followBtn = p.querySelector('.follow-btn');
+          if (usernameEl && followBtn && usernameEl.textContent === postUsername) {
+            updateButton(followBtn, true);
           }
         });
+
       } else {
-        btn.dataset.following = "false";
-        btn.classList.remove('following');
-        btn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+        // Retire de la liste globale si unfollow
+        window.followingUsers.delete(postUsername);
+        updateButton(btn, false);
       }
     } catch (e) {
       console.error(e);
@@ -332,6 +353,45 @@ function bindFollowButtons(post) {
     }
   });
 }
+
+// ⚡ Fonction pour appliquer l'état Follow sur de nouvelles publications ajoutées dynamiquement
+function applyFollowStateToNewPosts(newPosts) {
+  newPosts.forEach(post => {
+    const usernameEl = post.querySelector('.username');
+    if (!usernameEl) return;
+    const postUsername = usernameEl.textContent;
+
+    const followBtn = post.querySelector('.follow-btn');
+    if (!followBtn) return;
+
+    // Met à jour l'état du bouton selon window.followingUsers
+    if (window.followingUsers && window.followingUsers.has(postUsername)) {
+      followBtn.dataset.following = "true";
+      followBtn.classList.add('following');
+      followBtn.innerHTML = 'Abonné ✔';
+      followBtn.disabled = true;
+    } else {
+      followBtn.dataset.following = "false";
+      followBtn.classList.remove('following');
+      followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+      followBtn.disabled = false;
+    }
+
+    // ⚡ Lie le bouton à la fonction principale pour que le click fonctionne
+    bindFollowButtons(post);
+  });
+}
+
+// ⚡ Exemple d'utilisation :
+// Supposons que tu ajoutes dynamiquement des posts dans #posts-container
+// const newPosts = document.querySelectorAll('#posts-container .post');
+// applyFollowStateToNewPosts(newPosts);
+
+
+
+
+
+
 
 
   function updateComments(postId, username, content) {
