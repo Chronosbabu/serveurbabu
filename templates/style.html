@@ -255,173 +255,102 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- Follow ---------- */
-  if (!window.followingUsers) window.followingUsers = new Set();
 
-  function updateFollowButton(button, isFollowing) {
-    if (isFollowing) {
-      button.dataset.following = "true";
-      button.classList.add('following');
-      button.innerHTML = 'Abonné ✔';
-    } else {
-      button.dataset.following = "false";
-      button.classList.remove('following');
-      button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-    }
+
+/* ---------- Follow ---------- */
+if (!window.followingUsers) window.followingUsers = new Set();
+
+function updateFollowButton(button, isFollowing) {
+  if (isFollowing) {
+    button.dataset.following = "true";
+    button.classList.add('following');
+    button.innerHTML = 'Abonné ✔';
+  } else {
+    button.dataset.following = "false";
+    button.classList.remove('following');
+    button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
   }
+}
 
-  function bindFollowButtons(post) {
-    const btn = post.querySelector('.follow-btn');
-    if (!btn) return;
-    const postUsername = post.querySelector('.username').textContent;
-    updateFollowButton(btn, window.followingUsers.has(postUsername));
+function bindFollowButtons(post) {
+  const btn = post.querySelector('.follow-btn');
+  if (!btn) return;
+  const postUsername = post.querySelector('.username').textContent;
 
-    btn.addEventListener('click', async () => {
-      if (window.followingUsers.has(postUsername)) return;
-      try {
-        const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
-        if (data.following) {
-          window.followingUsers.add(postUsername);
-        } else {
-          window.followingUsers.delete(postUsername);
-        }
-        document.querySelectorAll('.post').forEach(p => {
-          const usernameEl = p.querySelector('.username');
-          const followBtn = p.querySelector('.follow-btn');
-          if (usernameEl && followBtn && usernameEl.textContent === postUsername) {
-            updateFollowButton(followBtn, window.followingUsers.has(postUsername));
-          }
-        });
-      } catch (e) {
-        console.error(e);
-        alert('Impossible de suivre pour le moment.');
-      }
-    });
-  }
+  // ⚡ Applique l'état correct immédiatement
+  updateFollowButton(btn, window.followingUsers.has(postUsername));
 
-  function applyFollowStateToNewPosts(newPosts) {
-    newPosts.forEach(post => {
-      const usernameEl = post.querySelector('.username');
-      if (!usernameEl) return;
-      bindFollowButtons(post);
-    });
-  }
+  // ⚡ Event click
+  btn.addEventListener('click', async () => {
+    if (window.followingUsers.has(postUsername)) return;
 
-  /* ---------- Video autoplay ---------- */
-  const ioObserver = new IntersectionObserver((entries) => {
-    let best = null;
-    entries.forEach(entry => {
-      const vid = entry.target;
-      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-      if (visible && !best) best = vid;
-      if (!visible && !vid.paused) vid.pause();
-    });
-    if(best && currentVideo !== best) {
-      if(currentVideo) currentVideo.pause();
-      currentVideo = best;
-      currentVideo.play().catch(()=>{});
-    }
-  }, { threshold: [0,0.25,0.5,0.75,1] });
-
-  function observeVideo(vid) {
-    if(!videos.has(vid)) {
-      videos.add(vid);
-      ioObserver.observe(vid);
-      vid.pause();
-    }
-  }
-
-  /* ---------- Init posts ---------- */
-  document.querySelectorAll('.post').forEach(post => {
-    bindLikes(post);
-    bindCommentForm(post);
-    bindFollowButtons(post);
-    post.querySelectorAll('video').forEach(observeVideo);
-  });
-
-  document.querySelectorAll('.post img').forEach(img => {
-    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-  });
-
-  /* ---------- Mutation Observer ---------- */
-  if(postsContainer) {
-    const mo = new MutationObserver(mutations => {
-      mutations.forEach(m => {
-        m.addedNodes.forEach(node => {
-          if(node.classList && node.classList.contains('post')) {
-            bindLikes(node);
-            bindCommentForm(node);
-            bindFollowButtons(node);
-            node.querySelectorAll('video').forEach(observeVideo);
-            node.querySelectorAll('img').forEach(img => { img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); }); });
-          }
-        });
+    try {
+      const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
+        method: 'POST',
+        credentials: 'same-origin'
       });
-    });
-    mo.observe(postsContainer, { childList:true, subtree:true });
-  }
+      if (!res.ok) throw new Error('Erreur serveur');
+      const data = await res.json(); // { following: true/false }
 
-  /* ---------- Socket.IO ---------- */
-  socket.on('like_updated', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if(post) {
-      const countEl = post.querySelector('.like-count');
-      if(countEl) countEl.textContent = data.likes;
-      const btn = post.querySelector('.like-btn');
-      if(btn) btn.classList.toggle('liked', data.liked);
-      const icon = btn.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
+      if (data.following) window.followingUsers.add(postUsername);
+      else window.followingUsers.delete(postUsername);
+
+      // ⚡ Mets à jour tous les boutons sur la page
+      document.querySelectorAll('.post').forEach(p => {
+        const u = p.querySelector('.username');
+        const b = p.querySelector('.follow-btn');
+        if (u && b && u.textContent === postUsername) {
+          updateFollowButton(b, window.followingUsers.has(postUsername));
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      alert('Impossible de suivre pour le moment.');
     }
   });
+}
 
-  socket.on('new_comment', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if (!post) return;
-    const countEl = post.querySelector('.comment-count');
-    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-    let list = post.querySelector('.comments-list');
-    if (!list) {
-      list = document.createElement('ul');
-      list.className = 'comments-list';
-      post.appendChild(list);
-    }
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${data.username}</strong>: ${data.content}`;
-    list.appendChild(li);
-  });
+// ⚡ Applique le Follow aux posts existants et nouveaux
+function applyFollowStateToNewPosts(newPosts) {
+  newPosts.forEach(post => bindFollowButtons(post));
+}
 
-  socket.on('new_post', post => {
-    const div = document.createElement('div');
-    div.classList.add('post');
-    div.dataset.postId = post.id;
+// ⚡ Lorsqu’un nouveau post arrive via socket
+socket.on('new_post', post => {
+  const div = document.createElement('div');
+  div.classList.add('post');
+  div.dataset.postId = post.id;
 
-    let avatarHtml = post.avatar ? 
-      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
-      `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+  let avatarHtml = post.avatar ? 
+    `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
+    `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
-    div.innerHTML = `
-      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
-      <p class="description">${post.description}</p>
-      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
-      <div class="post-actions">
-        <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
-          <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-        </button>
-        <span class="like-count">${post.likes || 0}</span>
-        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-        <button class="follow-btn" data-following="false"><i class="fa-solid fa-plus"></i> Suivre</button>
-      </div>
-      <p class="date">Publié le ${post.date}</p>
-    `;
-    postsContainer.prepend(div);
-    bindLikes(div);
-    bindCommentForm(div);
-    bindFollowButtons(div);
-    div.querySelectorAll('video').forEach(observeVideo);
-  });
+  div.innerHTML = `
+    <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
+    <p class="description">${post.description}</p>
+    ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
+    <div class="post-actions">
+      <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
+        <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+      </button>
+      <span class="like-count">${post.likes || 0}</span>
+      <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
+      <button class="follow-btn"></button>
+    </div>
+    <p class="date">Publié le ${post.date}</p>
+  `;
+
+  postsContainer.prepend(div);
+
+  bindLikes(div);
+  bindCommentForm(div);
+  bindFollowButtons(div); // ⚡ Correctement mis à jour avec followingUsers
+  div.querySelectorAll('video').forEach(observeVideo);
+});
+
+
+
+
 
   /* ---------- Pause onglet / blur ---------- */
   document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
