@@ -455,16 +455,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
   
 
+
+/* ---------- Follow ---------- */
+function bindFollowButtons(post) {
+  const btn = post.querySelector('.follow-btn');
+  if (!btn) return;
+  const postUsername = post.querySelector('.username').textContent;
+
+  function updateButton(button, isFollowing) {
+    if (isFollowing) {
+      button.dataset.following = "true";
+      button.classList.add('following');
+      button.innerHTML = 'Abonné ✔';
+      button.disabled = true; // ⚡ reste bloqué si déjà suivi
+    } else {
+      button.dataset.following = "false";
+      button.classList.remove('following');
+      button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+      button.disabled = false;
+    }
+  }
+
+  if (!window.followingUsers) window.followingUsers = new Set();
+
+  // ⚡ vérifie correctement l’état au moment de l’affichage
+  const isAlreadyFollowing = window.followingUsers.has(postUsername) || btn.dataset.following === "true";
+  updateButton(btn, isAlreadyFollowing);
+
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.following === "true") return;
+
+    try {
+      const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+      if (!res.ok) throw new Error('Erreur serveur');
+
+      const data = await res.json();
+
+      if (data.following) {
+        window.followingUsers.add(postUsername);
+
+        // ⚡ met à jour tous les posts existants pour cet utilisateur
+        document.querySelectorAll('.post').forEach(p => {
+          const usernameEl = p.querySelector('.username');
+          const followBtn = p.querySelector('.follow-btn');
+          if (usernameEl && followBtn && usernameEl.textContent === postUsername) {
+            updateButton(followBtn, true);
+          }
+        });
+      } else {
+        window.followingUsers.delete(postUsername);
+        updateButton(btn, false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Impossible de suivre pour le moment.');
+    }
+  });
+}
+
+/* ---------- Nouveaux posts socket ---------- */
 socket.on('new_post', post => {
   const div = document.createElement('div');
   div.classList.add('post');
   div.dataset.postId = post.id;
 
-  let avatarHtml = post.avatar ? 
+  const avatarHtml = post.avatar ? 
     `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
     `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
-  // ⚡ Vérifie si le posteur est déjà suivi par le client
+  // ⚡ vérifie correctement si l’utilisateur est déjà suivi
   const isFollowing = window.followingUsers && window.followingUsers.has(post.username);
 
   div.innerHTML = `
@@ -487,11 +549,9 @@ socket.on('new_post', post => {
   postsContainer.prepend(div);
   bindLikes(div);
   bindCommentForm(div);
-  bindFollowButtons(div); // ⚡ maintenant le bouton aura le bon état
+  bindFollowButtons(div); // ⚡ le bouton aura le bon état dès l’affichage
   div.querySelectorAll('video').forEach(observeVideo);
 });
-
-
 
 
 
