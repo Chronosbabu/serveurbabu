@@ -390,6 +390,41 @@ function applyFollowStateToNewPosts(newPosts) {
 // applyFollowStateToNewPosts(newPosts);
 
 
+
+// ⚡ Fonction pour appliquer l'état Follow sur de nouvelles publications ajoutées dynamiquement
+function applyFollowStateToNewPosts(newPosts) {
+  newPosts.forEach(post => {
+    const usernameEl = post.querySelector('.username');
+    if (!usernameEl) return;
+    const postUsername = usernameEl.textContent;
+
+    const followBtn = post.querySelector('.follow-btn');
+    if (!followBtn) return;
+
+    // Met à jour l'état du bouton selon window.followingUsers
+    if (window.followingUsers && window.followingUsers.has(postUsername)) {
+      followBtn.dataset.following = "true";
+      followBtn.classList.add('following');
+      followBtn.innerHTML = 'Abonné ✔';
+      followBtn.disabled = true;
+    } else {
+      followBtn.dataset.following = "false";
+      followBtn.classList.remove('following');
+      followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+      followBtn.disabled = false;
+    }
+
+    // ⚡ Lie le bouton à la fonction principale pour que le click fonctionne
+    bindFollowButtons(post);
+  });
+}
+
+// ⚡ Exemple d'utilisation :
+// Supposons que tu ajoutes dynamiquement des posts dans #posts-container
+// const newPosts = document.querySelectorAll('#posts-container .post');
+// applyFollowStateToNewPosts(newPosts);
+
+
 // Applique l’état Follow aux nouveaux posts
 function applyFollowStateToNewPosts(newPosts) {
   newPosts.forEach(post => {
