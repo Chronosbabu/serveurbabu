@@ -227,18 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const socket = io();
 
-  /* ---------- TON AJOUT POUR NOTIFICATIONS ---------- */
-  socket.emit("join", { user_id: "{{ username }}" });
-
-  socket.on("new_notification", data => {
-      const badge = document.getElementById("notifications-count");
-      badge.style.display = "inline";
-      let count = parseInt(badge.textContent || "0");
-      badge.textContent = count + 1;
-      alert(data.message);
-  });
-  /* ---------- FIN AJOUT ---------- */
-
   /* ---------- Likes ---------- */
   async function toggleLike(button) {
     const post = button.closest('.post');
@@ -286,13 +274,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- Follow ---------- */
-  window.followingUsers = new Set([
-    {% for u in following_users %}
-      "{{ u.username }}",
-    {% endfor %}
-  ]);
+  document.addEventListener('DOMContentLoaded', () => {
+    window.followingUsers = new Set([
+      {% for u in following_users %}
+        "{{ u.username }}",
+      {% endfor %}
+    ]);
+  });
 
+  /* ---------- Follow ---------- */
   function bindFollowButtons(post) {
     const btn = post.querySelector('.follow-btn');
     if (!btn) return;
@@ -312,8 +302,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // applique l'état correct dès le départ
-    updateButton(btn, window.followingUsers.has(postUsername));
+    if (!window.followingUsers) window.followingUsers = new Set();
+
+    if (window.followingUsers.has(postUsername)) {
+      updateButton(btn, true);
+    } else {
+      updateButton(btn, btn.dataset.following === "true");
+    }
 
     btn.addEventListener('click', async () => {
       if (btn.dataset.following === "true") return;
@@ -344,6 +339,31 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error(e);
         alert('Impossible de suivre pour le moment.');
       }
+    });
+  }
+
+  function applyFollowStateToNewPosts(newPosts) {
+    newPosts.forEach(post => {
+      const usernameEl = post.querySelector('.username');
+      if (!usernameEl) return;
+      const postUsername = usernameEl.textContent;
+
+      const followBtn = post.querySelector('.follow-btn');
+      if (!followBtn) return;
+
+      if (window.followingUsers && window.followingUsers.has(postUsername)) {
+        followBtn.dataset.following = "true";
+        followBtn.classList.add('following');
+        followBtn.innerHTML = 'Abonné ✔';
+        followBtn.disabled = true;
+      } else {
+        followBtn.dataset.following = "false";
+        followBtn.classList.remove('following');
+        followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+        followBtn.disabled = false;
+      }
+
+      bindFollowButtons(post);
     });
   }
 
@@ -380,11 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { threshold: [0,0.25,0.5,0.75,1] });
 
-
-
-
-
-function observeVideo(vid) {
+  function observeVideo(vid) {
     if(!videos.has(vid)) {
       videos.add(vid);
       ioObserver.observe(vid);
@@ -540,8 +556,5 @@ socket.on('new_post', post => {
 </script>
 </body>
 </html>
-
-
-
 
 
