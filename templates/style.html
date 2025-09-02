@@ -284,32 +284,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
 function bindFollowButtons(post) {
   const btn = post.querySelector('.follow-btn');
   if (!btn) return;
   const postUsername = post.querySelector('.username').textContent.trim();
 
-  function updateButton(button, isFollowing) {
-    if (isFollowing) {
-      button.dataset.following = "true";
-      button.classList.add('following');
-      button.innerHTML = 'Abonné ✔';
-      // button.disabled = true; // ⚡ on ne bloque pas le bouton, sinon nouvel ajout ne pourra pas changer
-    } else {
-      button.dataset.following = "false";
-      button.classList.remove('following');
-      button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-    }
-  }
-
   if (!window.followingUsers) window.followingUsers = new Set();
 
-  // ⚡ vérifie l’état à chaque affichage
-  const isAlreadyFollowing = window.followingUsers.has(postUsername);
-  updateButton(btn, isAlreadyFollowing);
+  function updateButton(button, isFollowing) {
+    button.dataset.following = isFollowing ? "true" : "false";
+    button.classList.toggle('following', isFollowing);
+    button.innerHTML = isFollowing ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre';
+  }
+
+  // ⚡ état initial
+  updateButton(btn, window.followingUsers.has(postUsername));
 
   btn.addEventListener('click', async () => {
-    if (btn.dataset.following === "true") return;
+    const isFollowing = btn.dataset.following === "true";
 
     try {
       const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, {
@@ -326,7 +319,7 @@ function bindFollowButtons(post) {
         window.followingUsers.delete(postUsername);
       }
 
-      // ⚡ met à jour tous les posts existants de cet utilisateur
+      // ⚡ met à jour tous les boutons pour ce username
       document.querySelectorAll('.post').forEach(p => {
         const usernameEl = p.querySelector('.username');
         const followBtn = p.querySelector('.follow-btn');
@@ -342,28 +335,25 @@ function bindFollowButtons(post) {
   });
 }
 
+// ⚡ Nouvelle publication
 socket.on('new_post', post => {
   const div = document.createElement('div');
   div.classList.add('post');
   div.dataset.postId = post.id;
 
-  const avatarHtml = post.avatar ? 
-    `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
-    `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+  const avatarHtml = post.avatar 
+    ? `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>`
+    : `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
 
   div.innerHTML = `
     <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
     <p class="description">${post.description}</p>
     ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
     <div class="post-actions">
-      <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
-        <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-      </button>
+      <button class="like-btn${post.liked_by_user ? ' liked' : ''}"><i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i></button>
       <span class="like-count">${post.likes || 0}</span>
       <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-      <button class="follow-btn">
-        <i class="fa-solid fa-plus"></i> Suivre
-      </button>
+      <button class="follow-btn"><i class="fa-solid fa-plus"></i> Suivre</button>
     </div>
     <p class="date">Publié le ${post.date}</p>
   `;
@@ -371,10 +361,10 @@ socket.on('new_post', post => {
   postsContainer.prepend(div);
   bindLikes(div);
   bindCommentForm(div);
-  bindFollowButtons(div); // ⚡ bouton maintenant correct
+  bindFollowButtons(div); // ⚡ bouton follow robuste
   div.querySelectorAll('video').forEach(observeVideo);
 
-  // ⚡ applique l’état "suivi" si nécessaire
+  // ⚡ applique état si déjà suivi
   const followBtn = div.querySelector('.follow-btn');
   if (window.followingUsers.has(post.username.trim())) {
     followBtn.classList.add('following');
@@ -382,6 +372,7 @@ socket.on('new_post', post => {
     followBtn.dataset.following = "true";
   }
 });
+
 
 
 
