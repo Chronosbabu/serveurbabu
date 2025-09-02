@@ -8,38 +8,123 @@
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   /* ---------- GLOBAL ---------- */
-  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f2f5; color: #333; }
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f0f2f5;
+    color: #333;
+  }
   a { text-decoration: none; color: inherit; }
   .main-container { max-width: 900px; margin: 0 auto; }
 
   /* ---------- HEADER ---------- */
-  .main-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+  .main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
   .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; }
   .header-icons a { margin-left: 15px; position: relative; color: #555; font-size: 1.3rem; }
-  .message-badge { position: absolute; top: -5px; right: -10px; background: red; color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 50%; font-weight: bold; }
+  .message-badge {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    background: red;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 50%;
+    font-weight: bold;
+  }
 
   /* ---------- POSTS ---------- */
-  .scroll-box { padding: 15px 10px; }
-  .post { background: #fff; margin-bottom: 20px; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: transform 0.2s; }
+  .scroll-box {
+    padding: 15px 10px;
+  }
+  .post {
+    background: #fff;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+  }
   .post:hover { transform: translateY(-2px); }
-  .user-info { display: flex; align-items: center; padding: 10px; }
-  .avatar-post, .avatar-fallback { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #ccc; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; color: #fff; }
+  .user-info {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+  }
+  .avatar-post, .avatar-fallback {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #fff;
+  }
   .username-link { margin-left: 10px; font-weight: bold; font-size: 1rem; }
   .description { padding: 0 10px 10px 10px; font-size: 0.95rem; }
 
   /* ---------- MEDIA ---------- */
-  .post-image, video { width: 100%; max-height: 90vh; object-fit: contain; display: block; border-radius: 0 0 12px 12px; background: #000; }
+  .post-image, video {
+    width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    display: block;
+    border-radius: 0 0 12px 12px;
+    background: #000;
+  }
 
   /* ---------- ACTIONS ---------- */
-  .post-actions { display: flex; align-items: center; padding: 10px; }
-  .like-btn { border: none; background: none; font-size: 1.3rem; cursor: pointer; transition: transform 0.2s, color 0.2s; color: #888; }
+  .post-actions {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+  }
+  .like-btn {
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: transform 0.2s, color 0.2s;
+    color: #888;
+  }
   .like-btn:hover { transform: scale(1.2); }
   .like-btn.liked { color: red; }
   .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
-  .follow-btn { margin-left: auto; background: #0077ff; color: #fff; border: none; border-radius: 20px; padding: 5px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; transition: background 0.2s; }
+
+  .follow-btn {
+    margin-left: auto;
+    background: #0077ff;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s;
+  }
   .follow-btn i { margin-right: 5px; }
-  .follow-btn.following { background: #ccc; color: #333; }
+  .follow-btn.following {
+    background: #ccc;
+    color: #333;
+  }
   .follow-btn:hover { opacity: 0.8; }
 
   /* ---------- DATE ---------- */
@@ -109,10 +194,7 @@
         <i class="fa-regular fa-comment"></i>
         <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
       </a>
-      <button
-        class="follow-btn{% if post.following %} following{% endif %}"
-        data-following="{{ 'true' if post.following else 'false' }}"
-      >
+      <button class="follow-btn{% if post.following %} following{% endif %}" data-following="{{ 'true' if post.following else 'false' }}">
         {% if post.following %}Abonné ✔{% else %}<i class="fa-solid fa-plus"></i> Suivre{% endif %}
       </button>
     </div>
@@ -120,7 +202,6 @@
   </div>
   {% endfor %}
 </main>
-
 </div>
 
 <script>
@@ -153,6 +234,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = post.querySelector('.like-btn');
     if(!btn) return;
     btn.addEventListener('click', () => toggleLike(btn));
+    const icon = btn.querySelector('i');
+    const isLiked = btn.classList.contains('liked');
+    icon.classList.toggle('fa-solid', isLiked);
+    icon.classList.toggle('fa-regular', !isLiked);
   }
 
   /* ---------- Comments ---------- */
@@ -171,25 +256,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ---------- Follow ---------- */
+  if (!window.followingUsers) window.followingUsers = new Set();
+
+  function updateFollowButton(button, isFollowing) {
+    if (isFollowing) {
+      button.dataset.following = "true";
+      button.classList.add('following');
+      button.innerHTML = 'Abonné ✔';
+    } else {
+      button.dataset.following = "false";
+      button.classList.remove('following');
+      button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+    }
+  }
+
   function bindFollowButtons(post) {
     const btn = post.querySelector('.follow-btn');
     if (!btn) return;
     const postUsername = post.querySelector('.username').textContent;
-    if (!window.followingUsers) window.followingUsers = new Set();
-
-    function updateButton(button, isFollowing) {
-      if (isFollowing) {
-        button.dataset.following = "true";
-        button.classList.add('following');
-        button.innerHTML = 'Abonné ✔';
-      } else {
-        button.dataset.following = "false";
-        button.classList.remove('following');
-        button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-      }
-    }
-
-    updateButton(btn, window.followingUsers.has(postUsername));
+    updateFollowButton(btn, window.followingUsers.has(postUsername));
 
     btn.addEventListener('click', async () => {
       if (window.followingUsers.has(postUsername)) return;
@@ -199,16 +284,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (data.following) {
           window.followingUsers.add(postUsername);
-          document.querySelectorAll('.post').forEach(p => {
-            const usernameEl = p.querySelector('.username');
-            const followBtn = p.querySelector('.follow-btn');
-            if (usernameEl && followBtn && usernameEl.textContent === postUsername) updateButton(followBtn, true);
-          });
         } else {
           window.followingUsers.delete(postUsername);
-          updateButton(btn, false);
         }
-      } catch (e) { console.error(e); alert('Impossible de suivre pour le moment.'); }
+        document.querySelectorAll('.post').forEach(p => {
+          const usernameEl = p.querySelector('.username');
+          const followBtn = p.querySelector('.follow-btn');
+          if (usernameEl && followBtn && usernameEl.textContent === postUsername) {
+            updateFollowButton(followBtn, window.followingUsers.has(postUsername));
+          }
+        });
+      } catch (e) {
+        console.error(e);
+        alert('Impossible de suivre pour le moment.');
+      }
     });
   }
 
@@ -216,12 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
     newPosts.forEach(post => {
       const usernameEl = post.querySelector('.username');
       if (!usernameEl) return;
-      const postUsername = usernameEl.textContent;
-      const followBtn = post.querySelector('.follow-btn');
-      if (!followBtn) return;
-      followBtn.dataset.following = window.followingUsers.has(postUsername) ? "true" : "false";
-      followBtn.classList.toggle('following', window.followingUsers.has(postUsername));
-      followBtn.innerHTML = window.followingUsers.has(postUsername) ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre';
       bindFollowButtons(post);
     });
   }
@@ -258,6 +341,10 @@ document.addEventListener('DOMContentLoaded', () => {
     post.querySelectorAll('video').forEach(observeVideo);
   });
 
+  document.querySelectorAll('.post img').forEach(img => {
+    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
+  });
+
   /* ---------- Mutation Observer ---------- */
   if(postsContainer) {
     const mo = new MutationObserver(mutations => {
@@ -268,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bindCommentForm(node);
             bindFollowButtons(node);
             node.querySelectorAll('video').forEach(observeVideo);
+            node.querySelectorAll('img').forEach(img => { img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); }); });
           }
         });
       });
@@ -291,11 +379,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('new_comment', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if(!post) return;
-    let countEl = post.querySelector('.comment-count');
+    if (!post) return;
+    const countEl = post.querySelector('.comment-count');
     countEl.textContent = parseInt(countEl.textContent || "0") + 1;
     let list = post.querySelector('.comments-list');
-    if(!list) {
+    if (!list) {
       list = document.createElement('ul');
       list.className = 'comments-list';
       post.appendChild(list);
@@ -309,9 +397,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const div = document.createElement('div');
     div.classList.add('post');
     div.dataset.postId = post.id;
-    let avatarHtml = post.avatar ?
+
+    let avatarHtml = post.avatar ? 
       `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
       `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
+
     div.innerHTML = `
       <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
       <p class="description">${post.description}</p>
@@ -336,7 +426,28 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------- Pause onglet / blur ---------- */
   document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
   window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
+
+  /* ---------- Messages / Notifications ---------- */
+  let unreadCount = 0;
+  const updateUnreadBadge = () => {
+    const badge = document.getElementById('unread-count');
+    badge.style.display = unreadCount > 0 ? 'inline' : 'none';
+    badge.textContent = unreadCount;
+  };
+  socket.on('new_message', msg => { if (!window.location.pathname.includes('/chat/'+msg.sender)) { unreadCount++; updateUnreadBadge(); } });
+  window.addEventListener('load', () => { if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) { unreadCount=0; updateUnreadBadge(); } });
+
+  let notifCount = 0;
+  const updateNotifBadge = () => {
+    const badge = document.getElementById('notifications-count');
+    badge.style.display = notifCount > 0 ? 'inline' : 'none';
+    badge.textContent = notifCount;
+  };
+  socket.on('new_notification', () => { notifCount++; updateNotifBadge(); });
+  window.addEventListener('load', () => { if (window.location.pathname.includes('/notifications')) { notifCount=0; updateNotifBadge(); } });
+
 });
 </script>
 </body>
 </html>
+
