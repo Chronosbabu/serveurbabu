@@ -571,23 +571,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   /* ---------- Carousel ---------- */
-  function initCarousel(post) {
-    const track = post.querySelector('.carousel-track');
-    const dots = post.querySelectorAll('.carousel-indicators .dot');
-    if (!track || dots.length === 0) return;
+function initCarousel(post) {
+  const track = post.querySelector('.carousel-track');
+  const dots = post.querySelectorAll('.carousel-indicators .dot');
+  if (!track || dots.length === 0) return;
 
-    track.addEventListener('scroll', () => {
-      const index = Math.round(track.scrollLeft / track.clientWidth);
-      dots.forEach((dot, i) => {
-        dot.classList.toggle('active', i === index);
-      });
-    });
-  }
+  // Forcer largeur des éléments
+  Array.from(track.children).forEach(child => child.style.flex = '0 0 100%');
 
-  // Initialiser carousels existants
-  document.querySelectorAll('.post').forEach(post => {
-    initCarousel(post);
+  // Scroll horizontal
+  track.style.overflowX = 'auto';
+  track.style.scrollSnapType = 'x mandatory';
+
+  track.addEventListener('scroll', () => {
+    const index = Math.round(track.scrollLeft / track.clientWidth);
+    dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
   });
+}
+
+// Initialiser carousels existants
+document.querySelectorAll('.post').forEach(post => initCarousel(post));
+
 
 });
 </script>
