@@ -30,18 +30,36 @@
     top: 0;
     z-index: 100;
   }
-  .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; }
-  .header-icons a { margin-left: 15px; position: relative; color: #555; font-size: 1.3rem; }
+  .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; flex-shrink: 0; }
+  .header-icons {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* espace régulier entre icônes */
+    flex-wrap: wrap; /* s’adapte aux petits écrans */
+  }
+  .header-icons a {
+    position: relative;
+    color: #555;
+    font-size: 1.4rem; /* taille légèrement augmentée pour meilleure visibilité */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    min-height: 38px;
+  }
+  .header-icons a:hover { color: #0077ff; }
+
   .message-badge {
     position: absolute;
     top: -5px;
     right: -10px;
     background: red;
     color: white;
-    font-size: 0.7rem;
-    padding: 2px 6px;
+    font-size: 0.65rem;
+    padding: 2px 5px;
     border-radius: 50%;
     font-weight: bold;
+    line-height: 1;
   }
 
   /* ---------- POSTS ---------- */
@@ -108,7 +126,7 @@
   .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
 
   .follow-btn {
-    margin-left: auto; /* pour être à droite */
+    margin-left: auto;
     background: #0077ff;
     color: #fff;
     border: none;
@@ -120,16 +138,9 @@
     align-items: center;
     transition: background 0.2s;
   }
-  .follow-btn i {
-    margin-right: 5px;
-  }
-  .follow-btn.following {
-    background: #ccc;
-    color: #333;
-  }
-  .follow-btn:hover {
-    opacity: 0.8;
-  }
+  .follow-btn i { margin-right: 5px; }
+  .follow-btn.following { background: #ccc; color: #333; }
+  .follow-btn:hover { opacity: 0.8; }
 
   /* ---------- DATE ---------- */
   .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
@@ -142,17 +153,13 @@
   @media (max-width: 600px) {
     .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
     .post-image, video { max-height: 70vh; }
+    .header-icons a { font-size: 1.2rem; min-width: 32px; min-height: 32px; }
+    .header-icons { gap: 8px; }
   }
 
   /* ---------- BOUTON ACCUEIL ---------- */
-  #home-btn {
-    margin-left: 0;
-    font-size: 1.3rem;
-    color: #555;
-  }
-  #home-btn:hover {
-    color: #0077ff;
-  }
+  #home-btn { font-size: 1.3rem; color: #555; }
+  #home-btn:hover { color: #0077ff; }
 
 </style>
 </head>
@@ -162,16 +169,11 @@
 <header class="main-header">
   <h2 class="logo">CHRONOS</h2>
   <nav class="header-icons">
-    <!-- Bouton Accueil (maison) -->
     <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
-
-    <!-- Notifications -->
     <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
       <i class="fa-regular fa-bell"></i>
       <span class="message-badge" id="notifications-count" style="display:none;">0</span>
     </a>
-
-    <!-- Autres icônes -->
     <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
     <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
     <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
@@ -232,6 +234,9 @@
 </main>
 
 </div>
+
+
+/* Ici tu peux réutiliser tout ton JS actuel (likes, follow, comments, vidéo, socket) sans changement */
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -493,5 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 
+
+
+
 </body>
 </html>
+
