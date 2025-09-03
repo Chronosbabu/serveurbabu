@@ -205,13 +205,16 @@
 
 </div>
 
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
   const postsContainer = document.getElementById('posts');
   const socket = io();
+  const videos = new Set();
+  let currentVideo = null;
 
-  if(!window.followingUsers) window.followingUsers = new Set();
+  if (!window.followingUsers) window.followingUsers = new Set();
 
   /* ---------- Likes ---------- */
   async function toggleLike(button) {
@@ -233,11 +236,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
-    if(!btn) return;
+    if (!btn) return;
     btn.addEventListener('click', () => toggleLike(btn));
     const icon = btn.querySelector('i');
-    icon.classList.toggle('fa-solid', btn.classList.contains('liked'));
-    icon.classList.toggle('fa-regular', !btn.classList.contains('liked'));
+    const isLiked = btn.classList.contains('liked');
+    icon.classList.toggle('fa-solid', isLiked);
+    icon.classList.toggle('fa-regular', !isLiked);
   }
 
   /* ---------- Comments ---------- */
@@ -255,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ---------- Follow ---------- */
   function updateFollowButton(btn, isFollowing) {
     if (isFollowing) {
       btn.dataset.following = "true";
@@ -270,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /* ---------- Follow ---------- */
   function bindFollowButtons(post) {
     const btn = post.querySelector('.follow-btn');
     if (!btn) return;
@@ -291,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.post').forEach(p => {
           const u = p.querySelector('.username');
           const b = p.querySelector('.follow-btn');
-          if(u && b && u.textContent.trim() === postUsername) {
+          if (u && b && u.textContent.trim() === postUsername) {
             updateFollowButton(b, window.followingUsers.has(postUsername));
           }
         });
@@ -303,9 +307,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyFollowStateToNewPosts(posts) {
-    posts.forEach(post => {
-      bindFollowButtons(post);
+    posts.forEach(post => bindFollowButtons(post));
+  }
+
+  /* ---------- Video autoplay ---------- */
+  const ioObserver = new IntersectionObserver((entries) => {
+    let best = null;
+    entries.forEach(entry => {
+      const vid = entry.target;
+      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+      if (visible && !best) best = vid;
+      if (!visible && !vid.paused) vid.pause();
     });
+    if (best && currentVideo !== best) {
+      if (currentVideo) currentVideo.pause();
+      currentVideo = best;
+      currentVideo.play().catch(() => {});
+    }
+  }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+  function observeVideo(vid) {
+    if (!videos.has(vid)) {
+      videos.add(vid);
+      ioObserver.observe(vid);
+      vid.pause();
+    }
   }
 
   /* ---------- Init posts ---------- */
@@ -313,30 +339,64 @@ document.addEventListener('DOMContentLoaded', () => {
     bindLikes(post);
     bindCommentForm(post);
     bindFollowButtons(post);
+    post.querySelectorAll('video').forEach(observeVideo);
   });
 
-  /* ---------- MutationObserver ---------- */
-  if(postsContainer) {
-    const observer = new MutationObserver(mutations => {
+  /* ---------- Mutation Observer ---------- */
+  if (postsContainer) {
+    const mo = new MutationObserver(mutations => {
       mutations.forEach(m => {
         m.addedNodes.forEach(node => {
-          if(node.classList && node.classList.contains('post')) {
+          if (node.classList && node.classList.contains('post')) {
             bindLikes(node);
             bindCommentForm(node);
             bindFollowButtons(node);
+            node.querySelectorAll('video').forEach(observeVideo);
           }
         });
       });
     });
-    observer.observe(postsContainer, { childList:true });
+    mo.observe(postsContainer, { childList: true, subtree: true });
   }
 
   /* ---------- Socket.IO ---------- */
+  socket.on('like_updated', data => {
+    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+    if (post) {
+      const countEl = post.querySelector('.like-count');
+      if (countEl) countEl.textContent = data.likes;
+
+      const btn = post.querySelector('.like-btn');
+      if (btn) btn.classList.toggle('liked', data.liked);
+
+      const icon = btn.querySelector('i');
+      icon.classList.toggle('fa-solid', data.liked);
+      icon.classList.toggle('fa-regular', !data.liked);
+    }
+  });
+
+  socket.on('new_comment', data => {
+    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+    if (!post) return;
+    const countEl = post.querySelector('.comment-count');
+    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+
+    let list = post.querySelector('.comments-list');
+    if (!list) {
+      list = document.createElement('ul');
+      list.className = 'comments-list';
+      post.appendChild(list);
+    }
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${data.username}</strong>: ${data.content}`;
+    list.appendChild(li);
+  });
+
   socket.on('new_post', post => {
     const div = document.createElement('div');
     div.classList.add('post');
     div.dataset.postId = post.id;
-    let avatarHtml = post.avatar ? 
+    let avatarHtml = post.avatar ?
       `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
       `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
     div.innerHTML = `
@@ -352,12 +412,14 @@ document.addEventListener('DOMContentLoaded', () => {
       <p class="date">Publié le ${post.date}</p>
     `;
     postsContainer.prepend(div);
-    applyFollowStateToNewPosts([div]);
     bindLikes(div);
     bindCommentForm(div);
+    bindFollowButtons(div);
+    div.querySelectorAll('video').forEach(observeVideo);
   });
 });
 </script>
+
 
 
 </body>
