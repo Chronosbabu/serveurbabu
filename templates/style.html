@@ -235,6 +235,7 @@
 
 </div>
 
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
@@ -251,12 +252,24 @@ document.addEventListener('DOMContentLoaded', () => {
   homeBtn.appendChild(homeBadge);
   let newPostsCount = 0;
 
-  // Scroll automatique vers le premier post après reload
-  window.scrollTo(0, 0);
+  // Scroll automatique très rapide vers le premier post après reload
+  function fastScrollToTop() {
+    const step = 50; // pixels par intervalle
+    const interval = 1; // ms, très rapide
+    const scrollInterval = setInterval(() => {
+      if (window.scrollY <= 0) {
+        clearInterval(scrollInterval);
+        window.scrollTo(0, 0); // assure que c’est exactement au top
+      } else {
+        window.scrollBy(0, -step);
+      }
+    }, interval);
+  }
+
+  fastScrollToTop();
 
   homeBtn.addEventListener('click', e => {
     e.preventDefault();
-    // Recharge la page pour voir tous les nouveaux posts
     location.reload();
   });
 
