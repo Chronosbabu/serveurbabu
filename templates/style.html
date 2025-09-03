@@ -515,13 +515,33 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* ---------- Nouvelle fonctionnalité : posts non vus ---------- */
-  socket.on('new_post', data => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = data.html; // le HTML complet du post envoyé par le serveur
-    const newPost = tempDiv.firstElementChild;
-    newPostsQueue.push(newPost);
-    updateNewPostsBadge();
-  });
+ 
+socket.on('new_post', data => {
+  // Crée un nouvel élément post
+  const newPost = document.createElement('div');
+  newPost.className = 'post';
+  newPost.dataset.postId = data.id;
+  newPost.innerHTML = `
+    <div class="username">${data.username}</div>
+    <div class="content">${data.content}</div>
+    <button class="follow-btn" data-following="${window.followingUsers && window.followingUsers.has(data.username) ? "true" : "false"}">
+      ${window.followingUsers && window.followingUsers.has(data.username) ? "Abonné ✔" : '<i class="fa-solid fa-plus"></i> Suivre'}
+    </button>
+    <button class="like-btn ${data.liked ? "liked" : ""}">
+      <i class="${data.liked ? "fa-solid" : "fa-regular"} fa-heart"></i>
+      <span class="like-count">${data.likes || 0}</span>
+    </button>
+    <div class="comment-section">
+      <ul class="comments-list"></ul>
+      <form class="comment-form">
+        <input type="text" name="comment" placeholder="Écrire un commentaire..." />
+      </form>
+    </div>
+  `;
+  newPostsQueue.push(newPost);
+  updateNewPostsBadge();
+});
+
 
 });
 </script>
