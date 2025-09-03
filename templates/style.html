@@ -236,6 +236,7 @@
 </div>
 
 
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
@@ -243,6 +244,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const videos = new Set();
   let currentVideo = null;
   const socket = io();
+
+  /* ---------- Désactiver la restauration auto du scroll ---------- */
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
 
   /* ---------- Bouton Accueil ---------- */
   const homeBtn = document.getElementById('home-btn');
@@ -252,18 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
   homeBtn.appendChild(homeBadge);
   let newPostsCount = 0;
 
-  // Scroll cross-browser vers le haut
-  function scrollToTop() {
-    if ('scrollBehavior' in document.documentElement.style) {
-      // navigateurs modernes
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    } else {
-      // anciens navigateurs
-      window.scrollTo(0, 0);
-    }
-  }
-
-  scrollToTop();
+  // Toujours remonter en haut après reload
+  window.addEventListener('load', () => {
+    window.scrollTo(0, 0);
+  });
 
   homeBtn.addEventListener('click', e => {
     e.preventDefault();
