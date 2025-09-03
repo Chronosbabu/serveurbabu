@@ -252,21 +252,18 @@ document.addEventListener('DOMContentLoaded', () => {
   homeBtn.appendChild(homeBadge);
   let newPostsCount = 0;
 
-  // Scroll automatique très rapide vers le premier post après reload
-  function fastScrollToTop() {
-    const step = 50; // pixels par intervalle
-    const interval = 1; // ms, très rapide
-    const scrollInterval = setInterval(() => {
-      if (window.scrollY <= 0) {
-        clearInterval(scrollInterval);
-        window.scrollTo(0, 0); // assure que c’est exactement au top
-      } else {
-        window.scrollBy(0, -step);
-      }
-    }, interval);
+  // Scroll cross-browser vers le haut
+  function scrollToTop() {
+    if ('scrollBehavior' in document.documentElement.style) {
+      // navigateurs modernes
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+      // anciens navigateurs
+      window.scrollTo(0, 0);
+    }
   }
 
-  fastScrollToTop();
+  scrollToTop();
 
   homeBtn.addEventListener('click', e => {
     e.preventDefault();
