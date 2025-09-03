@@ -143,9 +143,18 @@
     .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
     .post-image, video { max-height: 70vh; }
   }
+
+  /* ---------- BOUTON ACCUEIL ---------- */
+  #home-btn {
+    margin-left: 0;
+    font-size: 1.3rem;
+    color: #555;
+  }
+  #home-btn:hover {
+    color: #0077ff;
+  }
+
 </style>
-
-
 </head>
 <body data-username="{{ username }}">
 <div class="main-container">
@@ -153,12 +162,16 @@
 <header class="main-header">
   <h2 class="logo">CHRONOS</h2>
   <nav class="header-icons">
-    <!-- 🔔 Nouvelle icône notifications -->
+    <!-- Bouton Accueil (maison) -->
+    <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+
+    <!-- Notifications -->
     <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
       <i class="fa-regular fa-bell"></i>
       <span class="message-badge" id="notifications-count" style="display:none;">0</span>
     </a>
-    <!-- fin ajout icône -->
+
+    <!-- Autres icônes -->
     <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
     <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
     <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
@@ -202,8 +215,6 @@
         <i class="fa-regular fa-comment"></i>
         <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
       </a>
-
-      <!-- Follow button: état initial rendu côté serveur via post.following -->
       <button
         class="follow-btn{% if post.following %} following{% endif %}"
         data-following="{{ 'true' if post.following else 'false' }}"
@@ -214,7 +225,6 @@
           <i class="fa-solid fa-plus"></i> Suivre
         {% endif %}
       </button>
-
     </div>
     <p class="date">Publié le {{ post.date }}</p>
   </div>
@@ -230,6 +240,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const videos = new Set();
   let currentVideo = null;
   const socket = io();
+
+  /* ---------- Bouton Accueil ---------- */
+  const homeBtn = document.getElementById('home-btn');
+  homeBtn.addEventListener('click', e => {
+    e.preventDefault();
+    // Recharge la page pour voir les nouveaux posts
+    location.reload();
+  });
 
   /* ---------- Likes ---------- */
   async function toggleLike(button) {
@@ -401,25 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
     img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
   });
 
-  /* ---------- Mutation Observer (nouveaux posts) ---------- */
-  if (postsContainer) {
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          if (node.classList && node.classList.contains('post')) {
-            bindLikes(node);
-            bindCommentForm(node);
-            applyFollowStateToNewPosts([node]);
-            node.querySelectorAll('video').forEach(observeVideo);
-            node.querySelectorAll('img').forEach(img => {
-              img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-            });
-          }
-        });
-      });
-    });
-    observer.observe(postsContainer, { childList: true });
-  }
+  /* ---------- Mutation Observer ---------- */
+  // Ne pas ajouter les posts en temps réel, donc on ignore les nouveaux nodes pour posts.
+  // Seuls likes et commentaires restent en temps réel via socket.
 
   /* ---------- Socket.IO ---------- */
   socket.on('like_updated', data => {
@@ -439,47 +441,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateComments(data.post_id, data.username, data.content);
   });
 
-  socket.on('new_post', post => {
-    const div = document.createElement('div');
-    div.classList.add('post');
-    div.dataset.postId = post.id;
-    let avatarHtml = post.avatar ? 
-      `<a class="avatar-link" href="/profile/${post.username}"><img src="/avatars/${post.avatar}" class="avatar-post" alt="avatar"></a>` :
-      `<a class="avatar-link" href="/profile/${post.username}"><div class="avatar-fallback">${post.username[0].toUpperCase()}</div></a>`;
-    div.innerHTML = `
-      <div class="user-info">${avatarHtml}<a class="username-link" href="/profile/${post.username}"><p class="username">${post.username}</p></a></div>
-      <p class="description">${post.description}</p>
-      ${post.type==='image'? `<img src="/uploads/${post.file}" class="post-image" alt="image">` : `<video src="/uploads/${post.file}" controls muted></video>`}
-      <div class="post-actions">
-        <button class="like-btn${post.liked_by_user ? ' liked' : ''}">
-          <i class="${post.liked_by_user ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-        </button>
-        <span class="like-count">${post.likes || 0}</span>
-        <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-        <button class="follow-btn" data-following="${window.followingUsers && window.followingUsers.has(post.username) ? "true" : "false"}">
-           ${window.followingUsers && window.followingUsers.has(post.username) ? "Abonné ✔" : '<i class="fa-solid fa-plus"></i> Suivre'}
-        </button>
-
-
-      </div>
-      <p class="date">Publié le ${post.date}</p>
-    `;
-    postsContainer.prepend(div);
-    bindLikes(div);
-    bindCommentForm(div);
-    bindFollowButtons(div);
-    div.querySelectorAll('video').forEach(observeVideo);
-  });
-
-  /* ---------- Pause video quand on change d’onglet ---------- */
-  document.addEventListener('visibilitychange', () => { if(document.hidden && currentVideo) currentVideo.pause(); });
-  window.addEventListener('blur', () => { if(currentVideo) currentVideo.pause(); });
 });
 </script>
 
-
 </body>
 </html>
-
-
-
