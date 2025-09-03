@@ -235,7 +235,6 @@
 
 </div>
 
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
@@ -251,6 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
   homeBadge.style.display = 'none';
   homeBtn.appendChild(homeBadge);
   let newPostsCount = 0;
+
+  // Scroll automatique vers le premier post après reload
+  window.scrollTo(0, 0);
 
   homeBtn.addEventListener('click', e => {
     e.preventDefault();
