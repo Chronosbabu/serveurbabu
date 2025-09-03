@@ -238,6 +238,7 @@
 
 
 
+<!DOCTYPE html>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
@@ -248,10 +249,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------- Bouton Accueil ---------- */
   const homeBtn = document.getElementById('home-btn');
+  let newPostsQueue = [];
+  const newPostsBadge = document.createElement('span');
+  newPostsBadge.className = 'message-badge';
+  newPostsBadge.style.display = 'none';
+  homeBtn.appendChild(newPostsBadge);
+
+  function updateNewPostsBadge() {
+    if (newPostsQueue.length > 0) {
+      newPostsBadge.style.display = 'inline';
+      newPostsBadge.textContent = newPostsQueue.length;
+    } else {
+      newPostsBadge.style.display = 'none';
+    }
+  }
+
   homeBtn.addEventListener('click', e => {
     e.preventDefault();
-    // Recharge la page pour voir les nouveaux posts
-    location.reload();
+    // Ajouter les posts en attente dans le DOM
+    newPostsQueue.forEach(post => {
+      postsContainer.prepend(post);
+      bindLikes(post);
+      bindCommentForm(post);
+      bindFollowButtons(post);
+      post.querySelectorAll('video').forEach(observeVideo);
+    });
+    newPostsQueue = [];
+    updateNewPostsBadge();
   });
 
   /* ---------- Likes ---------- */
@@ -494,6 +518,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  /* ---------- Nouvelle fonctionnalité : posts non vus ---------- */
+  socket.on('new_post', data => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = data.html; // le HTML complet du post envoyé par le serveur
+    const newPost = tempDiv.firstElementChild;
+    newPostsQueue.push(newPost);
+    updateNewPostsBadge();
+  });
+
 });
 </script>
 
@@ -501,6 +534,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
 </body>
 </html>
+
+
+
 
