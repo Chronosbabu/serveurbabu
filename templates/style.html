@@ -246,55 +246,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------- Bouton Accueil ---------- */
   const homeBtn = document.getElementById('home-btn');
-  const newPostsBadge = document.createElement('span');
-  newPostsBadge.className = 'message-badge';
-  newPostsBadge.style.display = 'none';
-  homeBtn.appendChild(newPostsBadge);
+  const homeBadge = document.createElement('span');
+  homeBadge.className = 'message-badge';
+  homeBadge.style.display = 'none';
+  homeBtn.appendChild(homeBadge);
+  let newPostsCount = 0;
 
-  function updateNewPostsBadge(count) {
-    if (count > 0) {
-      newPostsBadge.style.display = 'inline';
-      newPostsBadge.textContent = count;
-    } else {
-      newPostsBadge.style.display = 'none';
-    }
-  }
-
-  let unseenPostsCount = 0;
-
-  // Quand un nouveau post arrive via Socket
-  socket.on('new_post', data => {
-    unseenPostsCount++;
-    updateNewPostsBadge(unseenPostsCount);
-  });
-
-  // Recharge complet des posts depuis le serveur
-  homeBtn.addEventListener('click', async e => {
+  homeBtn.addEventListener('click', e => {
     e.preventDefault();
-    try {
-      const res = await fetch('/get_posts', { credentials: 'same-origin' });
-      if (!res.ok) throw new Error('Impossible de récupérer les posts');
-      const html = await res.text();
-      postsContainer.innerHTML = html;
-
-      // Réinitialiser badge
-      unseenPostsCount = 0;
-      updateNewPostsBadge(0);
-
-      // Re-bind des fonctionnalités JS
-      document.querySelectorAll('.post').forEach(post => {
-        bindLikes(post);
-        bindCommentForm(post);
-        bindFollowButtons(post);
-        post.querySelectorAll('video').forEach(observeVideo);
-      });
-      document.querySelectorAll('.post img').forEach(img => {
-        img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Erreur lors du rechargement des posts');
-    }
+    // Recharge la page pour voir tous les nouveaux posts
+    location.reload();
   });
 
   /* ---------- Likes ---------- */
@@ -393,6 +354,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function applyFollowStateToNewPosts(newPosts) {
+    newPosts.forEach(post => {
+      const usernameEl = post.querySelector('.username');
+      if (!usernameEl) return;
+      const postUsername = usernameEl.textContent.trim();
+      const followBtn = post.querySelector('.follow-btn');
+      if (!followBtn) return;
+      if (window.followingUsers && window.followingUsers.has(postUsername)) {
+        followBtn.dataset.following = "true";
+        followBtn.classList.add('following');
+        followBtn.innerHTML = 'Abonné ✔';
+        followBtn.disabled = true;
+      } else {
+        followBtn.dataset.following = "false";
+        followBtn.classList.remove('following');
+        followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+        followBtn.disabled = false;
+      }
+      bindFollowButtons(post);
+    });
+  }
+
+  /* ---------- Comments update ---------- */
+  function updateComments(postId, username, content) {
+    const post = document.querySelector(`.post[data-post-id="${postId}"]`);
+    if (!post) return;
+    let countEl = post.querySelector('.comment-count');
+    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+    let list = post.querySelector('.comments-list');
+    if (!list) {
+      list = document.createElement('ul');
+      list.className = 'comments-list';
+      post.appendChild(list);
+    }
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${username}</strong>: ${content}`;
+    list.appendChild(li);
+  }
+
   /* ---------- Video autoplay ---------- */
   const ioObserver = new IntersectionObserver((entries) => {
     let best = null;
@@ -443,21 +443,71 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.on('new_comment', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if (!post) return;
-    let list = post.querySelector('.comments-list');
-    if (!list) {
-      list = document.createElement('ul');
-      list.className = 'comments-list';
-      post.appendChild(list);
+    updateComments(data.post_id, data.username, data.content);
+  });
+
+  /* ---------- Nouveau post badge Accueil ---------- */
+  socket.on('new_post', postHtml => {
+    newPostsCount++;
+    homeBadge.style.display = 'inline';
+    homeBadge.textContent = newPostsCount;
+  });
+
+  /* ---------- Gestion badges messages et notifications ---------- */
+  let unreadCount = 0;
+  const updateUnreadBadge = () => {
+    const badge = document.getElementById('unread-count');
+    if (!badge) return;
+    if (unreadCount > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = unreadCount;
+    } else {
+      badge.style.display = 'none';
     }
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${data.username}</strong>: ${data.content}`;
-    list.appendChild(li);
+  };
+
+  socket.on('new_message', (message) => {
+    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+    if (!currentChatUser || currentChatUser !== message.sender) {
+      unreadCount++;
+      updateUnreadBadge();
+    }
+  });
+
+  window.addEventListener('load', () => {
+    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+      unreadCount = 0;
+      updateUnreadBadge();
+    }
+  });
+
+  let notifCount = 0;
+  const updateNotifBadge = () => {
+    const badge = document.getElementById('notifications-count');
+    if (!badge) return;
+    if (notifCount > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = notifCount;
+    } else {
+      badge.style.display = 'none';
+    }
+  };
+
+  socket.on('new_notification', (notification) => {
+    notifCount++;
+    updateNotifBadge();
+  });
+
+  window.addEventListener('load', () => {
+    if (window.location.pathname.includes('/notifications')) {
+      notifCount = 0;
+      updateNotifBadge();
+    }
   });
 
 });
 </script>
+
 
 
 </body>
