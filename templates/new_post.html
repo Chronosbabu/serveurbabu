@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -103,9 +102,13 @@
         <h2>Créer un nouveau post</h2>
         <form method="POST" action="/add_post" enctype="multipart/form-data">
             <textarea name="content" placeholder="Écris ton post ici..." required></textarea>
-            <input type="file" name="media" accept="image/*,video/*">
+            
+            <!-- ✅ Autorise plusieurs fichiers -->
+            <input type="file" name="media" accept="image/*,video/*" multiple>
+            
             <button type="submit">Publier</button>
         </form>
     </div>
 </body>
 </html>
+
