@@ -34,13 +34,13 @@
   .header-icons {
     display: flex;
     align-items: center;
-    gap: 12px; /* espace régulier entre icônes */
-    flex-wrap: wrap; /* s’adapte aux petits écrans */
+    gap: 12px;
+    flex-wrap: wrap;
   }
   .header-icons a {
     position: relative;
     color: #555;
-    font-size: 1.4rem; /* taille légèrement augmentée pour meilleure visibilité */
+    font-size: 1.4rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -104,6 +104,42 @@
     display: block;
     border-radius: 0 0 12px 12px;
     background: #000;
+  }
+
+  /* ---------- CAROUSEL MULTIMEDIA ---------- */
+  .carousel {
+    position: relative;
+    overflow: hidden;
+  }
+  .carousel-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .carousel-track::-webkit-scrollbar { display: none; }
+  .carousel-track > * {
+    flex: 0 0 100%;
+    scroll-snap-align: center;
+  }
+  .carousel-indicators {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+  }
+  .carousel-indicators .dot {
+    width: 8px;
+    height: 8px;
+    background: #bbb;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .carousel-indicators .dot.active {
+    background: #0077ff;
+    transform: scale(1.3);
   }
 
   /* ---------- ACTIONS ---------- */
@@ -203,11 +239,34 @@
       </a>
     </div>
     <p class="description">{{ post.description }}</p>
+
+    {# ---- Single file ---- #}
     {% if post.type == "image" %}
-    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+      <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
     {% elif post.type == "video" %}
-    <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
+      <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
     {% endif %}
+
+    {# ---- Multiple files (carousel) ---- #}
+    {% if post.files|length > 1 %}
+    <div class="carousel">
+      <div class="carousel-track">
+        {% for file in post.files %}
+          {% if file.type == "image" %}
+            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" />
+          {% elif file.type == "video" %}
+            <video src="{{ url_for('uploaded_file', filename=file.name) }}" controls muted></video>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="carousel-indicators">
+        {% for file in post.files %}
+          <span class="dot{% if loop.first %} active{% endif %}"></span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="post-actions">
       <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
         <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
@@ -258,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
   homeBtn.appendChild(homeBadge);
   let newPostsCount = 0;
 
-  // Toujours remonter en haut après reload
   window.addEventListener('load', () => {
     window.scrollTo(0, 0);
   });
@@ -385,8 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
       bindFollowButtons(post);
     });
   }
-
-  /* ---------- Comments update ---------- */
   function updateComments(postId, username, content) {
     const post = document.querySelector(`.post[data-post-id="${postId}"]`);
     if (!post) return;
@@ -514,6 +570,24 @@ document.addEventListener('DOMContentLoaded', () => {
       updateNotifBadge();
     }
   });
+  /* ---------- Carousel ---------- */
+  function initCarousel(post) {
+    const track = post.querySelector('.carousel-track');
+    const dots = post.querySelectorAll('.carousel-indicators .dot');
+    if (!track || dots.length === 0) return;
+
+    track.addEventListener('scroll', () => {
+      const index = Math.round(track.scrollLeft / track.clientWidth);
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === index);
+      });
+    });
+  }
+
+  // Initialiser carousels existants
+  document.querySelectorAll('.post').forEach(post => {
+    initCarousel(post);
+  });
 
 });
 </script>
@@ -523,6 +597,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </body>
 </html>
 
-
-
-
+ 
