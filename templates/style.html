@@ -239,50 +239,71 @@
 
 
 
+
+<!DOCTYPE html>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const currentUsername = document.body.dataset.username;
   const postsContainer = document.getElementById('posts');
+  if (!postsContainer) return; // stop si le container n'existe pas
   const videos = new Set();
   let currentVideo = null;
   const socket = io();
 
   /* ---------- Bouton Accueil ---------- */
   const homeBtn = document.getElementById('home-btn');
-  let newPostsQueue = [];
-  const newPostsBadge = document.createElement('span');
-  newPostsBadge.className = 'message-badge';
-  newPostsBadge.style.display = 'none';
-  homeBtn.appendChild(newPostsBadge);
+  if (homeBtn) {
+    let newPostsQueue = [];
+    const newPostsBadge = document.createElement('span');
+    newPostsBadge.className = 'message-badge';
+    newPostsBadge.style.display = 'none';
+    homeBtn.appendChild(newPostsBadge);
 
-  function updateNewPostsBadge() {
-    if (newPostsQueue.length > 0) {
-      newPostsBadge.style.display = 'inline';
-      newPostsBadge.textContent = newPostsQueue.length;
-    } else {
-      newPostsBadge.style.display = 'none';
+    function updateNewPostsBadge() {
+      if (newPostsQueue.length > 0) {
+        newPostsBadge.style.display = 'inline';
+        newPostsBadge.textContent = newPostsQueue.length;
+      } else {
+        newPostsBadge.style.display = 'none';
+      }
     }
-  }
 
-  homeBtn.addEventListener('click', e => {
-    e.preventDefault();
-    // Ajouter les posts en attente dans le DOM
-    newPostsQueue.forEach(post => {
-      postsContainer.prepend(post);
-      bindLikes(post);
-      bindCommentForm(post);
-      bindFollowButtons(post);
-      post.querySelectorAll('video').forEach(observeVideo);
+    homeBtn.addEventListener('click', e => {
+      e.preventDefault();
+      // Ajouter les posts en attente dans le DOM
+      newPostsQueue.forEach(post => {
+        if (post) {
+          postsContainer.prepend(post);
+          bindLikes(post);
+          bindCommentForm(post);
+          bindFollowButtons(post);
+          post.querySelectorAll('video').forEach(observeVideo);
+        }
+      });
+      newPostsQueue = [];
+      updateNewPostsBadge();
     });
-    newPostsQueue = [];
-    updateNewPostsBadge();
-  });
+
+    /* ---------- Nouvelle fonctionnalité : posts non vus ---------- */
+    socket.on('new_post', data => {
+      if (!data || !data.html) return;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = data.html.trim();
+      const newPost = tempDiv.firstElementChild;
+      if (newPost) {
+        newPostsQueue.push(newPost);
+        updateNewPostsBadge();
+      }
+    });
+  }
 
   /* ---------- Likes ---------- */
   async function toggleLike(button) {
     const post = button.closest('.post');
+    if (!post) return;
     const postId = post.dataset.postId;
     const countEl = post.querySelector('.like-count');
+    if (!countEl) return;
     try {
       const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
       if (!res.ok) return;
@@ -290,20 +311,24 @@ document.addEventListener('DOMContentLoaded', () => {
       countEl.textContent = data.likes;
       button.classList.toggle('liked', data.liked);
       const icon = button.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
+      if (icon) {
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
+      }
       socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
     } catch (err) { console.error(err); }
   }
 
   function bindLikes(post) {
     const btn = post.querySelector('.like-btn');
-    if(!btn) return;
+    if (!btn) return;
     btn.addEventListener('click', () => toggleLike(btn));
     const icon = btn.querySelector('i');
-    const isLiked = btn.classList.contains('liked');
-    icon.classList.toggle('fa-solid', isLiked);
-    icon.classList.toggle('fa-regular', !isLiked);
+    if (icon) {
+      const isLiked = btn.classList.contains('liked');
+      icon.classList.toggle('fa-solid', isLiked);
+      icon.classList.toggle('fa-regular', !isLiked);
+    }
   }
 
   /* ---------- Comments ---------- */
@@ -313,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', e => {
       e.preventDefault();
       const input = form.querySelector('input[name="comment"]');
+      if (!input) return;
       const content = input.value.trim();
       if (!content) return;
       const postId = post.dataset.postId;
@@ -325,7 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function bindFollowButtons(post) {
     const btn = post.querySelector('.follow-btn');
     if (!btn) return;
-    const postUsername = post.querySelector('.username').textContent.trim();
+    const usernameEl = post.querySelector('.username');
+    if (!usernameEl) return;
+    const postUsername = usernameEl.textContent.trim();
 
     function updateButton(button, isFollowing) {
       if (isFollowing) {
@@ -342,11 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!window.followingUsers) window.followingUsers = new Set();
-    if (window.followingUsers.has(postUsername)) {
-      updateButton(btn, true);
-    } else {
-      updateButton(btn, btn.dataset.following === "true");
-    }
+    updateButton(btn, window.followingUsers.has(postUsername));
 
     btn.addEventListener('click', async () => {
       if (btn.dataset.following === "true") return;
@@ -357,10 +381,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.following) {
           window.followingUsers.add(postUsername);
           document.querySelectorAll('.post').forEach(p => {
-            const usernameEl = p.querySelector('.username');
-            const followBtn = p.querySelector('.follow-btn');
-            if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
-              updateButton(followBtn, true);
+            const uEl = p.querySelector('.username');
+            const fBtn = p.querySelector('.follow-btn');
+            if (uEl && fBtn && uEl.textContent.trim() === postUsername) {
+              updateButton(fBtn, true);
             }
           });
         } else {
@@ -375,12 +399,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyFollowStateToNewPosts(newPosts) {
+    if (!newPosts || !newPosts.length) return;
     newPosts.forEach(post => {
       const usernameEl = post.querySelector('.username');
-      if (!usernameEl) return;
-      const postUsername = usernameEl.textContent.trim();
       const followBtn = post.querySelector('.follow-btn');
-      if (!followBtn) return;
+      if (!usernameEl || !followBtn) return;
+      const postUsername = usernameEl.textContent.trim();
       if (window.followingUsers && window.followingUsers.has(postUsername)) {
         followBtn.dataset.following = "true";
         followBtn.classList.add('following');
@@ -401,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const post = document.querySelector(`.post[data-post-id="${postId}"]`);
     if (!post) return;
     let countEl = post.querySelector('.comment-count');
-    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+    if (countEl) countEl.textContent = parseInt(countEl.textContent || "0") + 1;
     let list = post.querySelector('.comments-list');
     if (!list) {
       list = document.createElement('ul');
@@ -430,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: [0,0.25,0.5,0.75,1] });
 
   function observeVideo(vid) {
-    if(!videos.has(vid)) {
+    if (!videos.has(vid)) {
       videos.add(vid);
       ioObserver.observe(vid);
       vid.pause();
@@ -439,16 +463,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ---------- Init posts existants ---------- */
   document.querySelectorAll('.post').forEach(post => {
+    if (!post) return;
     bindLikes(post);
     bindCommentForm(post);
     bindFollowButtons(post);
     post.querySelectorAll('video').forEach(observeVideo);
   });
+
   document.querySelectorAll('.post img').forEach(img => {
-    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
+    if (img) img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
   });
 
-  /* ---------- Socket.IO ---------- */
+  /* ---------- Socket.IO updates ---------- */
   socket.on('like_updated', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
     if(post) {
@@ -457,39 +483,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const btn = post.querySelector('.like-btn');
       if(btn) btn.classList.toggle('liked', data.liked);
       const icon = btn.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
+      if(icon) {
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
+      }
     }
   });
 
   socket.on('new_comment', data => {
-    updateComments(data.post_id, data.username, data.content);
+    if (data) updateComments(data.post_id, data.username, data.content);
   });
 
-  /* ---------- Gestion badges messages et notifications ---------- */
+  /* ---------- Messages & notifications ---------- */
   let unreadCount = 0;
   const updateUnreadBadge = () => {
     const badge = document.getElementById('unread-count');
     if (!badge) return;
-    if (unreadCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = unreadCount;
-    } else {
-      badge.style.display = 'none';
-    }
+    badge.style.display = unreadCount > 0 ? 'inline' : 'none';
+    badge.textContent = unreadCount > 0 ? unreadCount : '';
   };
 
-  socket.on('new_message', (message) => {
+  socket.on('new_message', message => {
     const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
     if (!currentChatUser || currentChatUser !== message.sender) {
       unreadCount++;
-      updateUnreadBadge();
-    }
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-      unreadCount = 0;
       updateUnreadBadge();
     }
   });
@@ -498,33 +515,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const updateNotifBadge = () => {
     const badge = document.getElementById('notifications-count');
     if (!badge) return;
-    if (notifCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = notifCount;
-    } else {
-      badge.style.display = 'none';
-    }
+    badge.style.display = notifCount > 0 ? 'inline' : 'none';
+    badge.textContent = notifCount > 0 ? notifCount : '';
   };
 
-  socket.on('new_notification', (notification) => {
+  socket.on('new_notification', notification => {
     notifCount++;
     updateNotifBadge();
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/notifications')) {
-      notifCount = 0;
-      updateNotifBadge();
-    }
-  });
-
-  /* ---------- Nouvelle fonctionnalité : posts non vus ---------- */
-  socket.on('new_post', data => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = data.html; // le HTML complet du post envoyé par le serveur
-    const newPost = tempDiv.firstElementChild;
-    newPostsQueue.push(newPost);
-    updateNewPostsBadge();
   });
 
 });
