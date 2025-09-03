@@ -456,7 +456,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
         <span class="like-count">${post.likes || 0}</span>
         <a href="/comments/${post.id}" class="comment-btn"><i class="fa-regular fa-comment"></i><span class="comment-count">${post.comments_count || 0}</span></a>
-        <button class="follow-btn" data-following="false"><i class="fa-solid fa-plus"></i> Suivre</button>
+        <button class="follow-btn" data-following="${window.followingUsers && window.followingUsers.has(post.username) ? "true" : "false"}">
+           ${window.followingUsers && window.followingUsers.has(post.username) ? "Abonné ✔" : '<i class="fa-solid fa-plus"></i> Suivre'}
+        </button>
+
+
       </div>
       <p class="date">Publié le ${post.date}</p>
     `;
