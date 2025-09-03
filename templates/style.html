@@ -419,10 +419,6 @@ document.addEventListener('DOMContentLoaded', () => {
     img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
   });
 
-  /* ---------- Mutation Observer ---------- */
-  // Ne pas ajouter les posts en temps réel, donc on ignore les nouveaux nodes pour posts.
-  // Seuls likes et commentaires restent en temps réel via socket.
-
   /* ---------- Socket.IO ---------- */
   socket.on('like_updated', data => {
     const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
@@ -441,8 +437,61 @@ document.addEventListener('DOMContentLoaded', () => {
     updateComments(data.post_id, data.username, data.content);
   });
 
+  /* ---------- Gestion badges messages et notifications ---------- */
+  let unreadCount = 0;
+  const updateUnreadBadge = () => {
+    const badge = document.getElementById('unread-count');
+    if (!badge) return;
+    if (unreadCount > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = unreadCount;
+    } else {
+      badge.style.display = 'none';
+    }
+  };
+
+  socket.on('new_message', (message) => {
+    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+    if (!currentChatUser || currentChatUser !== message.sender) {
+      unreadCount++;
+      updateUnreadBadge();
+    }
+  });
+
+  window.addEventListener('load', () => {
+    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+      unreadCount = 0;
+      updateUnreadBadge();
+    }
+  });
+
+  let notifCount = 0;
+  const updateNotifBadge = () => {
+    const badge = document.getElementById('notifications-count');
+    if (!badge) return;
+    if (notifCount > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = notifCount;
+    } else {
+      badge.style.display = 'none';
+    }
+  };
+
+  socket.on('new_notification', (notification) => {
+    notifCount++;
+    updateNotifBadge();
+  });
+
+  window.addEventListener('load', () => {
+    if (window.location.pathname.includes('/notifications')) {
+      notifCount = 0;
+      updateNotifBadge();
+    }
+  });
+
 });
 </script>
+
 
 </body>
 </html>
