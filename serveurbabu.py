@@ -250,7 +250,6 @@ def follow_user(username):
 
 
 
-        
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
     if "username" not in session:
@@ -291,11 +290,19 @@ def add_post():
         posts.insert(0, new_post)
         save_posts(posts)
 
+        # ⚡ très important : informer tous les clients connectés
+        socketio.emit('new_post', {
+            "id": new_post["id"],
+            "username": new_post["username"],
+            "description": new_post["description"]
+        }, broadcast=True)
+
         return redirect(url_for("index"))
 
     # ⚡ important : garder un retour GET
     return render_template("new_post.html")
         
+
 
 
 
