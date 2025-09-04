@@ -255,26 +255,33 @@ def add_post():
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
-        media_file = request.files.get("media")
-        filename = None
-        media_type = "text"
+        media_files = request.files.getlist("media")  # ✅ accepte plusieurs fichiers
+        files = []
+        media_types = []
 
-        if media_file and media_file.filename:
-            filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
-            media_file.save(os.path.join(UPLOAD_FOLDER, filename))
-            ext = os.path.splitext(filename)[1].lower()
-            if ext in [".jpg", ".jpeg", ".png", ".gif"]:
-                media_type = "image"
-            elif ext in [".mp4", ".mov", ".avi", ".webm"]:
-                media_type = "video"
+        for media_file in media_files:
+            if media_file and media_file.filename:
+                filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
+                media_file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+                ext = os.path.splitext(filename)[1].lower()
+                if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                    media_type = "image"
+                elif ext in [".mp4", ".mov", ".avi", ".webm"]:
+                    media_type = "video"
+                else:
+                    media_type = "other"
+
+                files.append(filename)
+                media_types.append(media_type)
 
         posts = load_posts()
         new_post = {
             "id": len(posts) + 1,
             "username": session["username"],
             "avatar": session.get("avatar"),
-            "type": media_type,
-            "file": filename,
+            "files": files,                 # ✅ liste de fichiers
+            "types": media_types,           # ✅ liste des types (image/video)
             "description": content,
             "likes": 0,
             "liked_by": [],
@@ -283,10 +290,15 @@ def add_post():
         }
         posts.insert(0, new_post)
         save_posts(posts)
-        socketio.emit('new_post', new_post)
+
+        # ✅ Émission temps réel avec HTML rendu côté serveur
+        html = render_template("partials/post.html", post=new_post, username=session["username"])
+        socketio.emit('new_post', html)
+
         return redirect(url_for("index"))
 
     return render_template("new_post.html")
+
 
 
 @app.route("/like/<int:post_id>", methods=["POST"])

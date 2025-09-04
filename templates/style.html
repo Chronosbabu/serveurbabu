@@ -1,600 +1,597 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>CHRONOS</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<style>
-  /* ---------- GLOBAL ---------- */
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background: #f0f2f5;
-    color: #333;
-  }
-  a { text-decoration: none; color: inherit; }
-  .main-container { max-width: 900px; margin: 0 auto; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHRONOS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    /* ---------- GLOBAL ---------- */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+      color: #333;
+    }
+    a { text-decoration: none; color: inherit; }
+    .main-container { max-width: 900px; margin: 0 auto; }
 
-  /* ---------- HEADER ---------- */
-  .main-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; flex-shrink: 0; }
-  .header-icons {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .header-icons a {
-    position: relative;
-    color: #555;
-    font-size: 1.4rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 38px;
-    min-height: 38px;
-  }
-  .header-icons a:hover { color: #0077ff; }
+    /* ---------- HEADER ---------- */
+    .main-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; flex-shrink: 0; }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-icons a {
+      position: relative;
+      color: #555;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      min-height: 38px;
+    }
+    .header-icons a:hover { color: #0077ff; }
 
-  .message-badge {
-    position: absolute;
-    top: -5px;
-    right: -10px;
-    background: red;
-    color: white;
-    font-size: 0.65rem;
-    padding: 2px 5px;
-    border-radius: 50%;
-    font-weight: bold;
-    line-height: 1;
-  }
+    .message-badge {
+      position: absolute;
+      top: -5px;
+      right: -10px;
+      background: red;
+      color: white;
+      font-size: 0.65rem;
+      padding: 2px 5px;
+      border-radius: 50%;
+      font-weight: bold;
+      line-height: 1;
+    }
 
-  /* ---------- POSTS ---------- */
-  .scroll-box {
-    padding: 15px 10px;
-  }
-  .post {
-    background: #fff;
-    margin-bottom: 20px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    transition: transform 0.2s;
-  }
-  .post:hover { transform: translateY(-2px); }
-  .user-info {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-  }
-  .avatar-post, .avatar-fallback {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: #ccc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.2rem;
-    color: #fff;
-  }
-  .username-link { margin-left: 10px; font-weight: bold; font-size: 1rem; }
-  .description { padding: 0 10px 10px 10px; font-size: 0.95rem; }
+    /* ---------- POSTS ---------- */
+    .scroll-box {
+      padding: 15px 10px;
+    }
+    .post {
+      background: #fff;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      transition: transform 0.2s;
+    }
+    .post:hover { transform: translateY(-2px); }
+    .user-info {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+    }
+    .avatar-post, .avatar-fallback {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      color: #fff;
+    }
+    .username-link { margin-left: 10px; font-weight: bold; font-size: 1rem; }
+    .description { padding: 0 10px 10px 10px; font-size: 0.95rem; }
 
-  /* ---------- MEDIA ---------- */
-  .post-image, video {
-    width: 100%;
-    max-height: 90vh;
-    object-fit: contain;
-    display: block;
-    border-radius: 0 0 12px 12px;
-    background: #000;
-  }
+    /* ---------- MEDIA ---------- */
+    .post-image, video {
+      width: 100%;
+      max-height: 90vh;
+      object-fit: contain;
+      display: block;
+      border-radius: 0 0 12px 12px;
+      background: #000;
+    }
 
-  /* ---------- CAROUSEL MULTIMEDIA ---------- */
-  .carousel {
-    position: relative;
-    overflow: hidden;
-  }
-  .carousel-track {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    scroll-behavior: smooth;
-  }
-  .carousel-track::-webkit-scrollbar { display: none; }
-  .carousel-track > * {
-    flex: 0 0 100%;
-    scroll-snap-align: start;
-  }
-  .carousel-indicators {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 6px;
-    pointer-events: none;
-  }
-  .carousel-indicators .dot {
-    width: 8px;
-    height: 8px;
-    background: #bbb;
-    border-radius: 50%;
-    transition: transform 0.2s, background 0.2s;
-  }
-  .carousel-indicators .dot.active {
-    background: #0077ff;
-    transform: scale(1.3);
-  }
+    /* ---------- CAROUSEL MULTIMEDIA ---------- */
+    .carousel {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+    }
+    .carousel-track {
+      display: flex;
+      width: 100%;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      scroll-behavior: smooth;
+    }
+    .carousel-track::-webkit-scrollbar { display: none; }
+    .carousel-track > * {
+      flex: 0 0 100%;
+      width: 100%;
+      scroll-snap-align: start;
+    }
+    .carousel-indicators {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+    .carousel-indicators .dot {
+      width: 8px;
+      height: 8px;
+      background: #bbb;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+    .carousel-indicators .dot.active {
+      background: #0077ff;
+      transform: scale(1.3);
+    }
 
-  /* ---------- ACTIONS ---------- */
-  .post-actions {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-  }
-  .like-btn {
-    border: none;
-    background: none;
-    font-size: 1.3rem;
-    cursor: pointer;
-    transition: transform 0.2s, color 0.2s;
-    color: #888;
-  }
-  .like-btn:hover { transform: scale(1.2); }
-  .like-btn.liked { color: red; }
-  .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
-  .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
+    /* ---------- ACTIONS ---------- */
+    .post-actions {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+    }
+    .like-btn {
+      border: none;
+      background: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: transform 0.2s, color 0.2s;
+      color: #888;
+    }
+    .like-btn:hover { transform: scale(1.2); }
+    .like-btn.liked { color: red; }
+    .like-count, .comment-count { margin-left: 6px; font-size: 0.9rem; }
+    .comment-btn { display: flex; align-items: center; margin-left: 15px; color: #555; }
 
-  .follow-btn {
-    margin-left: auto;
-    background: #0077ff;
-    color: #fff;
-    border: none;
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: background 0.2s;
-  }
-  .follow-btn i { margin-right: 5px; }
-  .follow-btn.following { background: #ccc; color: #333; }
-  .follow-btn:hover { opacity: 0.8; }
+    .follow-btn {
+      margin-left: auto;
+      background: #0077ff;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .follow-btn i { margin-right: 5px; }
+    .follow-btn.following { background: #ccc; color: #333; }
+    .follow-btn:hover { opacity: 0.8; }
 
-  /* ---------- DATE ---------- */
-  .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
+    /* ---------- DATE ---------- */
+    .date { font-size: 0.75rem; color: #888; padding: 0 10px 10px 10px; }
 
-  /* ---------- COMMENTS ---------- */
-  .comments-list { padding: 0 10px 10px 10px; list-style: none; margin: 0; }
-  .comments-list li { margin-bottom: 5px; font-size: 0.85rem; }
+    /* ---------- COMMENTS ---------- */
+    .comments-list { padding: 0 10px 10px 10px; list-style: none; margin: 0; }
+    .comments-list li { margin-bottom: 5px; font-size: 0.85rem; }
 
-  /* ---------- RESPONSIVE ---------- */
-  @media (max-width: 600px) {
-    .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
-    .post-image, video { max-height: 70vh; }
-    .header-icons a { font-size: 1.2rem; min-width: 32px; min-height: 32px; }
-    .header-icons { gap: 8px; }
-  }
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 600px) {
+      .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
+      .post-image, video { max-height: 70vh; }
+      .header-icons a { font-size: 1.2rem; min-width: 32px; min-height: 32px; }
+      .header-icons { gap: 8px; }
+    }
 
-  /* ---------- BOUTON ACCUEIL ---------- */
-  #home-btn { font-size: 1.3rem; color: #555; }
-  #home-btn:hover { color: #0077ff; }
-
-</style>
+    /* ---------- BOUTON ACCUEIL ---------- */
+    #home-btn { font-size: 1.3rem; color: #555; }
+    #home-btn:hover { color: #0077ff; }
+  </style>
 </head>
 <body data-username="{{ username }}">
-<div class="main-container">
-
-<header class="main-header">
-  <h2 class="logo">CHRONOS</h2>
-  <nav class="header-icons">
-    <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
-    <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
-      <i class="fa-regular fa-bell"></i>
-      <span class="message-badge" id="notifications-count" style="display:none;">0</span>
-    </a>
-    <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
-    <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
-    <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
-    <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
-      <i class="fa-regular fa-message"></i>
-      <span class="message-badge" id="unread-count" style="display:none;">0</span>
-    </a>
-    <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
-  </nav>
-</header>
-
-<main class="scroll-box" id="posts">
-  {% for post in posts %}
-  <div class="post" data-post-id="{{ post.id }}">
-    <div class="user-info">
-      {% if post.avatar %}
-      <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-        <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
-      </a>
-      {% else %}
-      <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-        <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
-      </a>
-      {% endif %}
-      <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-        <p class="username">{{ post.username }}</p>
-      </a>
-    </div>
-    <p class="description">{{ post.description }}</p>
-
-    {# ---- Single file ---- #}
-    {% if post.type == "image" %}
-      <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-    {% elif post.type == "video" %}
-      <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
-    {% endif %}
-
-    {# ---- Multiple files (carousel) ---- #}
-    {% if post.files|length > 1 %}
-    <div class="carousel">
-      <div class="carousel-track">
-        {% for file in post.files %}
-          {% if file.type == "image" %}
-            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" />
-          {% elif file.type == "video" %}
-            <video src="{{ url_for('uploaded_file', filename=file.name) }}" controls muted></video>
+  <div class="main-container">
+    <header class="main-header">
+      <h2 class="logo">CHRONOS</h2>
+      <nav class="header-icons">
+        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+        <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+          <i class="fa-regular fa-bell"></i>
+          <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+        </a>
+        <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        </a>
+        <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+      </nav>
+    </header>
+    <main class="scroll-box" id="posts">
+      {% for post in posts %}
+      <div class="post" data-post-id="{{ post.id }}">
+        <div class="user-info">
+          {% if post.avatar %}
+          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+          </a>
+          {% else %}
+          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+          </a>
           {% endif %}
-        {% endfor %}
-      </div>
-      <div class="carousel-indicators">
-        {% for file in post.files %}
-          <span class="dot{% if loop.first %} active{% endif %}"></span>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-
-    <div class="post-actions">
-      <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-        <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-      </button>
-      <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-      <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-        <i class="fa-regular fa-comment"></i>
-        <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-      </a>
-      <button
-        class="follow-btn{% if post.following %} following{% endif %}"
-        data-following="{{ 'true' if post.following else 'false' }}"
-      >
-        {% if post.following %}
-          Abonné ✔
-        {% else %}
-          <i class="fa-solid fa-plus"></i> Suivre
+          <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+            <p class="username">{{ post.username }}</p>
+          </a>
+        </div>
+        <p class="description">{{ post.description }}</p>
+        {# ---- Single file ---- #}
+        {% if post.type == "image" and not post.files %}
+        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+        {% elif post.type == "video" and not post.files %}
+        <video src="{{ url_for('uploaded_file', filename=post.file) }}" controls muted></video>
         {% endif %}
-      </button>
-    </div>
-    <p class="date">Publié le {{ post.date }}</p>
+
+        {# ---- Multiple files (carousel) ---- #}
+        {% if post.files|length > 0 %}
+        <div class="carousel">
+          <div class="carousel-track">
+            {% for file in post.files %}
+            {% if file.type == "image" %}
+            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
+            {% elif file.type == "video" %}
+            <video src="{{ url_for('uploaded_file', filename=file.name) }}" controls muted class="post-video"></video>
+            {% endif %}
+            {% endfor %}
+          </div>
+          <div class="carousel-indicators">
+            {% for file in post.files %}
+            <span class="dot{% if loop.first %} active{% endif %}"></span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="post-actions">
+          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+            <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+          </button>
+          <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+          <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+            <i class="fa-regular fa-comment"></i>
+            <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+          </a>
+          <button
+            class="follow-btn{% if post.following %} following{% endif %}"
+            data-following="{{ 'true' if post.following else 'false' }}"
+          >
+            {% if post.following %}
+            Abonné ✔
+            {% else %}
+            <i class="fa-solid fa-plus"></i> Suivre
+            {% endif %}
+          </button>
+        </div>
+        <p class="date">Publié le {{ post.date }}</p>
+      </div>
+      {% endfor %}
+    </main>
   </div>
-  {% endfor %}
-</main>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentUsername = document.body.dataset.username;
+      const postsContainer = document.getElementById('posts');
+      const videos = new Set();
+      let currentVideo = null;
+      const socket = io();
 
-</div>
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const currentUsername = document.body.dataset.username;
-  const postsContainer = document.getElementById('posts');
-  const videos = new Set();
-  let currentVideo = null;
-  const socket = io();
+      const homeBtn = document.getElementById('home-btn');
+      const homeBadge = document.createElement('span');
+      homeBadge.className = 'message-badge';
+      homeBadge.style.display = 'none';
+      homeBtn.appendChild(homeBadge);
+      let newPostsCount = 0;
 
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.addEventListener('load', () => window.scrollTo(0, 0));
 
-  const homeBtn = document.getElementById('home-btn');
-  const homeBadge = document.createElement('span');
-  homeBadge.className = 'message-badge';
-  homeBadge.style.display = 'none';
-  homeBtn.appendChild(homeBadge);
-  let newPostsCount = 0;
+      homeBtn.addEventListener('click', e => { e.preventDefault(); location.reload(); });
 
-  window.addEventListener('load', () => window.scrollTo(0, 0));
-
-  homeBtn.addEventListener('click', e => { e.preventDefault(); location.reload(); });
-
-  async function toggleLike(button) {
-    const post = button.closest('.post');
-    const postId = post.dataset.postId;
-    const countEl = post.querySelector('.like-count');
-    try {
-      const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
-      if (!res.ok) return;
-      const data = await res.json();
-      countEl.textContent = data.likes;
-      button.classList.toggle('liked', data.liked);
-      const icon = button.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
-      socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
-    } catch (err) { console.error(err); }
-  }
-
-  function bindLikes(post) {
-    const btn = post.querySelector('.like-btn');
-    if(!btn) return;
-    btn.addEventListener('click', () => toggleLike(btn));
-    const icon = btn.querySelector('i');
-    const isLiked = btn.classList.contains('liked');
-    icon.classList.toggle('fa-solid', isLiked);
-    icon.classList.toggle('fa-regular', !isLiked);
-  }
-
-  function bindCommentForm(post) {
-    const form = post.querySelector('.comment-form');
-    if (!form) return;
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const input = form.querySelector('input[name="comment"]');
-      const content = input.value.trim();
-      if (!content) return;
-      const postId = post.dataset.postId;
-      socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
-      input.value = '';
-    });
-  }
-
-  function bindFollowButtons(post) {
-    const btn = post.querySelector('.follow-btn');
-    if (!btn) return;
-    const postUsername = post.querySelector('.username').textContent.trim();
-
-    function updateButton(button, isFollowing) {
-      if (isFollowing) {
-        button.dataset.following = "true";
-        button.classList.add('following');
-        button.innerHTML = 'Abonné ✔';
-        button.disabled = true;
-      } else {
-        button.dataset.following = "false";
-        button.classList.remove('following');
-        button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-        button.disabled = false;
+      async function toggleLike(button) {
+        const post = button.closest('.post');
+        const postId = post.dataset.postId;
+        const countEl = post.querySelector('.like-count');
+        try {
+          const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
+          if (!res.ok) return;
+          const data = await res.json();
+          countEl.textContent = data.likes;
+          button.classList.toggle('liked', data.liked);
+          const icon = button.querySelector('i');
+          icon.classList.toggle('fa-solid', data.liked);
+          icon.classList.toggle('fa-regular', !data.liked);
+          socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
+        } catch (err) { console.error(err); }
       }
-    }
 
-    if (!window.followingUsers) window.followingUsers = new Set();
-    if (window.followingUsers.has(postUsername)) updateButton(btn, true);
-    else updateButton(btn, btn.dataset.following === "true");
+      function bindLikes(post) {
+        const btn = post.querySelector('.like-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => toggleLike(btn));
+        const icon = btn.querySelector('i');
+        const isLiked = btn.classList.contains('liked');
+        icon.classList.toggle('fa-solid', isLiked);
+        icon.classList.toggle('fa-regular', !isLiked);
+      }
 
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.following === "true") return;
-      try {
-        const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
-        if (data.following) {
-          window.followingUsers.add(postUsername);
-          document.querySelectorAll('.post').forEach(p => {
-            const usernameEl = p.querySelector('.username');
-            const followBtn = p.querySelector('.follow-btn');
-            if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
-              updateButton(followBtn, true);
-            }
-          });
-        } else {
-          window.followingUsers.delete(postUsername);
-          updateButton(btn, false);
+      function bindCommentForm(post) {
+        const form = post.querySelector('.comment-form');
+        if (!form) return;
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          const input = form.querySelector('input[name="comment"]');
+          const content = input.value.trim();
+          if (!content) return;
+          const postId = post.dataset.postId;
+          socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
+          input.value = '';
+        });
+      }
+
+      function bindFollowButtons(post) {
+        const btn = post.querySelector('.follow-btn');
+        if (!btn) return;
+        const postUsername = post.querySelector('.username').textContent.trim();
+
+        function updateButton(button, isFollowing) {
+          if (isFollowing) {
+            button.dataset.following = "true";
+            button.classList.add('following');
+            button.innerHTML = 'Abonné ✔';
+            button.disabled = true;
+          } else {
+            button.dataset.following = "false";
+            button.classList.remove('following');
+            button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+            button.disabled = false;
+          }
         }
-      } catch (e) {
-        console.error(e);
-        alert('Impossible de suivre pour le moment.');
+
+        if (!window.followingUsers) window.followingUsers = new Set();
+        if (window.followingUsers.has(postUsername)) updateButton(btn, true);
+        else updateButton(btn, btn.dataset.following === "true");
+
+        btn.addEventListener('click', async () => {
+          if (btn.dataset.following === "true") return;
+          try {
+            const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
+            if (!res.ok) throw new Error('Erreur serveur');
+            const data = await res.json();
+            if (data.following) {
+              window.followingUsers.add(postUsername);
+              document.querySelectorAll('.post').forEach(p => {
+                const usernameEl = p.querySelector('.username');
+                const followBtn = p.querySelector('.follow-btn');
+                if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+                  updateButton(followBtn, true);
+                }
+              });
+            } else {
+              window.followingUsers.delete(postUsername);
+              updateButton(btn, false);
+            }
+          } catch (e) {
+            console.error(e);
+            alert('Impossible de suivre pour le moment.');
+          }
+        });
       }
-    });
-  }
 
-  function applyFollowStateToNewPosts(newPosts) {
-    newPosts.forEach(post => {
-      const usernameEl = post.querySelector('.username');
-      if (!usernameEl) return;
-      const postUsername = usernameEl.textContent.trim();
-      const followBtn = post.querySelector('.follow-btn');
-      if (!followBtn) return;
-      if (window.followingUsers && window.followingUsers.has(postUsername)) {
-        followBtn.dataset.following = "true";
-        followBtn.classList.add('following');
-        followBtn.innerHTML = 'Abonné ✔';
-        followBtn.disabled = true;
-      } else {
-        followBtn.dataset.following = "false";
-        followBtn.classList.remove('following');
-        followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-        followBtn.disabled = false;
+      function applyFollowStateToNewPosts(newPosts) {
+        newPosts.forEach(post => {
+          const usernameEl = post.querySelector('.username');
+          if (!usernameEl) return;
+          const postUsername = usernameEl.textContent.trim();
+          const followBtn = post.querySelector('.follow-btn');
+          if (!followBtn) return;
+          if (window.followingUsers && window.followingUsers.has(postUsername)) {
+            followBtn.dataset.following = "true";
+            followBtn.classList.add('following');
+            followBtn.innerHTML = 'Abonné ✔';
+            followBtn.disabled = true;
+          } else {
+            followBtn.dataset.following = "false";
+            followBtn.classList.remove('following');
+            followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+            followBtn.disabled = false;
+          }
+          bindFollowButtons(post);
+        });
       }
-      bindFollowButtons(post);
+
+      function updateComments(postId, username, content) {
+        const post = document.querySelector(`.post[data-post-id="${postId}"]`);
+        if (!post) return;
+        let countEl = post.querySelector('.comment-count');
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+        let list = post.querySelector('.comments-list');
+        if (!list) {
+          list = document.createElement('ul');
+          list.className = 'comments-list';
+          post.appendChild(list);
+        }
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${username}</strong>: ${content}`;
+        list.appendChild(li);
+      }
+
+      /* ---------- Video autoplay ---------- */
+      const ioObserver = new IntersectionObserver((entries) => {
+        let best = null;
+        entries.forEach(entry => {
+          const vid = entry.target;
+          const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+          if (visible && !best) best = vid;
+          if (!visible && !vid.paused) vid.pause();
+        });
+        if (best && currentVideo !== best) {
+          if (currentVideo) currentVideo.pause();
+          currentVideo = best;
+          currentVideo.play().catch(() => {});
+        }
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+      function observeVideo(vid) {
+        if (!videos.has(vid)) {
+          videos.add(vid);
+          ioObserver.observe(vid);
+          vid.pause();
+        }
+      }
+
+      /* ---------- Init posts existants ---------- */
+      document.querySelectorAll('.post').forEach(post => {
+        bindLikes(post);
+        bindCommentForm(post);
+        bindFollowButtons(post);
+        post.querySelectorAll('video').forEach(observeVideo);
+      });
+      document.querySelectorAll('.post img').forEach(img => {
+        img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+      });
+
+      /* ---------- Socket.IO ---------- */
+      socket.on('like_updated', data => {
+        const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+        if (post) {
+          const countEl = post.querySelector('.like-count');
+          if (countEl) countEl.textContent = data.likes;
+          const btn = post.querySelector('.like-btn');
+          if (btn) btn.classList.toggle('liked', data.liked);
+          const icon = btn.querySelector('i');
+          icon.classList.toggle('fa-solid', data.liked);
+          icon.classList.toggle('fa-regular', !data.liked);
+        }
+      });
+
+      socket.on('new_comment', data => {
+        updateComments(data.post_id, data.username, data.content);
+      });
+
+      /* ---------- Nouveau post badge Accueil ---------- */
+      socket.on('new_post', postHtml => {
+        newPostsCount++;
+        homeBadge.style.display = 'inline';
+        homeBadge.textContent = newPostsCount;
+      });
+
+      /* ---------- Gestion badges messages et notifications ---------- */
+      let unreadCount = 0;
+      const updateUnreadBadge = () => {
+        const badge = document.getElementById('unread-count');
+        if (!badge) return;
+        if (unreadCount > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = unreadCount;
+        } else {
+          badge.style.display = 'none';
+        }
+      };
+
+      socket.on('new_message', (message) => {
+        const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+        if (!currentChatUser || currentChatUser !== message.sender) {
+          unreadCount++;
+          updateUnreadBadge();
+        }
+      });
+
+      window.addEventListener('load', () => {
+        if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+          unreadCount = 0;
+          updateUnreadBadge();
+        }
+      });
+
+      let notifCount = 0;
+      const updateNotifBadge = () => {
+        const badge = document.getElementById('notifications-count');
+        if (!badge) return;
+        if (notifCount > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = notifCount;
+        } else {
+          badge.style.display = 'none';
+        }
+      };
+
+      socket.on('new_notification', (notification) => {
+        notifCount++;
+        updateNotifBadge();
+      });
+
+      window.addEventListener('load', () => {
+        if (window.location.pathname.includes('/notifications')) {
+          notifCount = 0;
+          updateNotifBadge();
+        }
+      });
+
+      /* ---------- Carousel Initialization ---------- */
+      function initCarousel(post) {
+        const track = post.querySelector('.carousel-track');
+        const dots = post.querySelectorAll('.carousel-indicators .dot');
+        if (!track || dots.length === 0) return;
+
+        // Ensure track children have explicit width
+        Array.from(track.children).forEach(child => {
+          child.style.width = '100%';
+          child.style.flex = '0 0 100%';
+        });
+
+        // Enable smooth horizontal scrolling
+        track.style.overflowX = 'auto';
+        track.style.scrollSnapType = 'x mandatory';
+
+        // Update dots on scroll
+        track.addEventListener('scroll', () => {
+          const index = Math.round(track.scrollLeft / track.offsetWidth);
+          dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+        });
+
+        // Add click event to dots for navigation
+        dots.forEach((dot, index) => {
+          dot.addEventListener('click', () => {
+            track.scrollTo({
+              left: index * track.offsetWidth,
+              behavior: 'smooth'
+            });
+          });
+        });
+      }
+
+      // Initialize carousels for existing posts
+      document.querySelectorAll('.post').forEach(post => initCarousel(post));
     });
-  }
-
-  function updateComments(postId, username, content) {
-    const post = document.querySelector(`.post[data-post-id="${postId}"]`);
-    if (!post) return;
-    let countEl = post.querySelector('.comment-count');
-    countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-    let list = post.querySelector('.comments-list');
-    if (!list) {
-      list = document.createElement('ul');
-      list.className = 'comments-list';
-      post.appendChild(list);
-    }
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${username}</strong>: ${content}`;
-    list.appendChild(li);
-  }
-
- 
- /* ---------- Video autoplay ---------- */
-  const ioObserver = new IntersectionObserver((entries) => {
-    let best = null;
-    entries.forEach(entry => {
-      const vid = entry.target;
-      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-      if (visible && !best) best = vid;
-      if (!visible && !vid.paused) vid.pause();
-    });
-    if(best && currentVideo !== best) {
-      if(currentVideo) currentVideo.pause();
-      currentVideo = best;
-      currentVideo.play().catch(()=>{});
-    }
-  }, { threshold: [0,0.25,0.5,0.75,1] });
-
-  function observeVideo(vid) {
-    if(!videos.has(vid)) {
-      videos.add(vid);
-      ioObserver.observe(vid);
-      vid.pause();
-    }
-  }
-
-  /* ---------- Init posts existants ---------- */
-  document.querySelectorAll('.post').forEach(post => {
-    bindLikes(post);
-    bindCommentForm(post);
-    bindFollowButtons(post);
-    post.querySelectorAll('video').forEach(observeVideo);
-  });
-  document.querySelectorAll('.post img').forEach(img => {
-    img.addEventListener('click', () => { if(currentVideo) currentVideo.pause(); });
-  });
-
-  /* ---------- Socket.IO ---------- */
-  socket.on('like_updated', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if(post) {
-      const countEl = post.querySelector('.like-count');
-      if(countEl) countEl.textContent = data.likes;
-      const btn = post.querySelector('.like-btn');
-      if(btn) btn.classList.toggle('liked', data.liked);
-      const icon = btn.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
-    }
-  });
-
-  socket.on('new_comment', data => {
-    updateComments(data.post_id, data.username, data.content);
-  });
-
-  /* ---------- Nouveau post badge Accueil ---------- */
-  socket.on('new_post', postHtml => {
-    newPostsCount++;
-    homeBadge.style.display = 'inline';
-    homeBadge.textContent = newPostsCount;
-  });
-
-  /* ---------- Gestion badges messages et notifications ---------- */
-  let unreadCount = 0;
-  const updateUnreadBadge = () => {
-    const badge = document.getElementById('unread-count');
-    if (!badge) return;
-    if (unreadCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = unreadCount;
-    } else {
-      badge.style.display = 'none';
-    }
-  };
-
-  socket.on('new_message', (message) => {
-    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-    if (!currentChatUser || currentChatUser !== message.sender) {
-      unreadCount++;
-      updateUnreadBadge();
-    }
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-      unreadCount = 0;
-      updateUnreadBadge();
-    }
-  });
-
-  let notifCount = 0;
-  const updateNotifBadge = () => {
-    const badge = document.getElementById('notifications-count');
-    if (!badge) return;
-    if (notifCount > 0) {
-      badge.style.display = 'inline';
-      badge.textContent = notifCount;
-    } else {
-      badge.style.display = 'none';
-    }
-  };
-
-  socket.on('new_notification', (notification) => {
-    notifCount++;
-    updateNotifBadge();
-  });
-
-  window.addEventListener('load', () => {
-    if (window.location.pathname.includes('/notifications')) {
-      notifCount = 0;
-      updateNotifBadge();
-    }
-  });
-
-function initCarousel(post) {
-  const track = post.querySelector('.carousel-track');
-  const dots = post.querySelectorAll('.carousel-indicators .dot');
-  if (!track || dots.length === 0) return;
-
-  // Attendre que toutes les images/vidéos du track soient chargées
-  const media = Array.from(track.querySelectorAll('img, video'));
-  let loadedCount = 0;
-  media.forEach(item => {
-    if(item.complete || item.readyState >= 3) loadedCount++;
-    else item.addEventListener('load', () => {
-      loadedCount++;
-      if(loadedCount === media.length) setupCarousel();
-    });
-  });
-  if(loadedCount === media.length) setupCarousel();
-
-  function setupCarousel() {
-    // Forcer largeur des éléments
-    media.forEach(child => child.style.flex = '0 0 100%');
-
-    // Scroll horizontal
-    track.style.overflowX = 'auto';
-    track.style.scrollSnapType = 'x mandatory';
-    track.addEventListener('scroll', () => {
-      const index = Math.round(track.scrollLeft / track.clientWidth);
-      dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
-    });
-  }
-}
-
-
-
-
-});
-</script>
-
+  </script>
 </body>
 </html>
