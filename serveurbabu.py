@@ -258,6 +258,7 @@ def add_post():
         media_files = request.files.getlist("media")  # ⚡ plusieurs fichiers
         filenames = []
         media_types = []
+        files_data = []  # liste de dictionnaires {name, type}
 
         for media_file in media_files:
             if media_file and media_file.filename:
@@ -272,30 +273,22 @@ def add_post():
                 else:
                     media_type = "other"
 
-                filenames.append(filename)
-                media_types.append(media_type)
+                files_data.append({"name": filename, "type": media_type})
 
-        posts = load_posts()
-        new_post = {
-            "id": len(posts) + 1,
-            "username": session["username"],
-            "avatar": session.get("avatar"),
-            "types": media_types,     # ⚡ liste des types
-            "files": filenames,       # ⚡ liste des fichiers
-            "description": content,
-            "likes": 0,
-            "liked_by": [],
-            "comments": [],
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        posts.insert(0, new_post)
-        save_posts(posts)
+new_post = {
+    "id": len(posts) + 1,
+    "username": session["username"],
+    "avatar": session.get("avatar"),
+    "files": files_data,   # ⚡ liste de dicts avec name + type
+    "description": content,
+    "likes": 0,
+    "liked_by": [],
+    "comments": [],
+    "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+}
 
-        # pas besoin de partials/post.html → on redirige
-        return redirect(url_for("index"))
-
-    return render_template("new_post.html")
-
+        
+        
 
 
 
