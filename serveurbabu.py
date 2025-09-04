@@ -275,16 +275,16 @@ def add_post():
 
                 files_data.append({"name": filename, "type": media_type})
 
-new_post = {
-    "id": len(posts) + 1,
-    "username": session["username"],
-    "avatar": session.get("avatar"),
-    "files": files_data,   # ⚡ liste de dicts avec name + type
-    "description": content,
-    "likes": 0,
-    "liked_by": [],
-    "comments": [],
-    "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_post = {
+         "id": len(posts) + 1,
+         "username": session["username"],
+         "avatar": session.get("avatar"),
+         "files": files_data,   # ⚡ liste de dicts avec name + type
+         "description": content,
+         "likes": 0,
+         "liked_by": [],
+         "comments": [],
+         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 }
 
         
