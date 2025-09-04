@@ -559,29 +559,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-
 function initCarousel(post) {
   const track = post.querySelector('.carousel-track');
   const dots = post.querySelectorAll('.carousel-indicators .dot');
   if (!track || dots.length === 0) return;
 
-  // Forcer largeur des éléments
-  Array.from(track.children).forEach(child => child.style.flex = '0 0 100%');
-
-  // Scroll horizontal
-  track.style.overflowX = 'auto';
-  track.style.scrollSnapType = 'x mandatory';
-
-  track.addEventListener('scroll', () => {
-    const index = Math.round(track.scrollLeft / track.clientWidth);
-    dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+  // Attendre que toutes les images/vidéos du track soient chargées
+  const media = Array.from(track.querySelectorAll('img, video'));
+  let loadedCount = 0;
+  media.forEach(item => {
+    if(item.complete || item.readyState >= 3) loadedCount++;
+    else item.addEventListener('load', () => {
+      loadedCount++;
+      if(loadedCount === media.length) setupCarousel();
+    });
   });
+  if(loadedCount === media.length) setupCarousel();
+
+  function setupCarousel() {
+    // Forcer largeur des éléments
+    media.forEach(child => child.style.flex = '0 0 100%');
+
+    // Scroll horizontal
+    track.style.overflowX = 'auto';
+    track.style.scrollSnapType = 'x mandatory';
+    track.addEventListener('scroll', () => {
+      const index = Math.round(track.scrollLeft / track.clientWidth);
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+    });
+  }
 }
 
-// Initialiser carousels existants
-document.querySelectorAll('.post').forEach(post => initCarousel(post));
 
 
 
 });
 </script>
+
+</body>
+</html>
