@@ -136,8 +136,11 @@
     .username-link:hover { 
       color: #0077ff;
     }
+    .description-container {
+      position: relative;
+      padding: 12px 16px;
+    }
     .description { 
-      padding: 12px 16px; 
       font-size: 1rem; 
       line-height: 1.5; 
       color: #333;
@@ -145,6 +148,28 @@
       overflow-wrap: break-word;
       max-width: 100%;
       box-sizing: border-box;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      transition: -webkit-line-clamp 0.3s ease;
+    }
+    .description.clamped {
+      -webkit-line-clamp: 2;
+    }
+    .description.expanded {
+      -webkit-line-clamp: unset;
+    }
+    .see-more {
+      display: none;
+      color: #0077ff;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: color 0.3s ease;
+    }
+    .see-more:hover {
+      color: #0055cc;
     }
 
     /* ---------- MEDIA ---------- */
@@ -155,6 +180,35 @@
       display: block;
       border-radius: 0 0 16px 16px;
       background: #000;
+      position: relative;
+    }
+    .video-controls {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 10;
+    }
+    .mute-btn {
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .mute-btn i {
+      color: #fff;
+      font-size: 1.2rem;
+    }
+    .mute-btn.muted i.fa-volume-high::before {
+      content: "\f6a9"; /* fa-volume-mute */
+    }
+    .mute-btn:hover {
+      background: rgba(0, 0, 0, 0.7);
     }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
@@ -317,6 +371,13 @@
       .main-header { 
         padding: 15px; 
       }
+      .mute-btn {
+        width: 28px;
+        height: 28px;
+      }
+      .mute-btn i {
+        font-size: 1rem;
+      }
     }
 
     /* ---------- BOUTON ACCUEIL ---------- */
@@ -367,12 +428,22 @@
             <p class="username">{{ post.username }}</p>
           </a>
         </div>
-        <p class="description">{{ post.description }}</p>
+        <div class="description-container">
+          <p class="description">{{ post.description }}</p>
+          <span class="see-more">Afficher plus</span>
+        </div>
         {# ---- Single file ---- #}
         {% if post.type == "image" and not post.files %}
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
-        <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay muted loop playsinline class="post-video"></video>
+        <div class="video-wrapper">
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay muted loop playsinline class="post-video"></video>
+          <div class="video-controls">
+            <button class="mute-btn muted">
+              <i class="fas fa-volume-high"></i>
+            </button>
+          </div>
+        </div>
         {% endif %}
 
         {# ---- Multiple files (carousel) ---- #}
@@ -383,7 +454,14 @@
             {% if file.type == "image" %}
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
-            <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay muted loop playsinline class="post-video"></video>
+            <div class="video-wrapper">
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay muted loop playsinline class="post-video"></video>
+              <div class="video-controls">
+                <button class="mute-btn muted">
+                  <i class="fas fa-volume-high"></i>
+                </button>
+              </div>
+            </div>
             {% endif %}
             {% endfor %}
           </div>
@@ -446,6 +524,55 @@
         homeBadge.textContent = '';
         location.reload();
       });
+
+      /* ---------- See More Functionality ---------- */
+      function initSeeMore(post) {
+        const descriptionContainer = post.querySelector('.description-container');
+        const description = descriptionContainer.querySelector('.description');
+        const seeMore = descriptionContainer.querySelector('.see-more');
+        
+        function checkOverflow() {
+          const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
+          const maxHeight = lineHeight * 2;
+          if (description.scrollHeight > maxHeight) {
+            description.classList.add('clamped');
+            seeMore.style.display = 'block';
+          } else {
+            description.classList.remove('clamped');
+            seeMore.style.display = 'none';
+          }
+        }
+
+        checkOverflow();
+
+        seeMore.addEventListener('click', () => {
+          if (description.classList.contains('clamped')) {
+            description.classList.remove('clamped');
+            description.classList.add('expanded');
+            seeMore.textContent = 'Afficher moins';
+          } else {
+            description.classList.remove('expanded');
+            description.classList.add('clamped');
+            seeMore.textContent = 'Afficher plus';
+          }
+        });
+
+        window.addEventListener('resize', checkOverflow);
+      }
+
+      /* ---------- Video Mute/Unmute Functionality ---------- */
+      function initVideoControls(post) {
+        post.querySelectorAll('.video-wrapper').forEach(wrapper => {
+          const video = wrapper.querySelector('video');
+          const muteBtn = wrapper.querySelector('.mute-btn');
+          if (video && muteBtn) {
+            muteBtn.addEventListener('click', () => {
+              video.muted = !video.muted;
+              muteBtn.classList.toggle('muted', video.muted);
+            });
+          }
+        });
+      }
 
       async function toggleLike(button) {
         const post = button.closest('.post');
@@ -588,6 +715,9 @@
           if (currentVideo) currentVideo.pause();
           currentVideo = best;
           currentVideo.play().catch(() => {});
+        } else if (!best && currentVideo) {
+          currentVideo.pause();
+          currentVideo = null;
         }
       }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
 
@@ -604,6 +734,8 @@
         bindCommentForm(post);
         bindFollowButtons(post);
         post.querySelectorAll('video').forEach(observeVideo);
+        initSeeMore(post);
+        initVideoControls(post);
       });
       document.querySelectorAll('.post img').forEach(img => {
         img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
@@ -627,7 +759,6 @@
         updateComments(data.post_id, data.username, data.content);
       });
 
-      /* ---------- Nouveau post badge Accueil ---------- */
       socket.on('new_post', postHtml => {
         newPostsCount++;
         homeBadge.style.display = 'inline';
@@ -713,6 +844,9 @@
             });
           });
         });
+
+        post.querySelectorAll('.carousel-track video').forEach(observeVideo);
+        initVideoControls(post);
       }
 
       document.querySelectorAll('.post').forEach(post => initCarousel(post));
