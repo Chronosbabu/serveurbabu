@@ -485,9 +485,9 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline muted class="post-video"></video>
           <div class="video-controls">
-            <button class="mute-btn">
+            <button class="mute-btn muted">
               <i class="fas fa-volume-high"></i>
             </button>
           </div>
@@ -508,9 +508,9 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline muted class="post-video"></video>
               <div class="video-controls">
-                <button class="mute-btn">
+                <button class="mute-btn muted">
                   <i class="fas fa-volume-high"></i>
                 </button>
               </div>
@@ -630,17 +630,15 @@
 
           if (video) {
             let hideTimeout;
-            wrapper.addEventListener('click', (e) => {
-              if (e.target === video) {
-                if (seekControls.classList.contains('show')) {
+            video.addEventListener('click', () => {
+              if (seekControls.classList.contains('show')) {
+                seekControls.classList.remove('show');
+              } else {
+                seekControls.classList.add('show');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
                   seekControls.classList.remove('show');
-                } else {
-                  seekControls.classList.add('show');
-                  clearTimeout(hideTimeout);
-                  hideTimeout = setTimeout(() => {
-                    seekControls.classList.remove('show');
-                  }, 3000);
-                }
+                }, 3000);
               }
             });
 
