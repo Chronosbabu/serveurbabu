@@ -254,13 +254,29 @@
         {% if post.files|length > 0 %}
         <div class="carousel">
           <div class="carousel-track">
-            {% for file in post.files %}
-            {% if file.type == "image" %}
-            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
-            {% elif file.type == "video" %}
-            <video src="{{ url_for('uploaded_file', filename=file.name) }}" controls muted class="post-video"></video>
-            {% endif %}
-            {% endfor %}
+
+
+              {% if post.files and post.files|length > 0 %}
+<div class="carousel">
+  <div class="carousel-track">
+    {% for file in post.files %}
+      {% if file.type == "image" %}
+        <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
+      {% elif file.type == "video" %}
+        <video src="{{ url_for('uploaded_file', filename=file.name) }}" controls muted class="post-video"></video>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="carousel-indicators">
+    {% for file in post.files %}
+    <span class="dot{% if loop.first %} active{% endif %}"></span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
+
           </div>
           <div class="carousel-indicators">
             {% for file in post.files %}
