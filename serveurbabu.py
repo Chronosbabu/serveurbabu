@@ -248,6 +248,9 @@ def follow_user(username):
 # Pour conserver la réponse concise, je garde cette partie inchangée.
 # Tu peux réutiliser le code que tu avais pour ces routes exactement comme avant.
 
+
+
+        
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
     if "username" not in session:
@@ -256,8 +259,6 @@ def add_post():
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
         media_files = request.files.getlist("media")  # ⚡ plusieurs fichiers
-        filenames = []
-        media_types = []
         files_data = []  # liste de dictionnaires {name, type}
 
         for media_file in media_files:
@@ -275,22 +276,25 @@ def add_post():
 
                 files_data.append({"name": filename, "type": media_type})
 
+        posts = load_posts()
         new_post = {
-         "id": len(posts) + 1,
-         "username": session["username"],
-         "avatar": session.get("avatar"),
-         "files": files_data,   # ⚡ liste de dicts avec name + type
-         "description": content,
-         "likes": 0,
-         "liked_by": [],
-         "comments": [],
-         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-       
-     return render_template("new_post.html")
+            "id": len(posts) + 1,
+            "username": session["username"],
+            "avatar": session.get("avatar"),
+            "files": files_data,   # ⚡ liste de dicts avec name + type
+            "description": content,
+            "likes": 0,
+            "liked_by": [],
+            "comments": [],
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        posts.insert(0, new_post)
+        save_posts(posts)
 
-}
+        return redirect(url_for("index"))
 
-        
+    # ⚡ important : garder un retour GET
+    return render_template("new_post.html")
         
 
 
