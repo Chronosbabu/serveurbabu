@@ -182,6 +182,9 @@
       background: #000;
       position: relative;
     }
+    .video-wrapper {
+      position: relative;
+    }
     .video-controls {
       position: absolute;
       bottom: 12px;
@@ -205,10 +208,48 @@
       font-size: 1.2rem;
     }
     .mute-btn.muted i.fa-volume-high::before {
-      content: "\f6a9"; /* fa-volume-mute */
+      content: "\f6a9"; /* fa-volume-xmark */
     }
     .mute-btn:hover {
       background: rgba(0, 0, 0, 0.7);
+    }
+    .seek-controls {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      transform: translateY(-50%);
+      display: none;
+      justify-content: space-around;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+    .seek-controls.show {
+      display: flex;
+      opacity: 1;
+    }
+    .seek-btn, .play-pause-btn {
+      background: rgba(255, 255, 255, 0.8);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .seek-btn:hover, .play-pause-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: scale(1.1);
+    }
+    .seek-btn i, .play-pause-btn i {
+      color: #0077ff;
+      font-size: 1.5rem;
     }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
@@ -378,6 +419,13 @@
       .mute-btn i {
         font-size: 1rem;
       }
+      .seek-btn, .play-pause-btn {
+        width: 40px;
+        height: 40px;
+      }
+      .seek-btn i, .play-pause-btn i {
+        font-size: 1.2rem;
+      }
     }
 
     /* ---------- BOUTON ACCUEIL ---------- */
@@ -443,6 +491,11 @@
               <i class="fas fa-volume-high"></i>
             </button>
           </div>
+          <div class="seek-controls">
+            <button class="seek-btn backward"><i class="fas fa-backward"></i></button>
+            <button class="play-pause-btn"><i class="fas fa-pause"></i></button>
+            <button class="seek-btn forward"><i class="fas fa-forward"></i></button>
+          </div>
         </div>
         {% endif %}
 
@@ -460,6 +513,11 @@
                 <button class="mute-btn muted">
                   <i class="fas fa-volume-high"></i>
                 </button>
+              </div>
+              <div class="seek-controls">
+                <button class="seek-btn backward"><i class="fas fa-backward"></i></button>
+                <button class="play-pause-btn"><i class="fas fa-pause"></i></button>
+                <button class="seek-btn forward"><i class="fas fa-forward"></i></button>
               </div>
             </div>
             {% endif %}
@@ -560,11 +618,62 @@
         window.addEventListener('resize', checkOverflow);
       }
 
-      /* ---------- Video Mute/Unmute Functionality ---------- */
+      /* ---------- Video Controls Functionality ---------- */
       function initVideoControls(post) {
         post.querySelectorAll('.video-wrapper').forEach(wrapper => {
           const video = wrapper.querySelector('video');
           const muteBtn = wrapper.querySelector('.mute-btn');
+          const seekControls = wrapper.querySelector('.seek-controls');
+          const backward = wrapper.querySelector('.backward');
+          const playPause = wrapper.querySelector('.play-pause-btn');
+          const forward = wrapper.querySelector('.forward');
+
+          if (video) {
+            let hideTimeout;
+            video.addEventListener('click', () => {
+              if (seekControls.classList.contains('show')) {
+                seekControls.classList.remove('show');
+              } else {
+                seekControls.classList.add('show');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                  seekControls.classList.remove('show');
+                }, 3000);
+              }
+            });
+
+            if (backward) {
+              backward.addEventListener('click', () => {
+                video.currentTime = Math.max(0, video.currentTime - 10);
+              });
+            }
+
+            if (forward) {
+              forward.addEventListener('click', () => {
+                video.currentTime = Math.min(video.duration, video.currentTime + 10);
+              });
+            }
+
+            if (playPause) {
+              playPause.addEventListener('click', () => {
+                if (video.paused) {
+                  video.play();
+                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
+                } else {
+                  video.pause();
+                  playPause.innerHTML = '<i class="fas fa-play"></i>';
+                }
+              });
+            }
+
+            video.addEventListener('play', () => {
+              playPause.innerHTML = '<i class="fas fa-pause"></i>';
+            });
+            video.addEventListener('pause', () => {
+              playPause.innerHTML = '<i class="fas fa-play"></i>';
+            });
+          }
+
           if (video && muteBtn) {
             muteBtn.addEventListener('click', () => {
               video.muted = !video.muted;
