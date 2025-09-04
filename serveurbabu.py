@@ -285,6 +285,9 @@ def add_post():
          "liked_by": [],
          "comments": [],
          "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+       
+     return render_template("new_post.html")
+
 }
 
         
