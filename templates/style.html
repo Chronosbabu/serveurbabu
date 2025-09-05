@@ -190,13 +190,15 @@
       bottom: 12px;
       right: 12px;
       z-index: 10;
+      display: flex;
+      gap: 8px;
     }
     .mute-btn {
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.7);
       border: none;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -205,33 +207,32 @@
     }
     .mute-btn i {
       color: #fff;
-      font-size: 1.2rem;
-    }
-    .mute-btn.muted i {
-      content: "\f6a9"; /* fa-volume-xmark */
+      font-size: 1.4rem;
     }
     .mute-btn:hover {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.9);
     }
     .seek-controls {
       position: absolute;
-      top: 50%;
-      left: 0;
-      width: 100%;
-      transform: translateY(-50%);
-      display: none;
-      justify-content: space-around;
-      align-items: center;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      z-index: 10;
-    }
-    .seek-controls.show {
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px;
+      border-radius: 24px;
+      z-index: 10;
       opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    .seek-controls.hidden {
+      opacity: 0;
     }
     .seek-btn, .play-pause-btn {
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.9);
       border: none;
       border-radius: 50%;
       width: 50px;
@@ -413,11 +414,11 @@
         padding: 15px; 
       }
       .mute-btn {
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
       }
       .mute-btn i {
-        font-size: 1rem;
+        font-size: 1.2rem;
       }
       .seek-btn, .play-pause-btn {
         width: 40px;
@@ -485,20 +486,19 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline muted class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline class="post-video"></video>
           <div class="video-controls">
-            <button class="mute-btn muted">
-              <i class="fas fa-volume-xmark"></i>
+            <button class="mute-btn">
+              <i class="fas fa-volume-high"></i>
             </button>
           </div>
           <div class="seek-controls">
             <button class="seek-btn backward"><i class="fas fa-backward"></i></button>
-            <button class="play-pause-btn"><i class="fas fa-pause"></i></button>
+            <button class="play-pause-btn"><i class="fas fa-play"></i></button>
             <button class="seek-btn forward"><i class="fas fa-forward"></i></button>
           </div>
         </div>
         {% endif %}
-
         {# ---- Multiple files (carousel) ---- #}
         {% if post.files|length > 0 %}
         <div class="carousel">
@@ -508,15 +508,15 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline muted class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline class="post-video"></video>
               <div class="video-controls">
-                <button class="mute-btn muted">
-                  <i class="fas fa-volume-xmark"></i>
+                <button class="mute-btn">
+                  <i class="fas fa-volume-high"></i>
                 </button>
               </div>
               <div class="seek-controls">
                 <button class="seek-btn backward"><i class="fas fa-backward"></i></button>
-                <button class="play-pause-btn"><i class="fas fa-pause"></i></button>
+                <button class="play-pause-btn"><i class="fas fa-play"></i></button>
                 <button class="seek-btn forward"><i class="fas fa-forward"></i></button>
               </div>
             </div>
@@ -530,7 +530,6 @@
           </div>
         </div>
         {% endif %}
-
         <div class="post-actions">
           <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
@@ -556,169 +555,423 @@
       {% endfor %}
     </main>
   </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentUsername = document.body.dataset.username;
+      const postsContainer = document.getElementById('posts');
+      const videos = new Set();
+      let currentVideo = null;
+      const socket = io();
 
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const currentUsername = document.body.dataset.username;
-  const socket = io();
-  const videos = new Set();
-  let currentVideo = null;
+      const homeBtn = document.getElementById('home-btn');
+      const homeBadge = document.createElement('span');
+      homeBadge.className = 'message-badge';
+      homeBadge.style.display = 'none';
+      homeBtn.appendChild(homeBadge);
+      let newPostsCount = 0;
 
-  /* -------- Home Button -------- */
-  const homeBtn = document.getElementById('home-btn');
-  const homeBadge = document.createElement('span');
-  homeBadge.className = 'message-badge';
-  homeBadge.style.display = 'none';
-  homeBtn.appendChild(homeBadge);
-  let newPostsCount = 0;
+      window.addEventListener('load', () => window.scrollTo(0, 0));
 
-  homeBtn.addEventListener('click', e => {
-    e.preventDefault();
-    newPostsCount = 0;
-    homeBadge.style.display = 'none';
-    homeBadge.textContent = '';
-    location.reload();
-  });
+      homeBtn.addEventListener('click', e => {
+        e.preventDefault();
+        newPostsCount = 0;
+        homeBadge.style.display = 'none';
+        homeBadge.textContent = '';
+        location.reload();
+      });
 
-  /* -------- Video Controls -------- */
-  function initVideoControls(post) {
-    post.querySelectorAll('.video-wrapper').forEach(wrapper => {
-      const video = wrapper.querySelector('video');
-      const muteBtn = wrapper.querySelector('.mute-btn');
-      const seekControls = wrapper.querySelector('.seek-controls');
-      const backward = wrapper.querySelector('.backward');
-      const playPause = wrapper.querySelector('.play-pause-btn');
-      const forward = wrapper.querySelector('.forward');
-
-      if (!video) return;
-
-      let hideTimeout;
-      wrapper.addEventListener('click', (e) => {
-        if (!e.target.closest('.video-controls, .seek-controls')) {
-          if (seekControls.classList.contains('show')) {
-            seekControls.classList.remove('show');
+      /* ---------- See More Functionality ---------- */
+      function initSeeMore(post) {
+        const descriptionContainer = post.querySelector('.description-container');
+        const description = descriptionContainer.querySelector('.description');
+        const seeMore = descriptionContainer.querySelector('.see-more');
+        
+        function checkOverflow() {
+          const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
+          const maxHeight = lineHeight * 2;
+          if (description.scrollHeight > maxHeight) {
+            description.classList.add('clamped');
+            seeMore.style.display = 'block';
           } else {
-            seekControls.classList.add('show');
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(() => seekControls.classList.remove('show'), 3000);
+            description.classList.remove('clamped');
+            seeMore.style.display = 'none';
           }
         }
-      });
 
-      if (backward) backward.addEventListener('click', e => {
-        e.stopPropagation();
-        video.currentTime = Math.max(0, video.currentTime - 10);
-      });
+        checkOverflow();
 
-      if (forward) forward.addEventListener('click', e => {
-        e.stopPropagation();
-        video.currentTime = Math.min(video.duration, video.currentTime + 10);
-      });
-
-      if (playPause) playPause.addEventListener('click', e => {
-        e.stopPropagation();
-        if (video.paused) {
-          video.play();
-          playPause.innerHTML = '<i class="fas fa-pause"></i>';
-        } else {
-          video.pause();
-          playPause.innerHTML = '<i class="fas fa-play"></i>';
-        }
-      });
-
-      video.addEventListener('play', () => playPause.innerHTML = '<i class="fas fa-pause"></i>');
-      video.addEventListener('pause', () => playPause.innerHTML = '<i class="fas fa-play"></i>');
-
-      if (muteBtn) {
-        muteBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          video.muted = !video.muted;
-          const icon = muteBtn.querySelector('i');
-          if (video.muted) {
-            icon.classList.remove('fa-volume-high');
-            icon.classList.add('fa-volume-xmark');
+        seeMore.addEventListener('click', () => {
+          if (description.classList.contains('clamped')) {
+            description.classList.remove('clamped');
+            description.classList.add('expanded');
+            seeMore.textContent = 'Afficher moins';
           } else {
-            icon.classList.remove('fa-volume-xmark');
-            icon.classList.add('fa-volume-high');
+            description.classList.remove('expanded');
+            description.classList.add('clamped');
+            seeMore.textContent = 'Afficher plus';
+          }
+        });
+
+        window.addEventListener('resize', checkOverflow);
+      }
+
+      /* ---------- Video Controls Functionality ---------- */
+      function initVideoControls(post) {
+        post.querySelectorAll('.video-wrapper').forEach(wrapper => {
+          const video = wrapper.querySelector('video');
+          const muteBtn = wrapper.querySelector('.mute-btn');
+          const seekControls = wrapper.querySelector('.seek-controls');
+          const backward = wrapper.querySelector('.seek-btn.backward');
+          const playPause = wrapper.querySelector('.play-pause-btn');
+          const forward = wrapper.querySelector('.seek-btn.forward');
+
+          if (video) {
+            // Remove autoplay and loop to give user control
+            video.removeAttribute('autoplay');
+            video.removeAttribute('loop');
+            video.muted = false; // Start unmuted
+
+            // Show controls on hover or tap
+            let hideTimeout;
+            wrapper.addEventListener('mouseenter', () => {
+              seekControls.classList.remove('hidden');
+              clearTimeout(hideTimeout);
+            });
+            wrapper.addEventListener('mouseleave', () => {
+              hideTimeout = setTimeout(() => {
+                seekControls.classList.add('hidden');
+              }, 3000);
+            });
+            wrapper.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              seekControls.classList.toggle('hidden');
+              clearTimeout(hideTimeout);
+              hideTimeout = setTimeout(() => {
+                seekControls.classList.add('hidden');
+              }, 3000);
+            });
+
+            // Play/Pause
+            playPause.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (video.paused) {
+                video.play();
+                playPause.innerHTML = '<i class="fas fa-pause"></i>';
+              } else {
+                video.pause();
+                playPause.innerHTML = '<i class="fas fa-play"></i>';
+              }
+            });
+
+            // Seek Backward
+            backward.addEventListener('click', (e) => {
+              e.stopPropagation();
+              video.currentTime = Math.max(0, video.currentTime - 10);
+            });
+
+            // Seek Forward
+            forward.addEventListener('click', (e) => {
+              e.stopPropagation();
+              video.currentTime = Math.min(video.duration, video.currentTime + 10);
+            });
+
+            // Mute/Unmute
+            muteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              video.muted = !video.muted;
+              muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
+            });
+
+            // Update play/pause button on video events
+            video.addEventListener('play', () => {
+              playPause.innerHTML = '<i class="fas fa-pause"></i>';
+            });
+            video.addEventListener('pause', () => {
+              playPause.innerHTML = '<i class="fas fa-play"></i>';
+            });
           }
         });
       }
-    });
-  }
 
-  /* -------- Autoplay selon visibilité -------- */
-  const ioObserver = new IntersectionObserver(entries => {
-    let best = null;
-    entries.forEach(entry => {
-      const vid = entry.target;
-      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-      if (visible && !best) best = vid;
-      if (!visible && !vid.paused) vid.pause();
-    });
-    if (best && currentVideo !== best) {
-      if (currentVideo) currentVideo.pause();
-      currentVideo = best;
-      currentVideo.play().catch(() => {});
-    } else if (!best && currentVideo) {
-      currentVideo.pause();
-      currentVideo = null;
-    }
-  }, { threshold: [0.25, 0.6, 1] });
+      async function toggleLike(button) {
+        const post = button.closest('.post');
+        const postId = post.dataset.postId;
+        const countEl = post.querySelector('.like-count');
+        try {
+          const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
+          if (!res.ok) return;
+          const data = await res.json();
+          countEl.textContent = data.likes;
+          button.classList.toggle('liked', data.liked);
+          const icon = button.querySelector('i');
+          icon.classList.toggle('fa-solid', data.liked);
+          icon.classList.toggle('fa-regular', !data.liked);
+          socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
+        } catch (err) { console.error(err); }
+      }
 
-  function observeVideo(vid) {
-    if (!videos.has(vid)) {
-      videos.add(vid);
-      ioObserver.observe(vid);
-    }
-  }
+      function bindLikes(post) {
+        const btn = post.querySelector('.like-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => toggleLike(btn));
+        const icon = btn.querySelector('i');
+        const isLiked = btn.classList.contains('liked');
+        icon.classList.toggle('fa-solid', isLiked);
+        icon.classList.toggle('fa-regular', !isLiked);
+      }
 
-  /* -------- Carrousel -------- */
-  function initCarousel(post) {
-    const track = post.querySelector('.carousel-track');
-    const dots = post.querySelectorAll('.carousel-indicators .dot');
-    if (!track || dots.length === 0) return;
+      function bindCommentForm(post) {
+        const form = post.querySelector('.comment-form');
+        if (!form) return;
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          const input = form.querySelector('input[name="comment"]');
+          const content = input.value.trim();
+          if (!content) return;
+          const postId = post.dataset.postId;
+          socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
+          input.value = '';
+        });
+      }
 
-    Array.from(track.children).forEach(child => {
-      child.style.width = '100%';
-      child.style.flex = '0 0 100%';
-    });
+      function bindFollowButtons(post) {
+        const btn = post.querySelector('.follow-btn');
+        if (!btn) return;
+        const postUsername = post.querySelector('.username').textContent.trim();
 
-    track.style.overflowX = 'auto';
-    track.style.scrollSnapType = 'x mandatory';
+        function updateButton(button, isFollowing) {
+          if (isFollowing) {
+            button.dataset.following = "true";
+            button.classList.add('following');
+            button.innerHTML = 'Abonné ✔';
+            button.disabled = true;
+          } else {
+            button.dataset.following = "false";
+            button.classList.remove('following');
+            button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+            button.disabled = false;
+          }
+        }
 
-    track.addEventListener('scroll', () => {
-      const index = Math.round(track.scrollLeft / track.offsetWidth);
-      dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
-    });
+        if (!window.followingUsers) window.followingUsers = new Set();
+        if (window.followingUsers.has(postUsername)) updateButton(btn, true);
+        else updateButton(btn, btn.dataset.following === "true");
 
-    dots.forEach((dot, index) => {
-      dot.addEventListener('click', () => {
-        track.scrollTo({ left: index * track.offsetWidth, behavior: 'smooth' });
+        btn.addEventListener('click', async () => {
+          if (btn.dataset.following === "true") return;
+          try {
+            const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
+            if (!res.ok) throw new Error('Erreur serveur');
+            const data = await res.json();
+            if (data.following) {
+              window.followingUsers.add(postUsername);
+              document.querySelectorAll('.post').forEach(p => {
+                const usernameEl = p.querySelector('.username');
+                const followBtn = p.querySelector('.follow-btn');
+                if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+                  updateButton(followBtn, true);
+                }
+              });
+            } else {
+              window.followingUsers.delete(postUsername);
+              updateButton(btn, false);
+            }
+          } catch (e) {
+            console.error(e);
+            alert('Impossible de suivre pour le moment.');
+          }
+        });
+      }
+
+      function applyFollowStateToNewPosts(newPosts) {
+        newPosts.forEach(post => {
+          const usernameEl = post.querySelector('.username');
+          if (!usernameEl) return;
+          const postUsername = usernameEl.textContent.trim();
+          const followBtn = post.querySelector('.follow-btn');
+          if (!followBtn) return;
+          if (window.followingUsers && window.followingUsers.has(postUsername)) {
+            followBtn.dataset.following = "true";
+            followBtn.classList.add('following');
+            followBtn.innerHTML = 'Abonné ✔';
+            followBtn.disabled = true;
+          } else {
+            followBtn.dataset.following = "false";
+            followBtn.classList.remove('following');
+            followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+            followBtn.disabled = false;
+          }
+          bindFollowButtons(post);
+        });
+      }
+
+      function updateComments(postId, username, content) {
+        const post = document.querySelector(`.post[data-post-id="${postId}"]`);
+        if (!post) return;
+        let countEl = post.querySelector('.comment-count');
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+        let list = post.querySelector('.comments-list');
+        if (!list) {
+          list = document.createElement('ul');
+          list.className = 'comments-list';
+          post.appendChild(list);
+        }
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${username}</strong>: ${content}`;
+        list.appendChild(li);
+      }
+
+      /* ---------- Video autoplay ---------- */
+      const ioObserver = new IntersectionObserver((entries) => {
+        let best = null;
+        entries.forEach(entry => {
+          const vid = entry.target;
+          const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+          if (visible && !best) best = vid;
+          if (!visible && !vid.paused) vid.pause();
+        });
+        if (best && currentVideo !== best) {
+          if (currentVideo) currentVideo.pause();
+          currentVideo = best;
+          currentVideo.play().catch(() => {});
+        } else if (!best && currentVideo) {
+          currentVideo.pause();
+          currentVideo = null;
+        }
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+      function observeVideo(vid) {
+        if (!videos.has(vid)) {
+          videos.add(vid);
+          ioObserver.observe(vid);
+        }
+      }
+
+      /* ---------- Init posts existants ---------- */
+      document.querySelectorAll('.post').forEach(post => {
+        bindLikes(post);
+        bindCommentForm(post);
+        bindFollowButtons(post);
+        post.querySelectorAll('video').forEach(observeVideo);
+        initSeeMore(post);
+        initVideoControls(post);
       });
+      document.querySelectorAll('.post img').forEach(img => {
+        img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+      });
+
+      /* ---------- Socket.IO ---------- */
+      socket.on('like_updated', data => {
+        const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+        if (post) {
+          const countEl = post.querySelector('.like-count');
+          if (countEl) countEl.textContent = data.likes;
+          const btn = post.querySelector('.like-btn');
+          if (btn) btn.classList.toggle('liked', data.liked);
+          const icon = btn.querySelector('i');
+          icon.classList.toggle('fa-solid', data.liked);
+          icon.classList.toggle('fa-regular', !data.liked);
+        }
+      });
+
+      socket.on('new_comment', data => {
+        updateComments(data.post_id, data.username, data.content);
+      });
+
+      socket.on('new_post', postHtml => {
+        newPostsCount++;
+        homeBadge.style.display = 'inline';
+        homeBadge.textContent = newPostsCount;
+      });
+
+      /* ---------- Gestion badges messages et notifications ---------- */
+      let unreadCount = 0;
+      const updateUnreadBadge = () => {
+        const badge = document.getElementById('unread-count');
+        if (!badge) return;
+        if (unreadCount > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = unreadCount;
+        } else {
+          badge.style.display = 'none';
+        }
+      };
+
+      socket.on('new_message', (message) => {
+        const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+        if (!currentChatUser || currentChatUser !== message.sender) {
+          unreadCount++;
+          updateUnreadBadge();
+        }
+      });
+
+      window.addEventListener('load', () => {
+        if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+          unreadCount = 0;
+          updateUnreadBadge();
+        }
+      });
+
+      let notifCount = 0;
+      const updateNotifBadge = () => {
+        const badge = document.getElementById('notifications-count');
+        if (!badge) return;
+        if (notifCount > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = notifCount;
+        } else {
+          badge.style.display = 'none';
+        }
+      };
+
+      socket.on('new_notification', (notification) => {
+        notifCount++;
+        updateNotifBadge();
+      });
+
+      window.addEventListener('load', () => {
+        if (window.location.pathname.includes('/notifications')) {
+          notifCount = 0;
+          updateNotifBadge();
+        }
+      });
+
+      /* ---------- Carousel Initialization ---------- */
+      function initCarousel(post) {
+        const track = post.querySelector('.carousel-track');
+        const dots = post.querySelectorAll('.carousel-indicators .dot');
+        if (!track || dots.length === 0) return;
+
+        Array.from(track.children).forEach(child => {
+          child.style.width = '100%';
+          child.style.flex = '0 0 100%';
+        });
+
+        track.style.overflowX = 'auto';
+        track.style.scrollSnapType = 'x mandatory';
+
+        track.addEventListener('scroll', () => {
+          const index = Math.round(track.scrollLeft / track.offsetWidth);
+          dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+        });
+
+        dots.forEach((dot, index) => {
+          dot.addEventListener('click', () => {
+            track.scrollTo({
+              left: index * track.offsetWidth,
+              behavior: 'smooth'
+            });
+          });
+        });
+
+        post.querySelectorAll('.carousel-track video').forEach(observeVideo);
+        initVideoControls(post);
+      }
+
+      document.querySelectorAll('.post').forEach(post => initCarousel(post));
     });
-
-    post.querySelectorAll('.carousel-track video').forEach(observeVideo);
-    initVideoControls(post);
-  }
-
-  /* -------- Initialisation des posts -------- */
-  document.querySelectorAll('.post').forEach(post => {
-    post.querySelectorAll('video').forEach(observeVideo);
-    initVideoControls(post);
-    initCarousel(post);
-  });
-
-  /* -------- Socket.IO -------- */
-  socket.on('new_post', () => {
-    newPostsCount++;
-    homeBadge.style.display = 'inline';
-    homeBadge.textContent = newPostsCount;
-  });
-});
-</script>
-
-
-
+  </script>
 </body>
 </html>
