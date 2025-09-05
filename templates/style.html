@@ -226,6 +226,23 @@
       transition: opacity 0.3s ease;
       z-index: 10;
     }
+.seek-controls {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  transform: translateY(-50%);
+  display: none;              /* ⚡ par défaut caché */
+  justify-content: space-around;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+
+
+
     .seek-controls.show {
       display: flex;
       opacity: 1;
