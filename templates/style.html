@@ -15,6 +15,7 @@
       background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
       color: #1a1a1a;
       overscroll-behavior: none;
+      touch-action: auto;
     }
     a { 
       text-decoration: none; 
@@ -93,6 +94,7 @@
     /* ---------- POSTS ---------- */
     .scroll-box {
       padding: 20px 10px;
+      touch-action: auto;
     }
     .post {
       background: #fff;
@@ -184,12 +186,13 @@
     }
     .video-wrapper {
       position: relative;
+      touch-action: auto;
     }
     .video-controls {
       position: absolute;
       bottom: 12px;
       right: 12px;
-      z-index: 10;
+      z-index: 20;
       display: flex;
       gap: 8px;
     }
@@ -204,6 +207,7 @@
       justify-content: center;
       cursor: pointer;
       transition: background 0.3s ease;
+      pointer-events: auto;
     }
     .mute-btn i {
       color: #fff;
@@ -224,12 +228,14 @@
       background: rgba(0, 0, 0, 0.7);
       padding: 8px;
       border-radius: 24px;
-      z-index: 10;
-      opacity: 1;
-      transition: opacity 0.3s ease;
-    }
-    .seek-controls.hidden {
+      z-index: 20;
       opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    .seek-controls.visible {
+      opacity: 1;
+      pointer-events: auto;
     }
     .seek-btn, .play-pause-btn {
       background: rgba(255, 255, 255, 0.9);
@@ -243,6 +249,7 @@
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       transition: background 0.3s ease, transform 0.3s ease;
+      pointer-events: auto;
     }
     .seek-btn:hover, .play-pause-btn:hover {
       background: rgba(255, 255, 255, 1);
@@ -267,6 +274,7 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       scroll-behavior: smooth;
+      touch-action: pan-x;
     }
     .carousel-track::-webkit-scrollbar { 
       display: none; 
@@ -283,7 +291,7 @@
       transform: translateX(-50%);
       display: flex;
       gap: 8px;
-      z-index: 10;
+      z-index: 20;
     }
     .carousel-indicators .dot {
       width: 10px;
@@ -293,6 +301,7 @@
       transition: all 0.3s ease;
       cursor: pointer;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      pointer-events: auto;
     }
     .carousel-indicators .dot.active {
       background: #0077ff;
@@ -633,31 +642,39 @@
             video.removeAttribute('loop');
             video.muted = false; // Start unmuted
 
-            // Show controls on hover or tap
+            // Show/hide controls on hover or tap
             let hideTimeout;
             wrapper.addEventListener('mouseenter', () => {
-              seekControls.classList.remove('hidden');
+              seekControls.classList.add('visible');
               clearTimeout(hideTimeout);
             });
             wrapper.addEventListener('mouseleave', () => {
               hideTimeout = setTimeout(() => {
-                seekControls.classList.add('hidden');
+                seekControls.classList.remove('visible');
               }, 3000);
             });
-            wrapper.addEventListener('touchstart', (e) => {
-              e.preventDefault();
-              seekControls.classList.toggle('hidden');
-              clearTimeout(hideTimeout);
-              hideTimeout = setTimeout(() => {
-                seekControls.classList.add('hidden');
-              }, 3000);
+            wrapper.addEventListener('click', (e) => {
+              if (!e.target.closest('.video-controls, .seek-controls')) {
+                seekControls.classList.toggle('visible');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                  seekControls.classList.remove('visible');
+                }, 3000);
+              }
+            });
+
+            // Prevent default touch behavior only for controls
+            wrapper.querySelectorAll('.mute-btn, .seek-btn, .play-pause-btn').forEach(btn => {
+              btn.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+              });
             });
 
             // Play/Pause
             playPause.addEventListener('click', (e) => {
               e.stopPropagation();
               if (video.paused) {
-                video.play();
+                video.play().catch(err => console.error('Erreur de lecture:', err));
                 playPause.innerHTML = '<i class="fas fa-pause"></i>';
               } else {
                 video.pause();
@@ -690,6 +707,11 @@
             });
             video.addEventListener('pause', () => {
               playPause.innerHTML = '<i class="fas fa-play"></i>';
+            });
+
+            // Handle video errors
+            video.addEventListener('error', (e) => {
+              console.error('Erreur de chargement de la vidéo:', e);
             });
           }
         });
@@ -835,7 +857,7 @@
         if (best && currentVideo !== best) {
           if (currentVideo) currentVideo.pause();
           currentVideo = best;
-          currentVideo.play().catch(() => {});
+          currentVideo.play().catch(err => console.error('Erreur de lecture automatique:', err));
         } else if (!best && currentVideo) {
           currentVideo.pause();
           currentVideo = null;
