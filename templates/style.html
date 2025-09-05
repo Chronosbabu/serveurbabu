@@ -485,9 +485,9 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline muted class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline class="post-video"></video>
           <div class="video-controls">
-            <button class="mute-btn muted">
+            <button class="mute-btn">
               <i class="fas fa-volume-high"></i>
             </button>
           </div>
@@ -508,9 +508,9 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline muted class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline class="post-video"></video>
               <div class="video-controls">
-                <button class="mute-btn muted">
+                <button class="mute-btn">
                   <i class="fas fa-volume-high"></i>
                 </button>
               </div>
@@ -630,32 +630,37 @@
 
           if (video) {
             let hideTimeout;
-            video.addEventListener('click', () => {
-              if (seekControls.classList.contains('show')) {
-                seekControls.classList.remove('show');
-              } else {
-                seekControls.classList.add('show');
-                clearTimeout(hideTimeout);
-                hideTimeout = setTimeout(() => {
+            wrapper.addEventListener('click', (e) => {
+              if (!e.target.closest('.video-controls, .seek-controls')) {
+                if (seekControls.classList.contains('show')) {
                   seekControls.classList.remove('show');
-                }, 3000);
+                } else {
+                  seekControls.classList.add('show');
+                  clearTimeout(hideTimeout);
+                  hideTimeout = setTimeout(() => {
+                    seekControls.classList.remove('show');
+                  }, 3000);
+                }
               }
             });
 
             if (backward) {
-              backward.addEventListener('click', () => {
+              backward.addEventListener('click', (e) => {
+                e.stopPropagation();
                 video.currentTime = Math.max(0, video.currentTime - 10);
               });
             }
 
             if (forward) {
-              forward.addEventListener('click', () => {
+              forward.addEventListener('click', (e) => {
+                e.stopPropagation();
                 video.currentTime = Math.min(video.duration, video.currentTime + 10);
               });
             }
 
             if (playPause) {
-              playPause.addEventListener('click', () => {
+              playPause.addEventListener('click', (e) => {
+                e.stopPropagation();
                 if (video.paused) {
                   video.play();
                   playPause.innerHTML = '<i class="fas fa-pause"></i>';
@@ -675,7 +680,8 @@
           }
 
           if (video && muteBtn) {
-            muteBtn.addEventListener('click', () => {
+            muteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
               video.muted = !video.muted;
               muteBtn.classList.toggle('muted', video.muted);
             });
