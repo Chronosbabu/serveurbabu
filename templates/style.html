@@ -182,101 +182,75 @@
       background: #000;
       position: relative;
     }
-
-
-
-.video-wrapper {
-  position: relative;
-  background: #000;
-  border-radius: 0 0 16px 16px;
-  overflow: hidden;
-}
-
-.video-controls {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  z-index: 15;
-}
-
-/* Bouton mute */
-.mute-btn {
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-.mute-btn i {
-  color: #fff;
-  font-size: 1.2rem;
-}
-.mute-btn:hover {
-  background: rgba(0, 0, 0, 0.8);
-}
-/* ⚡ quand muté */
-.mute-btn.muted i::before {
-  content: "\f6a9"; /* fa-volume-xmark */
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
-}
-
-/* Contrôles seek (avancer, reculer, pause/play) */
-.seek-controls {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 100%;
-  transform: translateY(-50%);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-  z-index: 10;
-}
-.seek-controls.show {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.seek-btn,
-.play-pause-btn {
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: background 0.3s ease, transform 0.3s ease;
-}
-.seek-btn:hover,
-.play-pause-btn:hover {
-  background: #fff;
-  transform: scale(1.1);
-}
-.seek-btn i,
-.play-pause-btn i {
-  color: #0077ff;
-  font-size: 1.4rem;
-}
-
-
-
-
-
-
-
+    .video-wrapper {
+      position: relative;
+    }
+    .video-controls {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 10;
+    }
+    .mute-btn {
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .mute-btn i {
+      color: #fff;
+      font-size: 1.2rem;
+    }
+    .mute-btn.muted i {
+      content: "\f6a9"; /* fa-volume-xmark */
+    }
+    .mute-btn:hover {
+      background: rgba(0, 0, 0, 0.7);
+    }
+    .seek-controls {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      transform: translateY(-50%);
+      display: none;
+      justify-content: space-around;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+    .seek-controls.show {
+      display: flex;
+      opacity: 1;
+    }
+    .seek-btn, .play-pause-btn {
+      background: rgba(255, 255, 255, 0.8);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .seek-btn:hover, .play-pause-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: scale(1.1);
+    }
+    .seek-btn i, .play-pause-btn i {
+      color: #0077ff;
+      font-size: 1.5rem;
+    }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
     .carousel {
@@ -511,10 +485,10 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline muted class="post-video"></video>
           <div class="video-controls">
-            <button class="mute-btn">
-              <i class="fas fa-volume-high"></i>
+            <button class="mute-btn muted">
+              <i class="fas fa-volume-xmark"></i>
             </button>
           </div>
           <div class="seek-controls">
@@ -534,10 +508,10 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay loop playsinline muted class="post-video"></video>
               <div class="video-controls">
-                <button class="mute-btn">
-                  <i class="fas fa-volume-high"></i>
+                <button class="mute-btn muted">
+                  <i class="fas fa-volume-xmark"></i>
                 </button>
               </div>
               <div class="seek-controls">
@@ -698,29 +672,27 @@
             }
 
             video.addEventListener('play', () => {
-              playPause.innerHTML = '<i class="fas fa-pause"></i>';
+              if (playPause) playPause.innerHTML = '<i class="fas fa-pause"></i>';
             });
             video.addEventListener('pause', () => {
-              playPause.innerHTML = '<i class="fas fa-play"></i>';
+              if (playPause) playPause.innerHTML = '<i class="fas fa-play"></i>';
             });
           }
 
           if (video && muteBtn) {
-  const icon = muteBtn.querySelector('i');
-  muteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    video.muted = !video.muted;
-
-    if (video.muted) {
-      icon.classList.remove('fa-volume-high');
-      icon.classList.add('fa-volume-xmark');
-    } else {
-      icon.classList.remove('fa-volume-xmark');
-      icon.classList.add('fa-volume-high');
-    }
-  });
-}
-
+            muteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              video.muted = !video.muted;
+              const icon = muteBtn.querySelector('i');
+              if (video.muted) {
+                icon.classList.remove('fa-volume-high');
+                icon.classList.add('fa-volume-xmark');
+              } else {
+                icon.classList.remove('fa-volume-xmark');
+                icon.classList.add('fa-volume-high');
+              }
+            });
+          }
         });
       }
 
