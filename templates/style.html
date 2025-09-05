@@ -706,12 +706,21 @@
           }
 
           if (video && muteBtn) {
-            muteBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              video.muted = !video.muted;
-              muteBtn.classList.toggle('muted', video.muted);
-            });
-          }
+  const icon = muteBtn.querySelector('i');
+  muteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    video.muted = !video.muted;
+
+    if (video.muted) {
+      icon.classList.remove('fa-volume-high');
+      icon.classList.add('fa-volume-xmark');
+    } else {
+      icon.classList.remove('fa-volume-xmark');
+      icon.classList.add('fa-volume-high');
+    }
+  });
+}
+
         });
       }
 
