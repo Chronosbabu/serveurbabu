@@ -186,7 +186,7 @@ def index():
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
-    return render_template("index.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
+    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/follow/<username>", methods=["POST"])
 def follow_user(username):
