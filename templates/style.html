@@ -183,6 +183,7 @@
       border-radius: 0 0 16px 16px;
       background: #000;
       position: relative;
+      pointer-events: auto;
     }
     .video-wrapper {
       position: relative;
@@ -192,7 +193,7 @@
       position: absolute;
       bottom: 12px;
       right: 12px;
-      z-index: 20;
+      z-index: 30;
       display: flex;
       gap: 8px;
     }
@@ -228,7 +229,7 @@
       background: rgba(0, 0, 0, 0.7);
       padding: 8px;
       border-radius: 24px;
-      z-index: 20;
+      z-index: 30;
       opacity: 0;
       transition: opacity 0.3s ease;
       pointer-events: none;
@@ -291,7 +292,7 @@
       transform: translateX(-50%);
       display: flex;
       gap: 8px;
-      z-index: 20;
+      z-index: 30;
     }
     .carousel-indicators .dot {
       width: 10px;
@@ -642,38 +643,60 @@
             video.removeAttribute('loop');
             video.muted = false; // Start unmuted
 
-            // Show/hide controls on hover or tap
-            let hideTimeout;
+            // Ensure video is ready before allowing interactions
+            video.addEventListener('loadedmetadata', () => {
+              console.log('Vidéo chargée:', video.src);
+            });
+
+            // Toggle controls on video click
+            video.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (!e.target.closest('.video-controls, .seek-controls')) {
+                if (video.paused) {
+                  video.play().catch(err => console.error('Erreur de lecture:', err));
+                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
+                } else {
+                  video.pause();
+                  playPause.innerHTML = '<i class="fas fa-play"></i>';
+                }
+                seekControls.classList.toggle('visible');
+              }
+            });
+
+            // Show/hide controls on hover
             wrapper.addEventListener('mouseenter', () => {
               seekControls.classList.add('visible');
-              clearTimeout(hideTimeout);
             });
             wrapper.addEventListener('mouseleave', () => {
-              hideTimeout = setTimeout(() => {
+              setTimeout(() => {
                 seekControls.classList.remove('visible');
               }, 3000);
             });
-            wrapper.addEventListener('click', (e) => {
+
+            // Handle touch events for mobile
+            wrapper.addEventListener('touchstart', (e) => {
               if (!e.target.closest('.video-controls, .seek-controls')) {
                 seekControls.classList.toggle('visible');
-                clearTimeout(hideTimeout);
-                hideTimeout = setTimeout(() => {
-                  seekControls.classList.remove('visible');
-                }, 3000);
               }
             });
 
             // Prevent default touch behavior only for controls
             wrapper.querySelectorAll('.mute-btn, .seek-btn, .play-pause-btn').forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              });
               btn.addEventListener('touchstart', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
               });
             });
 
             // Play/Pause
             playPause.addEventListener('click', (e) => {
               e.stopPropagation();
-              if (video.paused) {
+              e.preventDefault();
+              if (video.paused || video.ended) {
                 video.play().catch(err => console.error('Erreur de lecture:', err));
                 playPause.innerHTML = '<i class="fas fa-pause"></i>';
               } else {
@@ -685,20 +708,24 @@
             // Seek Backward
             backward.addEventListener('click', (e) => {
               e.stopPropagation();
+              e.preventDefault();
               video.currentTime = Math.max(0, video.currentTime - 10);
             });
 
             // Seek Forward
             forward.addEventListener('click', (e) => {
               e.stopPropagation();
+              e.preventDefault();
               video.currentTime = Math.min(video.duration, video.currentTime + 10);
             });
 
             // Mute/Unmute
             muteBtn.addEventListener('click', (e) => {
               e.stopPropagation();
+              e.preventDefault();
               video.muted = !video.muted;
               muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
+              console.log('Mute toggled:', video.muted);
             });
 
             // Update play/pause button on video events
