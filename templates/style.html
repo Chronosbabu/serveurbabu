@@ -204,6 +204,9 @@
       color: #fff;
       font-size: 1.2rem;
     }
+    .mute-btn.muted i.fa-volume-high::before {
+      content: "\f6a9"; /* fa-volume-mute */
+    }
     .mute-btn:hover {
       background: rgba(0, 0, 0, 0.7);
     }
@@ -437,7 +440,7 @@
           <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay muted loop playsinline class="post-video"></video>
           <div class="video-controls">
             <button class="mute-btn muted">
-              <i class="fas fa-volume-mute"></i>
+              <i class="fas fa-volume-high"></i>
             </button>
           </div>
         </div>
@@ -452,12 +455,12 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline class="post-video"></video>
-
+              
+             <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay loop playsinline class="post-video"></video>
 
               <div class="video-controls">
                 <button class="mute-btn muted">
-                  <i class="fas fa-volume-mute"></i>
+                  <i class="fas fa-volume-high"></i>
                 </button>
               </div>
             </div>
@@ -565,41 +568,23 @@
           const video = wrapper.querySelector('video');
           const muteBtn = wrapper.querySelector('.mute-btn');
           if (video && muteBtn) {
-            // Ensure video is initially muted
-            video.muted = true;
-            muteBtn.classList.add('muted');
 
-            muteBtn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              
-              // Request user interaction for unmute
-              if (video.muted) {
-                video.muted = false;
-                muteBtn.classList.remove('muted');
-                muteBtn.querySelector('i').classList.replace('fa-volume-mute', 'fa-volume-high');
-              } else {
-                video.muted = true;
-                muteBtn.classList.add('muted');
-                muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-mute');
-              }
-            });
+muteBtn.addEventListener('click', () => {
+  video.muted = !video.muted;
+  muteBtn.classList.toggle('muted', video.muted);
 
-            // Handle touch events for mobile
-            muteBtn.addEventListener('touchstart', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (video.muted) {
-                video.muted = false;
-                muteBtn.classList.remove('muted');
-                muteBtn.querySelector('i').classList.replace('fa-volume-mute', 'fa-volume-high');
-              } else {
-                video.muted = true;
-                muteBtn.classList.add('muted');
-                muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-mute');
-              }
-            });
-          }
+  const icon = muteBtn.querySelector('i');
+  if(video.muted){
+    icon.classList.remove('fa-volume-high');
+    icon.classList.add('fa-volume-xmark'); // icône muet
+  } else {
+    icon.classList.remove('fa-volume-xmark');
+    icon.classList.add('fa-volume-high'); // icône son
+  }
+});
+
+       }   
+
         });
       }
 
@@ -883,3 +868,4 @@
   </script>
 </body>
 </html>
+
