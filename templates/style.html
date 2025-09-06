@@ -183,11 +183,11 @@
       background: #000;
       position: relative;
       pointer-events: auto;
-      touch-action: auto;
+      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
     }
     .video-wrapper {
       position: relative;
-      touch-action: auto;
+      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
       width: 100%;
     }
     .video-controls {
@@ -255,6 +255,7 @@
       position: relative;
       width: 100%;
       overflow: hidden;
+      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
     }
     .carousel-track {
       display: flex;
@@ -264,7 +265,7 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       scroll-behavior: smooth;
-      touch-action: pan-x;
+      touch-action: pan-x pinch-zoom; /* Défilement horizontal pour carrousel */
     }
     .carousel-track::-webkit-scrollbar { 
       display: none; 
@@ -477,7 +478,7 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline webkit-playsinline preload="metadata" class="post-video">
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline webkit-playsinline preload="metadata" muted class="post-video">
             <source src="{{ url_for('uploaded_file', filename=post.file) }}" type="video/mp4">
             Votre navigateur ne prend pas en charge la lecture vidéo.
           </video>
@@ -496,7 +497,7 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline webkit-playsinline preload="metadata" class="post-video">
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline webkit-playsinline preload="metadata" muted class="post-video">
                 <source src="{{ url_for('uploaded_file', filename=file.name) }}" type="video/mp4">
                 Votre navigateur ne prend pas en charge la lecture vidéo.
               </video>
@@ -626,9 +627,12 @@
           if (video && playPauseBtn && controls && errorMessage) {
             video.removeAttribute('autoplay');
             video.removeAttribute('loop');
-            video.muted = false; // Audio activé par défaut
+            video.muted = true; // Muet par défaut pour compatibilité mobile
 
             let isVideoReady = false;
+            let touchStartY = 0;
+            let touchStartX = 0;
+            let isDragging = false;
 
             // Vérifier si l'URL est accessible
             fetch(video.src, { method: 'HEAD' })
@@ -639,7 +643,7 @@
               })
               .catch(err => {
                 console.error('Erreur de vérification de l\'URL:', video.src, err);
-                errorMessage.textContent = 'Erreur : Vidéo inaccessible.';
+                errorMessage.textContent = 'Erreur : Vidéo inaccessible ou introuvable.';
                 errorMessage.classList.add('visible');
                 controls.classList.remove('visible');
                 playPauseBtn.style.display = 'none';
@@ -650,9 +654,9 @@
               if (!isVideoReady) {
                 isVideoReady = true;
                 console.log('Vidéo prête:', video.src);
-                playPauseBtn.classList.add('ready'); // Activer le bouton
-                controls.classList.add('visible'); // Afficher les contrôles
-                errorMessage.classList.remove('visible'); // Cacher le message d'erreur
+                playPauseBtn.classList.add('ready');
+                controls.classList.add('visible');
+                errorMessage.classList.remove('visible');
               }
             }, { once: true });
 
@@ -687,21 +691,33 @@
               playPauseBtn.style.display = 'none';
             });
 
-            // Gestion des événements tactiles pour éviter les conflits avec le carrousel
+            // Gestion des événements tactiles pour détecter le défilement vertical
             video.addEventListener('touchstart', (e) => {
-              e.stopPropagation(); // Empêche la propagation au carrousel
+              touchStartY = e.touches[0].clientY;
+              touchStartX = e.touches[0].clientX;
+              isDragging = false;
+            });
+
+            video.addEventListener('touchmove', (e) => {
+              const touchY = e.touches[0].clientY;
+              const touchX = e.touches[0].clientX;
+              const deltaY = Math.abs(touchY - touchStartY);
+              const deltaX = Math.abs(touchX - touchStartX);
+              if (deltaY > deltaX && deltaY > 10) {
+                isDragging = true; // Défilement vertical détecté
+                e.stopPropagation(); // Laisser le navigateur gérer le défilement vertical
+              }
             });
 
             // Gestion du clic/toucher sur la vidéo ou le bouton
             const togglePlayPause = (e) => {
               e.preventDefault();
-              e.stopPropagation();
+              if (isDragging) return; // Ignorer si défilement vertical
               if (!isVideoReady) {
                 console.log('Interaction ignorée: vidéo pas encore prête:', video.src);
                 return;
               }
               if (video.paused || video.ended) {
-                // Pause toutes les autres vidéos
                 videos.forEach(v => {
                   if (v !== video && !v.paused) {
                     v.pause();
@@ -717,7 +733,7 @@
                   }, 2000);
                 }).catch(err => {
                   console.error('Erreur de lecture:', video.src, err);
-                  errorMessage.textContent = 'Erreur : Impossible de lire la vidéo.';
+                  errorMessage.textContent = `Erreur : Impossible de lire la vidéo (${err.message}).`;
                   errorMessage.classList.add('visible');
                   controls.classList.remove('visible');
                 });
@@ -735,11 +751,11 @@
             const addInteractionListeners = () => {
               if (isVideoReady) {
                 video.addEventListener('click', togglePlayPause);
-                video.addEventListener('touchstart', togglePlayPause);
+                video.addEventListener('touchend', togglePlayPause); // Utiliser touchend pour éviter conflit avec touchmove
                 playPauseBtn.addEventListener('click', togglePlayPause);
-                playPauseBtn.addEventListener('touchstart', togglePlayPause);
+                playPauseBtn.addEventListener('touchend', togglePlayPause);
               } else {
-                setTimeout(addInteractionListeners, 100); // Réessayer jusqu'à ce que prêt
+                setTimeout(addInteractionListeners, 100);
               }
             };
 
@@ -755,8 +771,7 @@
               }
             });
             wrapper.addEventListener('touchstart', (e) => {
-              e.stopPropagation();
-              if (isVideoReady) {
+              if (isVideoReady && !isDragging) {
                 controls.classList.add('visible');
                 setTimeout(() => {
                   if (!video.paused) controls.classList.remove('visible');
@@ -777,6 +792,38 @@
             // Ajouter la vidéo au suivi
             videos.add(video);
           }
+        });
+
+        // Gestion du défilement vertical pour les images
+        post.querySelectorAll('.post-image').forEach(img => {
+          let touchStartY = 0;
+          let touchStartX = 0;
+          let isDragging = false;
+
+          img.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+            isDragging = false;
+          });
+
+          img.addEventListener('touchmove', (e) => {
+            const touchY = e.touches[0].clientY;
+            const touchX = e.touches[0].clientX;
+            const deltaY = Math.abs(touchY - touchStartY);
+            const deltaX = Math.abs(touchX - touchStartX);
+            if (deltaY > deltaX && deltaY > 10) {
+              isDragging = true;
+              // Laisser le défilement vertical se produire
+            } else if (deltaX > deltaY && deltaX > 10) {
+              e.stopPropagation(); // Défilement horizontal pour carrousel
+            }
+          });
+
+          img.addEventListener('touchend', (e) => {
+            if (!isDragging) {
+              videos.forEach(v => v.pause());
+            }
+          });
         });
       }
 
@@ -915,11 +962,6 @@
         bindFollowButtons(post);
         initSeeMore(post);
         initVideoControls(post);
-      });
-      document.querySelectorAll('.post img').forEach(img => {
-        img.addEventListener('click', () => {
-          videos.forEach(v => v.pause());
-        });
       });
 
       /* ---------- Socket.IO ---------- */

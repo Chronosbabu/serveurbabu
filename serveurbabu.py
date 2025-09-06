@@ -4,6 +4,7 @@ import os, json, hashlib
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import mimetypes
+import magic  # Pour vérifier les types MIME réels des fichiers
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -27,6 +28,22 @@ user_notifications = {}  # clé = user_id, valeur = liste de notifications
 
 # --- Fonctions notifications ---
 
+def notify_like(target_user_id, liker_username, post_id):
+    msg = f"{liker_username} a aimé votre publication"
+    user_notifications.setdefault(target_user_id, []).append(msg)
+    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
+
+def notify_comment(target_user_id, commenter_username, post_id):
+    msg = f"{commenter_username} a commenté votre publication"
+    user_notifications.setdefault(target_user_id, []).append(msg)
+    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
+
+@socketio.on("join")
+def handle_join(data):
+    user_id = data.get("user_id")
+    if user_id:
+        join_room(str(user_id))
+
 # --- Gestion follow/unfollow persistant ---
 def toggle_follow(current_user, target_user):
     users = load_users()
@@ -49,22 +66,6 @@ def is_following(current_user, target_user):
     if not cu:
         return False
     return target_user in cu.get("following", [])
-
-def notify_like(target_user_id, liker_username, post_id):
-    msg = f"{liker_username} a aimé votre publication"
-    user_notifications.setdefault(target_user_id, []).append(msg)
-    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
-
-def notify_comment(target_user_id, commenter_username, post_id):
-    msg = f"{commenter_username} a commenté votre publication"
-    user_notifications.setdefault(target_user_id, []).append(msg)
-    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
-
-@socketio.on("join")
-def handle_join(data):
-    user_id = data.get("user_id")
-    if user_id:
-        join_room(str(user_id))
 
 # --- Initialisation fichiers ---
 for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
@@ -184,24 +185,16 @@ def index():
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
-        p['following'] = is_following(session["username"], p["username"])  # ajoute suivi
-    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
+        p['following'] = is_following(session["username"], p["username"])
+    return render_template("index.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/follow/<username>", methods=["POST"])
 def follow_user(username):
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
     current_user = session["username"]
-    following = toggle_follow(current_user, username)  # persistant
+    following = toggle_follow(current_user, username)
 
-    # ⚡ Mise à jour follow en temps réel
-    socketio.emit(
-        "update_follow",
-        {"target_user": username, "follower": current_user, "following": following},
-        room=username
-    )
-
-    # ⚡ Ajouter notification uniquement si on suit
     if following:
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append(msg)
@@ -216,21 +209,26 @@ def add_post():
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
-        media_files = request.files.getlist("media")  # ⚡ plusieurs fichiers
-        files_data = []  # liste de dictionnaires {name, type}
+        media_files = request.files.getlist("media")
+        files_data = []
 
         for media_file in media_files:
             if media_file and media_file.filename:
                 filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
-                media_file.save(os.path.join(UPLOAD_FOLDER, filename))
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                media_file.save(file_path)
+
+                # Vérifier le type MIME réel
+                mime_type = magic.Magic(mime=True).from_file(file_path)
                 ext = os.path.splitext(filename)[1].lower()
 
-                if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                if mime_type.startswith('image/') and ext in [".jpg", ".jpeg", ".png", ".gif"]:
                     media_type = "image"
-                elif ext in [".mp4", ".mov", ".avi", ".webm"]:
+                elif mime_type == 'video/mp4' and ext in [".mp4"]:
                     media_type = "video"
                 else:
-                    media_type = "other"
+                    os.remove(file_path)  # Supprimer les fichiers non pris en charge
+                    continue
 
                 files_data.append({"name": filename, "type": media_type})
 
@@ -239,8 +237,8 @@ def add_post():
             "id": len(posts) + 1,
             "username": session["username"],
             "avatar": session.get("avatar"),
-            "files": files_data,   # ⚡ liste de dicts avec name + type
-            "description": content,
+            "files": files_data,
+            "description宣告: content,
             "likes": 0,
             "liked_by": [],
             "comments": [],
@@ -249,7 +247,6 @@ def add_post():
         posts.insert(0, new_post)
         save_posts(posts)
 
-        # ⚡ plus de broadcast=True → ça envoie déjà à tous
         socketio.emit('new_post', {
             "id": new_post["id"],
             "username": new_post["username"],
@@ -258,7 +255,6 @@ def add_post():
 
         return redirect(url_for("index"))
 
-    # ⚡ important : garder un retour GET
     return render_template("new_post.html")
 
 @app.route("/like/<int:post_id>", methods=["POST"])
@@ -279,10 +275,8 @@ def like_post(post_id):
     else:
         post.setdefault("liked_by", []).append(username)
         liked = True
-
-        # ⚡ Ajouter notification ici
         post_owner = post.get("username")
-        if post_owner != username:  # pas de notification si on like soi-même
+        if post_owner != username:
             notify_like(target_user_id=post_owner, liker_username=username, post_id=post_id)
 
     post["likes"] = len(post["liked_by"])
@@ -329,10 +323,9 @@ def profile(username):
         p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
 
-    # Calculer les followers
     all_users = load_users()
     followers = [u["username"] for u in all_users if username in u.get("following", [])]
-    user["followers"] = followers  # ajoute la clé followers dynamiquement
+    user["followers"] = followers
 
     return render_template(
         "profile.html",
@@ -358,15 +351,16 @@ def uploaded_file(filename):
     if not os.path.exists(file_path):
         abort(404)
 
-    # Get file size
     file_size = os.path.getsize(file_path)
-
-    # Get range header
     range_header = request.headers.get('Range', None)
-    if not range_header:
-        return send_file(file_path, mimetype=mimetypes.guess_type(file_path)[0])
+    mime_type = mimetypes.guess_type(file_path)[0] or 'application/octet-stream'
 
-    # Parse Range header
+    if not range_header:
+        response = send_file(file_path, mimetype=mime_type)
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Access-Control-Allow-Origin'] = '*'  # Ajout CORS
+        return response
+
     byte_range = range_header.replace('bytes=', '').split('-')
     start = int(byte_range[0])
     end = int(byte_range[1]) if byte_range[1] else file_size - 1
@@ -385,16 +379,19 @@ def uploaded_file(filename):
     response = Response(
         generate(),
         status=206,
-        mimetype=mimetypes.guess_type(file_path)[0],
+        mimetype=mime_type,
         direct_passthrough=True
     )
     response.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
     response.headers.add('Accept-Ranges', 'bytes')
+    response.headers.add('Access-Control-Allow-Origin', '*')  # Ajout CORS
     return response
 
 @app.route("/avatars/<filename>")
 def avatar_file(filename):
-    return send_from_directory(AVATAR_FOLDER, filename)
+    response = send_file(os.path.join(AVATAR_FOLDER, filename))
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 @app.route("/send_file", methods=["POST"])
 def send_file_route():
@@ -407,16 +404,20 @@ def send_file_route():
         return jsonify({"success": False, "error": "Champs manquants"}), 400
 
     filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(file_path)
 
+    mime_type = magic.Magic(mime=True).from_file(file_path)
     ext = os.path.splitext(filename)[1].lower()
     file_type = "text"
-    if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+
+    if mime_type.startswith('image/') and ext in [".jpg", ".jpeg", ".png", ".gif"]:
         file_type = "image"
-    elif ext in [".mp4", ".mov", ".avi"]:
+    elif mime_type == 'video/mp4' and ext == ".mp4":
         file_type = "video"
-    elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:
-        file_type = "audio"
+    else:
+        os.remove(file_path)
+        return jsonify({"success": False, "error": "Type de fichier non pris en charge"}), 400
 
     url = url_for("uploaded_file", filename=filename)
 
@@ -543,7 +544,6 @@ def handle_send_comment(data):
     post.setdefault("comments", []).append(comment_data)
     save_posts(posts)
 
-    # ⚡ Ajouter notification ici
     post_owner = post.get("username")
     if post_owner != session["username"]:
         notify_comment(target_user_id=post_owner, commenter_username=session["username"], post_id=post_id)
@@ -570,11 +570,10 @@ def notifications():
 
 @socketio.on("join_room")
 def handle_join_room(data):
-    # si data est un dict -> récupérer la clé
     if isinstance(data, dict):
         username = data.get("username")
     else:
-        username = data  # data est une string
+        username = data
     if username:
         join_room(username)
 
