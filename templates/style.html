@@ -188,6 +188,7 @@
     .video-wrapper {
       position: relative;
       touch-action: auto;
+      width: 100%;
     }
     .video-controls {
       position: absolute;
@@ -217,7 +218,10 @@
       justify-content: center;
       cursor: pointer;
       transition: background 0.3s ease, transform 0.3s ease;
-      pointer-events: auto;
+      pointer-events: none; /* Désactivé jusqu'à ce que la vidéo soit prête */
+    }
+    .play-pause-btn.ready {
+      pointer-events: auto; /* Activé quand la vidéo est prête */
     }
     .play-pause-btn:hover {
       background: rgba(0, 0, 0, 0.9);
@@ -226,6 +230,24 @@
     .play-pause-btn i {
       color: #fff;
       font-size: 2rem;
+    }
+    .video-error {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ff2d55;
+      font-size: 1rem;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 20px;
+      border-radius: 8px;
+      z-index: 30;
+      text-align: center;
+    }
+    .video-error.visible {
+      display: block;
     }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
@@ -455,10 +477,14 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline preload="metadata" class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline webkit-playsinline preload="metadata" class="post-video">
+            <source src="{{ url_for('uploaded_file', filename=post.file) }}" type="video/mp4">
+            Votre navigateur ne prend pas en charge la lecture vidéo.
+          </video>
           <div class="video-controls">
             <button class="play-pause-btn"><i class="fas fa-play"></i></button>
           </div>
+          <div class="video-error">Impossible de charger la vidéo.</div>
         </div>
         {% endif %}
         {# ---- Multiple files (carousel) ---- #}
@@ -470,10 +496,14 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline preload="metadata" class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline webkit-playsinline preload="metadata" class="post-video">
+                <source src="{{ url_for('uploaded_file', filename=file.name) }}" type="video/mp4">
+                Votre navigateur ne prend pas en charge la lecture vidéo.
+              </video>
               <div class="video-controls">
                 <button class="play-pause-btn"><i class="fas fa-play"></i></button>
               </div>
+              <div class="video-error">Impossible de charger la vidéo.</div>
             </div>
             {% endif %}
             {% endfor %}
@@ -591,31 +621,83 @@
           const video = wrapper.querySelector('video');
           const playPauseBtn = wrapper.querySelector('.play-pause-btn');
           const controls = wrapper.querySelector('.video-controls');
+          const errorMessage = wrapper.querySelector('.video-error');
 
-          if (video && playPauseBtn) {
+          if (video && playPauseBtn && controls && errorMessage) {
             video.removeAttribute('autoplay');
             video.removeAttribute('loop');
-            video.muted = false; // Audio activé par défaut, mais contrôlable par l'utilisateur
+            video.muted = false; // Audio activé par défaut
 
             let isVideoReady = false;
+
+            // Vérifier si l'URL est accessible
+            fetch(video.src, { method: 'HEAD' })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`Statut HTTP ${response.status}`);
+                }
+              })
+              .catch(err => {
+                console.error('Erreur de vérification de l\'URL:', video.src, err);
+                errorMessage.textContent = 'Erreur : Vidéo inaccessible.';
+                errorMessage.classList.add('visible');
+                controls.classList.remove('visible');
+                playPauseBtn.style.display = 'none';
+              });
+
+            // Attendre que la vidéo soit prête
             video.addEventListener('canplay', () => {
               if (!isVideoReady) {
                 isVideoReady = true;
                 console.log('Vidéo prête:', video.src);
+                playPauseBtn.classList.add('ready'); // Activer le bouton
+                controls.classList.add('visible'); // Afficher les contrôles
+                errorMessage.classList.remove('visible'); // Cacher le message d'erreur
               }
             }, { once: true });
 
-            // Gestion du défilement
-            video.addEventListener('touchstart', (e) => {
-              e.stopPropagation(); // Empêche la propagation au carrousel ou à la page
+            // Gestion des erreurs de chargement
+            video.addEventListener('error', (e) => {
+              const error = video.error;
+              let errorText = 'Erreur de chargement de la vidéo';
+              if (error) {
+                switch (error.code) {
+                  case MediaError.MEDIA_ERR_ABORTED:
+                    errorText = 'Chargement de la vidéo annulé';
+                    break;
+                  case MediaError.MEDIA_ERR_NETWORK:
+                    errorText = 'Erreur réseau lors du chargement';
+                    break;
+                  case MediaError.MEDIA_ERR_DECODE:
+                    errorText = 'Erreur de décodage : format non pris en charge';
+                    break;
+                  case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                    errorText = 'Format vidéo ou source non pris en charge';
+                    break;
+                  default:
+                    errorText = 'Erreur inconnue lors du chargement';
+                }
+                console.error(`Erreur de chargement de la vidéo: ${video.src}, Code: ${error.code}, Message: ${error.message}`);
+              } else {
+                console.error(`Erreur de chargement de la vidéo: ${video.src}, Détails inconnus`);
+              }
+              errorMessage.textContent = errorText;
+              errorMessage.classList.add('visible');
+              controls.classList.remove('visible');
+              playPauseBtn.style.display = 'none';
             });
 
-            // Toggle play/pause
-            const togglePlayPause = debounce((e) => {
+            // Gestion des événements tactiles pour éviter les conflits avec le carrousel
+            video.addEventListener('touchstart', (e) => {
+              e.stopPropagation(); // Empêche la propagation au carrousel
+            });
+
+            // Gestion du clic/toucher sur la vidéo ou le bouton
+            const togglePlayPause = (e) => {
               e.preventDefault();
               e.stopPropagation();
               if (!isVideoReady) {
-                console.warn('Vidéo pas encore prête');
+                console.log('Interaction ignorée: vidéo pas encore prête:', video.src);
                 return;
               }
               if (video.paused || video.ended) {
@@ -630,42 +712,66 @@
                 video.play().then(() => {
                   playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
                   controls.classList.add('visible');
-                  setTimeout(() => controls.classList.remove('visible'), 2000);
-                }).catch(err => console.error('Erreur de lecture:', err));
+                  setTimeout(() => {
+                    if (!video.paused) controls.classList.remove('visible');
+                  }, 2000);
+                }).catch(err => {
+                  console.error('Erreur de lecture:', video.src, err);
+                  errorMessage.textContent = 'Erreur : Impossible de lire la vidéo.';
+                  errorMessage.classList.add('visible');
+                  controls.classList.remove('visible');
+                });
               } else {
                 video.pause();
                 playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
                 controls.classList.add('visible');
-                setTimeout(() => controls.classList.remove('visible'), 2000);
+                setTimeout(() => {
+                  if (video.paused) controls.classList.remove('visible');
+                }, 2000);
               }
-            }, 200);
+            };
 
-            // Associer togglePlayPause au clic et au toucher sur la vidéo et le bouton
-            video.addEventListener('click', togglePlayPause);
-            video.addEventListener('touchstart', togglePlayPause);
-            playPauseBtn.addEventListener('click', togglePlayPause);
-            playPauseBtn.addEventListener('touchstart', togglePlayPause);
+            // Lier les événements uniquement après que la vidéo est prête
+            const addInteractionListeners = () => {
+              if (isVideoReady) {
+                video.addEventListener('click', togglePlayPause);
+                video.addEventListener('touchstart', togglePlayPause);
+                playPauseBtn.addEventListener('click', togglePlayPause);
+                playPauseBtn.addEventListener('touchstart', togglePlayPause);
+              } else {
+                setTimeout(addInteractionListeners, 100); // Réessayer jusqu'à ce que prêt
+              }
+            };
 
-            // Afficher les contrôles brièvement au toucher
+            addInteractionListeners();
+
+            // Afficher les contrôles au survol
+            wrapper.addEventListener('mouseenter', () => {
+              if (isVideoReady) controls.classList.add('visible');
+            });
+            wrapper.addEventListener('mouseleave', () => {
+              if (isVideoReady && !video.paused) {
+                controls.classList.remove('visible');
+              }
+            });
             wrapper.addEventListener('touchstart', (e) => {
               e.stopPropagation();
-              controls.classList.add('visible');
-              setTimeout(() => {
-                if (video.paused) controls.classList.remove('visible');
-              }, 2000);
+              if (isVideoReady) {
+                controls.classList.add('visible');
+                setTimeout(() => {
+                  if (!video.paused) controls.classList.remove('visible');
+                }, 2000);
+              }
             });
 
             // Mettre à jour l'icône lors des événements de lecture/pause
             video.addEventListener('play', () => {
               playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+              errorMessage.classList.remove('visible');
             });
             video.addEventListener('pause', () => {
               playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-            });
-
-            // Gestion des erreurs
-            video.addEventListener('error', (e) => {
-              console.error('Erreur de chargement de la vidéo:', video.src, e);
+              controls.classList.add('visible');
             });
 
             // Ajouter la vidéo au suivi
@@ -929,6 +1035,3 @@
   </script>
 </body>
 </html>
-
-      
- 
