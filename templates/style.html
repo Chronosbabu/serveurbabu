@@ -2,10 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CHRONOS</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <link rel="icon" href="https://via.placeholder.com/32" type="image/png" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     /* ---------- GLOBAL ---------- */
@@ -17,6 +16,8 @@
       color: #1a1a1a;
       overscroll-behavior: none;
       touch-action: auto;
+      -webkit-user-select: none;
+      user-select: none;
     }
     a { 
       text-decoration: none; 
@@ -71,6 +72,7 @@
       border-radius: 50%;
       transition: all 0.3s ease;
       padding: 8px;
+      touch-action: manipulation;
     }
     .header-icons a:hover { 
       color: #0077ff; 
@@ -170,6 +172,7 @@
       cursor: pointer;
       margin-top: 8px;
       transition: color 0.3s ease;
+      touch-action: manipulation;
     }
     .see-more:hover {
       color: #0055cc;
@@ -185,6 +188,7 @@
       background: #000;
       position: relative;
       pointer-events: auto;
+      touch-action: manipulation;
     }
     .video-wrapper {
       position: relative;
@@ -210,6 +214,7 @@
       cursor: pointer;
       transition: background 0.3s ease;
       pointer-events: auto;
+      touch-action: manipulation;
     }
     .mute-btn i {
       color: #fff;
@@ -252,6 +257,7 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       transition: background 0.3s ease, transform 0.3s ease;
       pointer-events: auto;
+      touch-action: manipulation;
     }
     .seek-btn:hover, .play-pause-btn:hover {
       background: rgba(255, 255, 255, 1);
@@ -267,6 +273,7 @@
       position: relative;
       width: 100%;
       overflow: hidden;
+      touch-action: auto;
     }
     .carousel-track {
       display: flex;
@@ -304,6 +311,7 @@
       cursor: pointer;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       pointer-events: auto;
+      touch-action: manipulation;
     }
     .carousel-indicators .dot.active {
       background: #0077ff;
@@ -324,6 +332,7 @@
       cursor: pointer;
       transition: transform 0.3s ease, color 0.3s ease;
       color: #666;
+      touch-action: manipulation;
     }
     .like-btn:hover { 
       transform: scale(1.2); 
@@ -344,6 +353,7 @@
       margin-left: 20px; 
       color: #555;
       transition: color 0.3s ease;
+      touch-action: manipulation;
     }
     .comment-btn:hover {
       color: #0077ff;
@@ -363,6 +373,7 @@
       align-items: center;
       transition: all 0.3s ease;
       box-shadow: 0 2px 8px rgba(0, 119, 255, 0.3);
+      touch-action: manipulation;
     }
     .follow-btn i { 
       margin-right: 6px; 
@@ -497,7 +508,7 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline preload="metadata" class="post-video"></video>
           <div class="video-controls">
             <button class="mute-btn">
               <i class="fas fa-volume-high"></i>
@@ -519,7 +530,7 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline preload="metadata" class="post-video"></video>
               <div class="video-controls">
                 <button class="mute-btn">
                   <i class="fas fa-volume-high"></i>
@@ -652,20 +663,29 @@
           const forward = wrapper.querySelector('.seek-btn.forward');
 
           if (video) {
-            // Remove autoplay and loop to give user control
+            // Initialize video state
             video.removeAttribute('autoplay');
             video.removeAttribute('loop');
-            video.muted = false;
+            video.muted = true; // Start muted for mobile compatibility
+            video.setAttribute('playsinline', '');
+            video.preload = 'metadata';
 
-            // Ensure video is ready before allowing interactions
+            // Track video readiness
             let isVideoReady = false;
+            let canplayFired = false;
             video.addEventListener('canplay', () => {
-              isVideoReady = true;
-              console.log('Vidéo prête:', video.src);
-            });
+              if (!canplayFired) {
+                isVideoReady = true;
+                canplayFired = true;
+                console.log('Vidéo prête:', video.src);
+                // Initialize mute state
+                muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
+              }
+            }, { once: true });
 
-            // Toggle play/pause on video click
+            // Toggle play/pause
             const togglePlayPause = debounce((e) => {
+              e.preventDefault();
               e.stopPropagation();
               if (!isVideoReady) {
                 console.warn('Vidéo pas encore prête');
@@ -673,92 +693,119 @@
               }
               if (video.paused || video.ended) {
                 videos.forEach(v => {
-                  if (v !== video && !v.paused) v.pause();
+                  if (v !== video && !v.paused) {
+                    v.pause();
+                    v.currentTime = 0;
+                    const vPlayBtn = v.closest('.video-wrapper').querySelector('.play-pause-btn');
+                    if (vPlayBtn) vPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+                  }
                 });
-                video.play().catch(err => console.error('Erreur de lecture:', err));
-                playPause.innerHTML = '<i class="fas fa-pause"></i>';
+                video.play().then(() => {
+                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
+                  seekControls.classList.add('visible');
+                  setTimeout(() => seekControls.classList.remove('visible'), 3000);
+                }).catch(err => console.error('Erreur de lecture:', err));
               } else {
                 video.pause();
                 playPause.innerHTML = '<i class="fas fa-play"></i>';
+                seekControls.classList.add('visible');
+                setTimeout(() => seekControls.classList.remove('visible'), 3000);
               }
-              seekControls.classList.add('visible');
-              setTimeout(() => seekControls.classList.remove('visible'), 3000);
-            }, 200);
+            }, 300);
 
+            // Bind click and touch events to video
             video.addEventListener('click', togglePlayPause);
-            video.addEventListener('touchstart', togglePlayPause);
-
-            // Show/hide controls on hover
-            wrapper.addEventListener('mouseenter', () => {
-              seekControls.classList.add('visible');
-            });
-            wrapper.addEventListener('mouseleave', () => {
-              setTimeout(() => seekControls.classList.remove('visible'), 3000);
-            });
+            video.addEventListener('touchstart', togglePlayPause, { passive: false });
 
             // Prevent default touch behavior for controls
             wrapper.querySelectorAll('.mute-btn, .seek-btn, .play-pause-btn').forEach(btn => {
               btn.addEventListener('click', e => {
-                e.stopPropagation();
                 e.preventDefault();
+                e.stopPropagation();
               });
               btn.addEventListener('touchstart', e => {
-                e.stopPropagation();
                 e.preventDefault();
-              });
+                e.stopPropagation();
+              }, { passive: false });
             });
 
             // Play/Pause button
             playPause.addEventListener('click', (e) => {
-              e.stopPropagation();
               e.preventDefault();
+              e.stopPropagation();
               if (!isVideoReady) {
                 console.warn('Vidéo pas encore prête');
                 return;
               }
-              if (video.paused || video.ended) {
-                videos.forEach(v => {
-                  if (v !== video && !v.paused) v.pause();
-                });
-                video.play().catch(err => console.error('Erreur de lecture:', err));
-                playPause.innerHTML = '<i class="fas fa-pause"></i>';
-              } else {
-                video.pause();
-                playPause.innerHTML = '<i class="fas fa-play"></i>';
-              }
+              togglePlayPause(e);
             });
+            playPause.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isVideoReady) {
+                console.warn('Vidéo pas encore prête');
+                return;
+              }
+              togglePlayPause(e);
+            }, { passive: false });
 
             // Seek Backward
             backward.addEventListener('click', (e) => {
-              e.stopPropagation();
               e.preventDefault();
+              e.stopPropagation();
               if (isVideoReady) {
                 video.currentTime = Math.max(0, video.currentTime - 10);
+                seekControls.classList.add('visible');
+                setTimeout(() => seekControls.classList.remove('visible'), 3000);
               }
             });
+            backward.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isVideoReady) {
+                video.currentTime = Math.max(0, video.currentTime - 10);
+                seekControls.classList.add('visible');
+                setTimeout(() => seekControls.classList.remove('visible'), 3000);
+              }
+            }, { passive: false });
 
             // Seek Forward
             forward.addEventListener('click', (e) => {
-              e.stopPropagation();
               e.preventDefault();
+              e.stopPropagation();
               if (isVideoReady) {
-                video.currentTime = Math.min(video.duration, video.currentTime + 10);
+                video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
+                seekControls.classList.add('visible');
+                setTimeout(() => seekControls.classList.remove('visible'), 3000);
               }
             });
+            forward.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isVideoReady) {
+                video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
+                seekControls.classList.add('visible');
+                setTimeout(() => seekControls.classList.remove('visible'), 3000);
+              }
+            }, { passive: false });
 
             // Mute/Unmute
             const toggleMute = debounce((e) => {
-              e.stopPropagation();
               e.preventDefault();
-              if (isVideoReady) {
-                video.muted = !video.muted;
-                muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
-                console.log('Mute toggled:', video.muted);
+              e.stopPropagation();
+              if (!isVideoReady) {
+                console.warn('Vidéo pas encore prête');
+                return;
               }
-            }, 200);
+              video.muted = !video.muted;
+              muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
+              console.log('Mute toggled:', video.muted);
+              seekControls.classList.add('visible');
+              setTimeout(() => seekControls.classList.remove('visible'), 3000);
+            }, 300);
 
             muteBtn.addEventListener('click', toggleMute);
-            muteBtn.addEventListener('touchstart', toggleMute);
+            muteBtn.addEventListener('touchstart', toggleMute, { passive: false });
 
             // Update play/pause button on video events
             video.addEventListener('play', () => {
@@ -800,6 +847,10 @@
         const btn = post.querySelector('.like-btn');
         if (!btn) return;
         btn.addEventListener('click', () => toggleLike(btn));
+        btn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          toggleLike(btn);
+        }, { passive: false });
         const icon = btn.querySelector('i');
         const isLiked = btn.classList.contains('liked');
         icon.classList.toggle('fa-solid', isLiked);
@@ -919,6 +970,10 @@
         img.addEventListener('click', () => {
           videos.forEach(v => v.pause());
         });
+        img.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          videos.forEach(v => v.pause());
+        }, { passive: false });
       });
 
       /* ---------- Socket.IO ---------- */
@@ -1014,6 +1069,14 @@
         track.addEventListener('scroll', () => {
           const index = Math.round(track.scrollLeft / track.offsetWidth);
           dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+          // Pause all videos when scrolling
+          videos.forEach(v => {
+            if (!v.paused) {
+              v.pause();
+              const vPlayBtn = v.closest('.video-wrapper').querySelector('.play-pause-btn');
+              if (vPlayBtn) vPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+            }
+          });
         });
 
         dots.forEach((dot, index) => {
@@ -1023,6 +1086,13 @@
               behavior: 'smooth'
             });
           });
+          dot.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            track.scrollTo({
+              left: index * track.offsetWidth,
+              behavior: 'smooth'
+            });
+          }, { passive: false });
         });
 
         post.querySelectorAll('.carousel-track video').forEach(video => videos.add(video));
