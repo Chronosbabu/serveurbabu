@@ -238,7 +238,7 @@ def add_post():
             "username": session["username"],
             "avatar": session.get("avatar"),
             "files": files_data,
-            "description宣告: content,
+            "description": content,
             "likes": 0,
             "liked_by": [],
             "comments": [],
