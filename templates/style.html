@@ -183,87 +183,49 @@
       background: #000;
       position: relative;
       pointer-events: auto;
-      touch-action: none;
+      touch-action: auto;
     }
     .video-wrapper {
       position: relative;
       touch-action: auto;
-      pointer-events: none;
-    }
-    .video-wrapper.active {
-      pointer-events: auto;
     }
     .video-controls {
       position: absolute;
-      bottom: 12px;
-      right: 12px;
-      z-index: 30;
-      display: flex;
-      gap: 8px;
-      pointer-events: auto;
-    }
-    .mute-btn {
-      background: rgba(0, 0, 0, 0.7);
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: background 0.3s ease;
-      pointer-events: auto;
-    }
-    .mute-btn i {
-      color: #fff;
-      font-size: 1.4rem;
-    }
-    .mute-btn:hover {
-      background: rgba(0, 0, 0, 0.9);
-    }
-    .seek-controls {
-      position: absolute;
-      bottom: 60px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
+      z-index: 30;
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 12px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 8px;
-      border-radius: 24px;
-      z-index: 30;
       opacity: 0;
       transition: opacity 0.3s ease;
       pointer-events: none;
     }
-    .seek-controls.visible {
+    .video-controls.visible {
       opacity: 1;
       pointer-events: auto;
     }
-    .seek-btn, .play-pause-btn {
-      background: rgba(255, 255, 255, 0.9);
+    .play-pause-btn {
+      background: rgba(0, 0, 0, 0.7);
       border: none;
       border-radius: 50%;
-      width: 50px;
-      height: 50px;
+      width: 60px;
+      height: 60px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       transition: background 0.3s ease, transform 0.3s ease;
       pointer-events: auto;
     }
-    .seek-btn:hover, .play-pause-btn:hover {
-      background: rgba(255, 255, 255, 1);
+    .play-pause-btn:hover {
+      background: rgba(0, 0, 0, 0.9);
       transform: scale(1.1);
     }
-    .seek-btn i, .play-pause-btn i {
-      color: #0077ff;
-      font-size: 1.5rem;
+    .play-pause-btn i {
+      color: #fff;
+      font-size: 2rem;
     }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
@@ -427,19 +389,12 @@
       .main-header { 
         padding: 15px; 
       }
-      .mute-btn {
-        width: 32px;
-        height: 32px;
+      .play-pause-btn {
+        width: 48px;
+        height: 48px;
       }
-      .mute-btn i {
-        font-size: 1.2rem;
-      }
-      .seek-btn, .play-pause-btn {
-        width: 40px;
-        height: 40px;
-      }
-      .seek-btn i, .play-pause-btn i {
-        font-size: 1.2rem;
+      .play-pause-btn i {
+        font-size: 1.6rem;
       }
     }
 
@@ -500,16 +455,9 @@
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline preload="metadata" class="post-video"></video>
           <div class="video-controls">
-            <button class="mute-btn">
-              <i class="fas fa-volume-high"></i>
-            </button>
-          </div>
-          <div class="seek-controls">
-            <button class="seek-btn backward"><i class="fas fa-backward"></i></button>
             <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-            <button class="seek-btn forward"><i class="fas fa-forward"></i></button>
           </div>
         </div>
         {% endif %}
@@ -522,16 +470,9 @@
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline preload="metadata" class="post-video"></video>
               <div class="video-controls">
-                <button class="mute-btn">
-                  <i class="fas fa-volume-high"></i>
-                </button>
-              </div>
-              <div class="seek-controls">
-                <button class="seek-btn backward"><i class="fas fa-backward"></i></button>
                 <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-                <button class="seek-btn forward"><i class="fas fa-forward"></i></button>
               </div>
             </div>
             {% endif %}
@@ -648,16 +589,13 @@
       function initVideoControls(post) {
         post.querySelectorAll('.video-wrapper').forEach(wrapper => {
           const video = wrapper.querySelector('video');
-          const muteBtn = wrapper.querySelector('.mute-btn');
-          const seekControls = wrapper.querySelector('.seek-controls');
-          const backward = wrapper.querySelector('.seek-btn.backward');
-          const playPause = wrapper.querySelector('.play-pause-btn');
-          const forward = wrapper.querySelector('.seek-btn.forward');
+          const playPauseBtn = wrapper.querySelector('.play-pause-btn');
+          const controls = wrapper.querySelector('.video-controls');
 
-          if (video) {
+          if (video && playPauseBtn) {
             video.removeAttribute('autoplay');
             video.removeAttribute('loop');
-            video.muted = false;
+            video.muted = false; // Audio activé par défaut, mais contrôlable par l'utilisateur
 
             let isVideoReady = false;
             video.addEventListener('canplay', () => {
@@ -667,219 +605,70 @@
               }
             }, { once: true });
 
-            // Prevent scrolling when touching video unless controls are visible
-            let touchStartY = 0;
+            // Gestion du défilement
             video.addEventListener('touchstart', (e) => {
-              touchStartY = e.touches[0].clientY;
-              if (!seekControls.classList.contains('visible')) {
-                e.stopPropagation();
-              }
+              e.stopPropagation(); // Empêche la propagation au carrousel ou à la page
             });
 
-            video.addEventListener('touchmove', (e) => {
-              if (!seekControls.classList.contains('visible')) {
-                e.stopPropagation();
-                const touchY = e.touches[0].clientY;
-                const deltaY = Math.abs(touchY - touchStartY);
-                if (deltaY > 10) {
-                  e.preventDefault();
-                }
-              }
-            });
-
-            // Toggle play/pause on video touch
+            // Toggle play/pause
             const togglePlayPause = debounce((e) => {
-              e.stopPropagation();
               e.preventDefault();
+              e.stopPropagation();
               if (!isVideoReady) {
                 console.warn('Vidéo pas encore prête');
                 return;
               }
-              wrapper.classList.add('active');
               if (video.paused || video.ended) {
+                // Pause toutes les autres vidéos
                 videos.forEach(v => {
                   if (v !== video && !v.paused) {
                     v.pause();
-                    v.closest('.video-wrapper').querySelector('.play-pause-btn').innerHTML = '<i class="fas fa-play"></i>';
+                    const otherBtn = v.closest('.video-wrapper').querySelector('.play-pause-btn');
+                    if (otherBtn) otherBtn.innerHTML = '<i class="fas fa-play"></i>';
                   }
                 });
                 video.play().then(() => {
-                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
-                  seekControls.classList.add('visible');
-                  setTimeout(() => seekControls.classList.remove('visible'), 3000);
+                  playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                  controls.classList.add('visible');
+                  setTimeout(() => controls.classList.remove('visible'), 2000);
                 }).catch(err => console.error('Erreur de lecture:', err));
               } else {
                 video.pause();
-                playPause.innerHTML = '<i class="fas fa-play"></i>';
-                seekControls.classList.add('visible');
-                setTimeout(() => seekControls.classList.remove('visible'), 3000);
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                controls.classList.add('visible');
+                setTimeout(() => controls.classList.remove('visible'), 2000);
               }
-            }, 300);
+            }, 200);
 
+            // Associer togglePlayPause au clic et au toucher sur la vidéo et le bouton
             video.addEventListener('click', togglePlayPause);
             video.addEventListener('touchstart', togglePlayPause);
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            playPauseBtn.addEventListener('touchstart', togglePlayPause);
 
-            // Show/hide controls on hover/touch
-            wrapper.addEventListener('mouseenter', () => {
-              seekControls.classList.add('visible');
-              wrapper.classList.add('active');
-            });
-            wrapper.addEventListener('mouseleave', () => {
-              setTimeout(() => {
-                if (video.paused) {
-                  seekControls.classList.remove('visible');
-                  wrapper.classList.remove('active');
-                }
-              }, 3000);
-            });
-
+            // Afficher les contrôles brièvement au toucher
             wrapper.addEventListener('touchstart', (e) => {
-              if (!seekControls.classList.contains('visible')) {
-                seekControls.classList.add('visible');
-                wrapper.classList.add('active');
-                setTimeout(() => {
-                  if (video.paused) {
-                    seekControls.classList.remove('visible');
-                    wrapper.classList.remove('active');
-                  }
-                }, 3000);
-              }
-            });
-
-            // Prevent default touch behavior for controls
-            wrapper.querySelectorAll('.mute-btn, .seek-btn, .play-pause-btn').forEach(btn => {
-              btn.addEventListener('click', e => {
-                e.stopPropagation();
-                e.preventDefault();
-              });
-              btn.addEventListener('touchstart', e => {
-                e.stopPropagation();
-                e.preventDefault();
-              });
-            });
-
-            // Play/Pause button
-            playPause.addEventListener('click', (e) => {
               e.stopPropagation();
-              e.preventDefault();
-              if (!isVideoReady) {
-                console.warn('Vidéo pas encore prête');
-                return;
-              }
-              wrapper.classList.add('active');
-              if (video.paused || video.ended) {
-                videos.forEach(v => {
-                  if (v !== video && !v.paused) {
-                    v.pause();
-                    v.closest('.video-wrapper').querySelector('.play-pause-btn').innerHTML = '<i class="fas fa-play"></i>';
-                  }
-                });
-                video.play().then(() => {
-                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
-                }).catch(err => console.error('Erreur de lecture:', err));
-              } else {
-                video.pause();
-                playPause.innerHTML = '<i class="fas fa-play"></i>';
-              }
-            });
-
-            playPause.addEventListener('touchstart', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (!isVideoReady) {
-                console.warn('Vidéo pas encore prête');
-                return;
-              }
-              wrapper.classList.add('active');
-              if (video.paused || video.ended) {
-                videos.forEach(v => {
-                  if (v !== video && !v.paused) {
-                    v.pause();
-                    v.closest('.video-wrapper').querySelector('.play-pause-btn').innerHTML = '<i class="fas fa-play"></i>';
-                  }
-                });
-                video.play().then(() => {
-                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
-                }).catch(err => console.error('Erreur de lecture:', err));
-              } else {
-                video.pause();
-                playPause.innerHTML = '<i class="fas fa-play"></i>';
-              }
-            });
-
-            // Seek Backward
-            backward.addEventListener('click', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (isVideoReady) {
-                video.currentTime = Math.max(0, video.currentTime - 10);
-                wrapper.classList.add('active');
-                seekControls.classList.add('visible');
-                setTimeout(() => {
-                  if (video.paused) {
-                    seekControls.classList.remove('visible');
-                    wrapper.classList.remove('active');
-                  }
-                }, 3000);
-              }
-            });
-
-            // Seek Forward
-            forward.addEventListener('click', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (isVideoReady) {
-                video.currentTime = Math.min(video.duration, video.currentTime + 10);
-                wrapper.classList.add('active');
-                seekControls.classList.add('visible');
-                setTimeout(() => {
-                  if (video.paused) {
-                    seekControls.classList.remove('visible');
-                    wrapper.classList.remove('active');
-                  }
-                }, 3000);
-              }
-            });
-
-            // Mute/Unmute
-            const toggleMute = debounce((e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (!isVideoReady) {
-                console.warn('Vidéo pas encore prête');
-                return;
-              }
-              video.muted = !video.muted;
-              muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
-              console.log('Mute toggled:', video.muted);
-              wrapper.classList.add('active');
-              seekControls.classList.add('visible');
+              controls.classList.add('visible');
               setTimeout(() => {
-                if (video.paused) {
-                  seekControls.classList.remove('visible');
-                  wrapper.classList.remove('active');
-                }
-              }, 3000);
-            }, 300);
+                if (video.paused) controls.classList.remove('visible');
+              }, 2000);
+            });
 
-            muteBtn.addEventListener('click', toggleMute);
-            muteBtn.addEventListener('touchstart', toggleMute);
-
-            // Update play/pause button on video events
+            // Mettre à jour l'icône lors des événements de lecture/pause
             video.addEventListener('play', () => {
-              playPause.innerHTML = '<i class="fas fa-pause"></i>';
-              wrapper.classList.add('active');
+              playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
             });
             video.addEventListener('pause', () => {
-              playPause.innerHTML = '<i class="fas fa-play"></i>';
+              playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
             });
 
-            // Handle video errors
+            // Gestion des erreurs
             video.addEventListener('error', (e) => {
-              console.error('Erreur de chargement de la vidéo:', e);
+              console.error('Erreur de chargement de la vidéo:', video.src, e);
             });
 
-            // Add video to tracking set
+            // Ajouter la vidéo au suivi
             videos.add(video);
           }
         });
@@ -1140,3 +929,6 @@
   </script>
 </body>
 </html>
+
+      
+ 
