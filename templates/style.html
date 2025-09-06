@@ -108,7 +108,7 @@
     }
     .user-info {
       display: flex;
-      align咽: align-items: center;
+      align-items: center;
       padding: 12px;
       border-bottom: 1px solid #f0f0f0;
     }
@@ -437,7 +437,7 @@
           <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay muted loop playsinline class="post-video"></video>
           <div class="video-controls">
             <button class="mute-btn muted">
-              <i class="fas fa-volume-xmark"></i>
+              <i class="fas fa-volume-mute"></i>
             </button>
           </div>
         </div>
@@ -455,7 +455,7 @@
               <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay muted loop playsinline class="post-video"></video>
               <div class="video-controls">
                 <button class="mute-btn muted">
-                  <i class="fas fa-volume-xmark"></i>
+                  <i class="fas fa-volume-mute"></i>
                 </button>
               </div>
             </div>
@@ -563,56 +563,38 @@
           const video = wrapper.querySelector('video');
           const muteBtn = wrapper.querySelector('.mute-btn');
           if (video && muteBtn) {
-            // Ensure initial state is muted
+            // Ensure video is initially muted
             video.muted = true;
             muteBtn.classList.add('muted');
-            muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-xmark');
 
-            muteBtn.addEventListener('click', () => {
-              // Toggle muted state
-              video.muted = !video.muted;
-              muteBtn.classList.toggle('muted', video.muted);
-              const icon = muteBtn.querySelector('i');
-              icon.classList.toggle('fa-volume-xmark', video.muted);
-              icon.classList.toggle('fa-volume-high', !video.muted);
-
-              // Attempt to play the video if unmuted
-              if (!video.muted) {
-                video.play().catch(err => {
-                  // Silently handle autoplay restrictions
-                  video.muted = true; // Revert to muted
-                  muteBtn.classList.add('muted');
-                  icon.classList.replace('fa-volume-high', 'fa-volume-xmark');
-                  // Optionally, notify user about interaction requirement
-                  // console.log('Interaction utilisateur requise pour activer le son.');
-                });
-              }
-            });
-
-            // Add click event on video to ensure user interaction
-            video.addEventListener('click', () => {
+            muteBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // Request user interaction for unmute
               if (video.muted) {
                 video.muted = false;
                 muteBtn.classList.remove('muted');
-                muteBtn.querySelector('i').classList.replace('fa-volume-xmark', 'fa-volume-high');
-                video.play().catch(err => {
-                  // Silently handle autoplay restrictions
-                  video.muted = true;
-                  muteBtn.classList.add('muted');
-                  muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-xmark');
-                  // console.log('Interaction utilisateur requise pour activer le son.');
-                });
+                muteBtn.querySelector('i').classList.replace('fa-volume-mute', 'fa-volume-high');
+              } else {
+                video.muted = true;
+                muteBtn.classList.add('muted');
+                muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-mute');
               }
             });
 
-            // Ensure video is ready before attempting to play
-            video.addEventListener('loadedmetadata', () => {
-              if (!video.muted) {
-                video.play().catch(() => {
-                  video.muted = true; // Ensure muted if play fails
-                  muteBtn.classList.add('muted');
-                  muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-xmark');
-                });
+            // Handle touch events for mobile
+            muteBtn.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (video.muted) {
+                video.muted = false;
+                muteBtn.classList.remove('muted');
+                muteBtn.querySelector('i').classList.replace('fa-volume-mute', 'fa-volume-high');
+              } else {
+                video.muted = true;
+                muteBtn.classList.add('muted');
+                muteBtn.querySelector('i').classList.replace('fa-volume-high', 'fa-volume-mute');
               }
             });
           }
@@ -631,4 +613,271 @@
           button.classList.toggle('liked', data.liked);
           const icon = button.querySelector('i');
           icon.classList.toggle('fa-solid', data.liked);
-          icon.classList.toggle('fa-regular', !data.likedquettes: System: * Today's date and time is 04:42 PM CEST on Saturday, September 06, 2025.
+          icon.classList.toggle('fa-regular', !data.liked);
+          socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
+        } catch (err) { console.error(err); }
+      }
+
+      function bindLikes(post) {
+        const btn = post.querySelector('.like-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => toggleLike(btn));
+        const icon = btn.querySelector('i');
+        const isLiked = btn.classList.contains('liked');
+        icon.classList.toggle('fa-solid', isLiked);
+        icon.classList.toggle('fa-regular', !isLiked);
+      }
+
+      function bindCommentForm(post) {
+        const form = post.querySelector('.comment-form');
+        if (!form) return;
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          const input = form.querySelector('input[name="comment"]');
+          const content = input.value.trim();
+          if (!content) return;
+          const postId = post.dataset.postId;
+          socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
+          input.value = '';
+        });
+      }
+
+      function bindFollowButtons(post) {
+        const btn = post.querySelector('.follow-btn');
+        if (!btn) return;
+        const postUsername = post.querySelector('.username').textContent.trim();
+
+        function updateButton(button, isFollowing) {
+          if (isFollowing) {
+            button.dataset.following = "true";
+            button.classList.add('following');
+            button.innerHTML = 'Abonné ✔';
+            button.disabled = true;
+          } else {
+            button.dataset.following = "false";
+            button.classList.remove('following');
+            button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+            button.disabled = false;
+          }
+        }
+
+        if (!window.followingUsers) window.followingUsers = new Set();
+        if (window.followingUsers.has(postUsername)) updateButton(btn, true);
+        else updateButton(btn, btn.dataset.following === "true");
+
+        btn.addEventListener('click', async () => {
+          if (btn.dataset.following === "true") return;
+          try {
+            const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
+            if (!res.ok) throw new Error('Erreur serveur');
+            const data = await res.json();
+            if (data.following) {
+              window.followingUsers.add(postUsername);
+              document.querySelectorAll('.post').forEach(p => {
+                const usernameEl = p.querySelector('.username');
+                const followBtn = p.querySelector('.follow-btn');
+                if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+                  updateButton(followBtn, true);
+                }
+              });
+            } else {
+              window.followingUsers.delete(postUsername);
+              updateButton(btn, false);
+            }
+          } catch (e) {
+            console.error(e);
+            alert('Impossible de suivre pour le moment.');
+          }
+        });
+      }
+
+      function applyFollowStateToNewPosts(newPosts) {
+        newPosts.forEach(post => {
+          const usernameEl = post.querySelector('.username');
+          if (!usernameEl) return;
+          const postUsername = usernameEl.textContent.trim();
+          const followBtn = post.querySelector('.follow-btn');
+          if (!followBtn) return;
+          if (window.followingUsers && window.followingUsers.has(postUsername)) {
+            followBtn.dataset.following = "true";
+            followBtn.classList.add('following');
+            followBtn.innerHTML = 'Abonné ✔';
+            followBtn.disabled = true;
+          } else {
+            followBtn.dataset.following = "false";
+            followBtn.classList.remove('following');
+            followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+            followBtn.disabled = false;
+          }
+          bindFollowButtons(post);
+        });
+      }
+
+      function updateComments(postId, username, content) {
+        const post = document.querySelector(`.post[data-post-id="${postId}"]`);
+        if (!post) return;
+        let countEl = post.querySelector('.comment-count');
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+        let list = post.querySelector('.comments-list');
+        if (!list) {
+          list = document.createElement('ul');
+          list.className = 'comments-list';
+          post.appendChild(list);
+        }
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${username}</strong>: ${content}`;
+        list.appendChild(li);
+      }
+
+      /* ---------- Video autoplay ---------- */
+      const ioObserver = new IntersectionObserver((entries) => {
+        let best = null;
+        entries.forEach(entry => {
+          const vid = entry.target;
+          const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+          if (visible && !best) best = vid;
+          if (!visible && !vid.paused) vid.pause();
+        });
+        if (best && currentVideo !== best) {
+          if (currentVideo) currentVideo.pause();
+          currentVideo = best;
+          currentVideo.play().catch(() => {});
+        } else if (!best && currentVideo) {
+          currentVideo.pause();
+          currentVideo = null;
+        }
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+      function observeVideo(vid) {
+        if (!videos.has(vid)) {
+          videos.add(vid);
+          ioObserver.observe(vid);
+        }
+      }
+
+      /* ---------- Init posts existants ---------- */
+      document.querySelectorAll('.post').forEach(post => {
+        bindLikes(post);
+        bindCommentForm(post);
+        bindFollowButtons(post);
+        post.querySelectorAll('video').forEach(observeVideo);
+        initSeeMore(post);
+        initVideoControls(post);
+      });
+      document.querySelectorAll('.post img').forEach(img => {
+        img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+      });
+
+      /* ---------- Socket.IO ---------- */
+      socket.on('like_updated', data => {
+        const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+        if (post) {
+          const countEl = post.querySelector('.like-count');
+          if (countEl) countEl.textContent = data.likes;
+          const btn = post.querySelector('.like-btn');
+          if (btn) btn.classList.toggle('liked', data.liked);
+          const icon = btn.querySelector('i');
+          icon.classList.toggle('fa-solid', data.liked);
+          icon.classList.toggle('fa-regular', !data.liked);
+        }
+      });
+
+      socket.on('new_comment', data => {
+        updateComments(data.post_id, data.username, data.content);
+      });
+
+      socket.on('new_post', postHtml => {
+        newPostsCount++;
+        homeBadge.style.display = 'inline';
+        homeBadge.textContent = newPostsCount;
+      });
+
+      /* ---------- Gestion badges messages et notifications ---------- */
+      let unreadCount = 0;
+      const updateUnreadBadge = () => {
+        const badge = document.getElementById('unread-count');
+        if (!badge) return;
+        if (unreadCount > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = unreadCount;
+        } else {
+          badge.style.display = 'none';
+        }
+      };
+
+      socket.on('new_message', (message) => {
+        const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+        if (!currentChatUser || currentChatUser !== message.sender) {
+          unreadCount++;
+          updateUnreadBadge();
+        }
+      });
+
+      window.addEventListener('load', () => {
+        if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+          unreadCount = 0;
+          updateUnreadBadge();
+        }
+      });
+
+      let notifCount = 0;
+      const updateNotifBadge = () => {
+        const badge = document.getElementById('notifications-count');
+        if (!badge) return;
+        if (notifCount > 0) {
+          badge.style.display = 'inline';
+          badge.textContent = notifCount;
+        } else {
+          badge.style.display = 'none';
+        }
+      };
+
+      socket.on('new_notification', (notification) => {
+        notifCount++;
+        updateNotifBadge();
+      });
+
+      window.addEventListener('load', () => {
+        if (window.location.pathname.includes('/notifications')) {
+          notifCount = 0;
+          updateNotifBadge();
+        }
+      });
+
+      /* ---------- Carousel Initialization ---------- */
+      function initCarousel(post) {
+        const track = post.querySelector('.carousel-track');
+        const dots = post.querySelectorAll('.carousel-indicators .dot');
+        if (!track || dots.length === 0) return;
+
+        Array.from(track.children).forEach(child => {
+          child.style.width = '100%';
+          child.style.flex = '0 0 100%';
+        });
+
+        track.style.overflowX = 'auto';
+        track.style.scrollSnapType = 'x mandatory';
+
+        track.addEventListener('scroll', () => {
+          const index = Math.round(track.scrollLeft / track.offsetWidth);
+          dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+        });
+
+        dots.forEach((dot, index) => {
+          dot.addEventListener('click', () => {
+            track.scrollTo({
+              left: index * track.offsetWidth,
+              behavior: 'smooth'
+            });
+          });
+        });
+
+        post.querySelectorAll('.carousel-track video').forEach(observeVideo);
+        initVideoControls(post);
+      }
+
+      document.querySelectorAll('.post').forEach(post => initCarousel(post));
+    });
+  </script>
+</body>
+</html>
