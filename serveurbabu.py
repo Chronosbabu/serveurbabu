@@ -345,9 +345,13 @@ def search_users():
         users = [u for u in users if query in u["username"].lower()]
     return render_template("search.html", users=users, current_username=session["username"])
 
+
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    # Définit le chemin absolu vers le dossier uploads
+    upload_folder = os.path.join(os.path.expanduser("C:/Users/Alfred M/Desktop/sereurbabu"), "uploads")
+    file_path = os.path.join(upload_folder, filename)
+
     if not os.path.exists(file_path):
         abort(404)
 
@@ -358,7 +362,7 @@ def uploaded_file(filename):
     if not range_header:
         response = send_file(file_path, mimetype=mime_type)
         response.headers['Accept-Ranges'] = 'bytes'
-        response.headers['Access-Control-Allow-Origin'] = '*'  # Ajout CORS
+        response.headers['Access-Control-Allow-Origin'] = '*'
         return response
 
     byte_range = range_header.replace('bytes=', '').split('-')
@@ -384,8 +388,10 @@ def uploaded_file(filename):
     )
     response.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
     response.headers.add('Accept-Ranges', 'bytes')
-    response.headers.add('Access-Control-Allow-Origin', '*')  # Ajout CORS
+    response.headers.add('Access-Control-Allow-Origin', '*')
     return response
+
+
 
 @app.route("/avatars/<filename>")
 def avatar_file(filename):
