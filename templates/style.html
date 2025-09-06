@@ -613,178 +613,47 @@
       }
 
       /* ---------- Video Controls Functionality ---------- */
-      function initVideoControls(post) {
-        post.querySelectorAll('.video-wrapper').forEach(wrapper => {
-          const video = wrapper.querySelector('video');
-          const playPauseBtn = wrapper.querySelector('.play-pause-btn');
-          const controls = wrapper.querySelector('.video-controls');
-          const errorMessage = wrapper.querySelector('.video-error');
+      
+function initVideoControls(post) {
+  post.querySelectorAll('.video-wrapper').forEach(wrapper => {
+    const video = wrapper.querySelector('video');
+    const playPauseBtn = wrapper.querySelector('.play-pause-btn');
+    const controls = wrapper.querySelector('.video-controls');
+    const errorMessage = wrapper.querySelector('.video-error');
 
-          if (video && playPauseBtn && controls && errorMessage) {
-            video.removeAttribute('autoplay');
-            video.removeAttribute('loop');
-            video.muted = true; // Muet par défaut pour compatibilité mobile
+    if (!video) return;
 
-            let isVideoReady = false;
-            let touchStartY = 0;
-            let touchStartX = 0;
-            let isDragging = false;
+    // Muet par défaut pour compat mobile
+    video.muted = true;
 
-            // Vérifier si l'URL est accessible
-            fetch(video.src, { method: 'HEAD' })
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error(`Statut HTTP ${response.status}`);
-                }
-              })
-              .catch(err => {
-                console.error('Erreur de vérification de l\'URL:', video.src, err);
-                errorMessage.textContent = 'Erreur : Vidéo inaccessible ou introuvable.';
-                errorMessage.classList.add('visible');
-                controls.classList.remove('visible');
-                playPauseBtn.style.display = 'none';
-              });
+    // Gestion erreurs
+    video.addEventListener('error', () => {
+      errorMessage.textContent = "Impossible de charger la vidéo.";
+      errorMessage.classList.add("visible");
+      playPauseBtn.style.display = "none";
+    });
 
-            // Activer la vidéo et le bouton dès que possible
-            video.addEventListener('canplay', () => {
-              if (!isVideoReady) {
-                isVideoReady = true;
-                console.log('Vidéo prête:', video.src);
-                playPauseBtn.classList.add('ready');
-                controls.classList.add('visible');
-                errorMessage.classList.remove('visible');
-              }
-            }, { once: true });
-
-            // Gestion des erreurs de chargement
-            video.addEventListener('error', (e) => {
-              const error = video.error;
-              let errorText = 'Erreur de chargement de la vidéo';
-              if (error) {
-                switch (error.code) {
-                  case MediaError.MEDIA_ERR_ABORTED:
-                    errorText = 'Chargement de la vidéo annulé';
-                    break;
-                  case MediaError.MEDIA_ERR_NETWORK:
-                    errorText = 'Erreur réseau lors du chargement';
-                    break;
-                  case MediaError.MEDIA_ERR_DECODE:
-                    errorText = 'Erreur de décodage : format non pris en charge';
-                    break;
-                  case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                    errorText = 'Format vidéo ou source non pris en charge';
-                    break;
-                  default:
-                    errorText = 'Erreur inconnue lors du chargement';
-                }
-                console.error(`Erreur de chargement de la vidéo: ${video.src}, Code: ${error.code}, Message: ${error.message}`);
-              } else {
-                console.error(`Erreur de chargement de la vidéo: ${video.src}, Détails inconnus`);
-              }
-              errorMessage.textContent = errorText;
-              errorMessage.classList.add('visible');
-              controls.classList.remove('visible');
-              playPauseBtn.style.display = 'none';
-            });
-
-            // Gestion des événements tactiles pour détecter le défilement
-            video.addEventListener('touchstart', (e) => {
-              touchStartY = e.touches[0].clientY;
-              touchStartX = e.touches[0].clientX;
-              isDragging = false;
-            });
-
-            video.addEventListener('touchmove', (e) => {
-              const touchY = e.touches[0].clientY;
-              const touchX = e.touches[0].clientX;
-              const deltaY = Math.abs(touchY - touchStartY);
-              const deltaX = Math.abs(touchX - touchStartX);
-              if (deltaY > deltaX && deltaY > 10) {
-                isDragging = true; // Défilement vertical détecté
-                // Ne pas utiliser e.stopPropagation() pour permettre le défilement vertical
-              } else if (deltaX > deltaY && deltaX > 10) {
-                isDragging = true; // Défilement horizontal pour carrousel
-                e.preventDefault(); // Empêcher le défilement vertical si carrousel
-              }
-            });
-
-            // Gestion du clic/toucher sur la vidéo ou le bouton
-            const togglePlayPause = (e) => {
-              e.preventDefault();
-              if (isDragging) return; // Ignorer si défilement détecté
-              if (!isVideoReady) {
-                console.log('Interaction ignorée: vidéo pas encore prête:', video.src);
-                return;
-              }
-              if (video.paused || video.ended) {
-                videos.forEach(v => {
-                  if (v !== video && !v.paused) {
-                    v.pause();
-                    const otherBtn = v.closest('.video-wrapper').querySelector('.play-pause-btn');
-                    if (otherBtn) otherBtn.innerHTML = '<i class="fas fa-play"></i>';
-                  }
-                });
-                video.play().then(() => {
-                  playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                  controls.classList.add('visible');
-                  setTimeout(() => {
-                    if (!video.paused) controls.classList.remove('visible');
-                  }, 2000);
-                }).catch(err => {
-                  console.error('Erreur de lecture:', video.src, err);
-                  errorMessage.textContent = `Erreur : Impossible de lire la vidéo (${err.message}).`;
-                  errorMessage.classList.add('visible');
-                  controls.classList.remove('visible');
-                });
-              } else {
-                video.pause();
-                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-                controls.classList.add('visible');
-                setTimeout(() => {
-                  if (video.paused) controls.classList.remove('visible');
-                }, 2000);
-              }
-            };
-
-            // Lier les événements de clic/toucher à la vidéo et au bouton
-            video.addEventListener('click', togglePlayPause);
-            video.addEventListener('touchend', togglePlayPause);
-            playPauseBtn.addEventListener('click', togglePlayPause);
-            playPauseBtn.addEventListener('touchend', togglePlayPause);
-
-            // Afficher les contrôles au survol
-            wrapper.addEventListener('mouseenter', () => {
-              if (isVideoReady) controls.classList.add('visible');
-            });
-            wrapper.addEventListener('mouseleave', () => {
-              if (isVideoReady && !video.paused) {
-                controls.classList.remove('visible');
-              }
-            });
-            wrapper.addEventListener('touchstart', (e) => {
-              if (isVideoReady && !isDragging) {
-                controls.classList.add('visible');
-                setTimeout(() => {
-                  if (!video.paused) controls.classList.remove('visible');
-                }, 2000);
-              }
-            });
-
-            // Mettre à jour l'icône lors des événements de lecture/pause
-            video.addEventListener('play', () => {
-              playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-              errorMessage.classList.remove('visible');
-            });
-            video.addEventListener('pause', () => {
-              playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-              controls.classList.add('visible');
-            });
-
-            // Ajouter la vidéo au suivi
-            videos.add(video);
-          }
+    // Lecture / pause
+    const toggle = () => {
+      if (video.paused) {
+        video.play().then(() => {
+          playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        }).catch(err => {
+          console.error("Erreur lecture:", err);
+          errorMessage.textContent = "Erreur de lecture.";
+          errorMessage.classList.add("visible");
         });
+      } else {
+        video.pause();
+        playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
       }
+    };
+
+    playPauseBtn.addEventListener("click", toggle);
+    video.addEventListener("click", toggle);
+  });
+}
+
 
       /* ---------- Gestion des images ---------- */
       function initImageControls(post) {
