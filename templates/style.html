@@ -566,11 +566,23 @@
           const video = wrapper.querySelector('video');
           const muteBtn = wrapper.querySelector('.mute-btn');
           if (video && muteBtn) {
-            muteBtn.addEventListener('click', () => {
-              video.muted = !video.muted;
-              muteBtn.classList.toggle('muted', video.muted);
-            });
-          }
+
+muteBtn.addEventListener('click', () => {
+  video.muted = !video.muted;
+  muteBtn.classList.toggle('muted', video.muted);
+
+  const icon = muteBtn.querySelector('i');
+  if(video.muted){
+    icon.classList.remove('fa-volume-high');
+    icon.classList.add('fa-volume-xmark'); // icône muet
+  } else {
+    icon.classList.remove('fa-volume-xmark');
+    icon.classList.add('fa-volume-high'); // icône son
+  }
+});
+
+            
+
         });
       }
 
