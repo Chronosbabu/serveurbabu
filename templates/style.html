@@ -7,1073 +7,116 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
-    /* ---------- GLOBAL ---------- */
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
-      background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
-      color: #1a1a1a;
-      overscroll-behavior: none;
-      touch-action: auto;
+      background: #f5f5f5;
     }
-    a { 
-      text-decoration: none; 
-      color: inherit; 
-      transition: color 0.3s ease;
-    }
-    .main-container { 
-      max-width: 900px; 
-      margin: 0 auto; 
-      padding: 0 10px;
-    }
-
-    /* ---------- HEADER ---------- */
-    .main-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-      background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      border-bottom: 1px solid #e0e4e8;
-    }
-    .logo { 
-      font-size: 2.2rem; 
-      font-weight: 900; 
-      color: #0077ff; 
-      letter-spacing: -0.5px; 
-      margin: 0 0 10px 0;
-      text-transform: uppercase;
-      background: linear-gradient(45deg, #0077ff, #00c6ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .header-icons {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .header-icons a {
-      position: relative;
-      color: #2c3e50;
-      font-size: 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 44px;
-      min-height: 44px;
-      border-radius: 50%;
-      transition: all 0.3s ease;
-      padding: 8px;
-    }
-    .header-icons a:hover { 
-      color: #0077ff; 
-      background: rgba(0, 119, 255, 0.1);
-      transform: scale(1.1);
-    }
-    .message-badge {
-      position: absolute;
-      top: -2px;
-      right: -2px;
-      background: #ff2d55;
-      color: white;
-      font-size: 0.7rem;
-      padding: 3px 6px;
-      border-radius: 50%;
-      font-weight: 600;
-      line-height: 1;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    /* ---------- POSTS ---------- */
-    .scroll-box {
-      padding: 20px 10px;
-      touch-action: auto;
-    }
-    .post {
-      background: #fff;
-      margin-bottom: 24px;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .post:hover { 
-      transform: translateY(-4px); 
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-    .user-info {
-      display: flex;
-      align-items: center;
-      padding: 12px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .avatar-post, .avatar-fallback {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: linear-gradient(45deg, #dfe4ea, #ced4da);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 1.3rem;
-      color: #fff;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    .username-link { 
-      margin-left: 12px; 
-      font-weight: 700; 
-      font-size: 1.1rem; 
-      color: #1a1a1a;
-      transition: color 0.3s ease;
-    }
-    .username-link:hover { 
-      color: #0077ff;
-    }
-    .description-container {
-      position: relative;
-      padding: 12px 16px;
-    }
-    .description { 
-      font-size: 1rem; 
-      line-height: 1.5; 
-      color: #333;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      max-width: 100%;
-      box-sizing: border-box;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      transition: -webkit-line-clamp 0.3s ease;
-    }
-    .description.clamped {
-      -webkit-line-clamp: 2;
-    }
-    .description.expanded {
-      -webkit-line-clamp: unset;
-    }
-    .see-more {
-      display: none;
-      color: #0077ff;
-      font-size: 0.9rem;
-      font-weight: 500;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: color 0.3s ease;
-    }
-    .see-more:hover {
-      color: #0055cc;
-    }
-
-    /* ---------- MEDIA ---------- */
-    .post-image, video {
+    .main-container { max-width: 800px; margin: auto; }
+    .post { background: #fff; margin: 20px 0; border-radius: 12px; overflow: hidden; }
+    .post img, .post video {
       width: 100%;
       max-height: 80vh;
       object-fit: cover;
       display: block;
-      border-radius: 0 0 16px 16px;
-      background: #000;
-      position: relative;
-      pointer-events: auto;
-      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
+      touch-action: pan-y pinch-zoom; /* défilement vertical */
     }
-    .video-wrapper {
-      position: relative;
-      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
-      width: 100%;
-    }
+    .video-wrapper { position: relative; }
     .video-controls {
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      z-index: 30;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
+      transition: opacity 0.3s;
     }
-    .video-controls.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .video-controls.visible { opacity: 1; }
     .play-pause-btn {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       border: none;
       border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      transition: background 0.3s ease, transform 0.3s ease;
-      pointer-events: none; /* Désactivé jusqu'à ce que la vidéo soit prête */
+      pointer-events: auto; /* corrigé */
     }
-    .play-pause-btn.ready {
-      pointer-events: auto; /* Activé quand la vidéo est prête */
-    }
-    .play-pause-btn:hover {
-      background: rgba(0, 0, 0, 0.9);
-      transform: scale(1.1);
-    }
-    .play-pause-btn i {
-      color: #fff;
-      font-size: 2rem;
-    }
+    .play-pause-btn i { color: white; font-size: 24px; }
     .video-error {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 6px;
       display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #ff2d55;
-      font-size: 1rem;
-      font-weight: 500;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px 20px;
-      border-radius: 8px;
-      z-index: 30;
-      text-align: center;
     }
-    .video-error.visible {
-      display: block;
-    }
-
-    /* ---------- CAROUSEL MULTIMEDIA ---------- */
-    .carousel {
-      position: relative;
-      width: 100%;
-      overflow: hidden;
-      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
-    }
-    .carousel-track {
-      display: flex;
-      width: 100%;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      scroll-behavior: smooth;
-      touch-action: pan-x pinch-zoom; /* Défilement horizontal pour carrousel */
-    }
-    .carousel-track::-webkit-scrollbar { 
-      display: none; 
-    }
-    .carousel-track > * {
-      flex: 0 0 100%;
-      width: 100%;
-      scroll-snap-align: start;
-    }
-    .carousel-indicators {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
-      z-index: 30;
-    }
-    .carousel-indicators .dot {
-      width: 10px;
-      height: 10px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      pointer-events: auto;
-    }
-    .carousel-indicators .dot.active {
-      background: #0077ff;
-      transform: scale(1.4);
-    }
-
-    /* ---------- ACTIONS ---------- */
-    .post-actions {
-      display: flex;
-      align-items: center;
-      padding: 12px 16px;
-      border-top: 1px solid #f0f0f0;
-    }
-    .like-btn {
-      border: none;
-      background: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      transition: transform 0.3s ease, color 0.3s ease;
-      color: #666;
-    }
-    .like-btn:hover { 
-      transform: scale(1.2); 
-      color: #ff2d55;
-    }
-    .like-btn.liked { 
-      color: #ff2d55; 
-    }
-    .like-count, .comment-count { 
-      margin-left: 8px; 
-      font-size: 0.95rem; 
-      color: #555;
-      font-weight: 500;
-    }
-    .comment-btn { 
-      display: flex; 
-      align-items: center; 
-      margin-left: 20px; 
-      color: #555;
-      transition: color 0.3s ease;
-    }
-    .comment-btn:hover {
-      color: #0077ff;
-    }
-    .follow-btn {
-      margin-left: auto;
-      background: linear-gradient(45deg, #0077ff, #00c6ff);
-      color: #fff;
-      border: none;
-      border-radius: 24px;
-      padding: 8px 16px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 8px rgba(0, 119, 255, 0.3);
-    }
-    .follow-btn i { 
-      margin-right: 6px; 
-    }
-    .follow-btn.following { 
-      background: #e0e4e8; 
-      color: #333; 
-      box-shadow: none;
-    }
-    .follow-btn:hover { 
-      opacity: 0.9; 
-      transform: translateY(-1px);
-    }
-
-    /* ---------- DATE ---------- */
-    .date { 
-      font-size: 0.8rem; 
-      color: #888; 
-      padding: 0 16px 12px 16px; 
-      font-style: italic;
-    }
-
-    /* ---------- COMMENTS ---------- */
-    .comments-list { 
-      padding: 0 16px 12px 16px; 
-      list-style: none; 
-      margin: 0; 
-    }
-    .comments-list li { 
-      margin-bottom: 8px; 
-      font-size: 0.9rem; 
-      color: #333;
-      line-height: 1.4;
-    }
-
-    /* ---------- RESPONSIVE ---------- */
-    @media (max-width: 600px) {
-      .avatar-post, .avatar-fallback { 
-        width: 40px; 
-        height: 40px; 
-        font-size: 1.1rem; 
-      }
-      .post-image, video { 
-        max-height: 70vh; 
-      }
-      .header-icons a { 
-        font-size: 1.3rem; 
-        min-width: 36px; 
-        min-height: 36px; 
-        padding: 6px;
-      }
-      .header-icons { 
-        gap: 10px; 
-      }
-      .logo { 
-        font-size: 1.8rem; 
-        margin-bottom: 8px;
-      }
-      .main-header { 
-        padding: 15px; 
-      }
-      .play-pause-btn {
-        width: 48px;
-        height: 48px;
-      }
-      .play-pause-btn i {
-        font-size: 1.6rem;
-      }
-    }
-
-    /* ---------- BOUTON ACCUEIL ---------- */
-    #home-btn { 
-      font-size: 1.5rem; 
-      color: #2c3e50; 
-    }
-    #home-btn:hover { 
-      color: #0077ff; 
-      background: rgba(0, 119, 255, 0.1);
-    }
+    .video-error.visible { display: block; }
   </style>
 </head>
 <body data-username="{{ username }}">
-  <div class="main-container">
-    <header class="main-header">
-      <h2 class="logo">CHRONOS</h2>
-      <nav class="header-icons">
-        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
-        <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
-          <i class="fa-regular fa-bell"></i>
-          <span class="message-badge" id="notifications-count" style="display:none;">0</span>
-        </a>
-        <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
-        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
-        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
-        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
-          <i class="fa-regular fa-message"></i>
-          <span class="message-badge" id="unread-count" style="display:none;">0</span>
-        </a>
-        <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
-      </nav>
-    </header>
-    <main class="scroll-box" id="posts">
-      {% for post in posts %}
-      <div class="post" data-post-id="{{ post.id }}">
-        <div class="user-info">
-          {% if post.avatar %}
-          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
-          </a>
-          {% else %}
-          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
-          </a>
-          {% endif %}
-          <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-            <p class="username">{{ post.username }}</p>
-          </a>
+  <div class="main-container" id="posts">
+    {% for post in posts %}
+    <div class="post">
+      {% if post.type == "image" %}
+      <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image">
+      {% elif post.type == "video" %}
+      <div class="video-wrapper">
+        <video src="{{ url_for('uploaded_file', filename=post.file) }}" preload="metadata" playsinline webkit-playsinline muted></video>
+        <div class="video-controls">
+          <button class="play-pause-btn"><i class="fas fa-play"></i></button>
         </div>
-        <div class="description-container">
-          <p class="description">{{ post.description }}</p>
-          <span class="see-more">Afficher plus</span>
-        </div>
-        {# ---- Single file ---- #}
-        {% if post.type == "image" and not post.files %}
-        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-        {% elif post.type == "video" and not post.files %}
-        <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline webkit-playsinline preload="metadata" muted class="post-video">
-            <source src="{{ url_for('uploaded_file', filename=post.file) }}" type="video/mp4">
-            Votre navigateur ne prend pas en charge la lecture vidéo.
-          </video>
-          <div class="video-controls">
-            <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-          </div>
-          <div class="video-error">Impossible de charger la vidéo.</div>
-        </div>
-        {% endif %}
-        {# ---- Multiple files (carousel) ---- #}
-        {% if post.files|length > 0 %}
-        <div class="carousel">
-          <div class="carousel-track">
-            {% for file in post.files %}
-            {% if file.type == "image" %}
-            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
-            {% elif file.type == "video" %}
-            <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline webkit-playsinline preload="metadata" muted class="post-video">
-                <source src="{{ url_for('uploaded_file', filename=file.name) }}" type="video/mp4">
-                Votre navigateur ne prend pas en charge la lecture vidéo.
-              </video>
-              <div class="video-controls">
-                <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-              </div>
-              <div class="video-error">Impossible de charger la vidéo.</div>
-            </div>
-            {% endif %}
-            {% endfor %}
-          </div>
-          <div class="carousel-indicators">
-            {% for file in post.files %}
-            <span class="dot{% if loop.first %} active{% endif %}"></span>
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
-        <div class="post-actions">
-          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-            <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-          </button>
-          <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-          <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-            <i class="fa-regular fa-comment"></i>
-            <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-          </a>
-          <button
-            class="follow-btn{% if post.following %} following{% endif %}"
-            data-following="{{ 'true' if post.following else 'false' }}"
-          >
-            {% if post.following %}
-            Abonné ✔
-            {% else %}
-            <i class="fa-solid fa-plus"></i> Suivre
-            {% endif %}
-          </button>
-        </div>
-        <p class="date">Publié le {{ post.date }}</p>
+        <div class="video-error">Erreur de lecture</div>
       </div>
-      {% endfor %}
-    </main>
+      {% endif %}
+    </div>
+    {% endfor %}
   </div>
+
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const currentUsername = document.body.dataset.username;
-      const postsContainer = document.getElementById('posts');
+    document.addEventListener("DOMContentLoaded", () => {
+      const postsContainer = document.getElementById("posts");
       const videos = new Set();
 
-      const socket = io();
+      function initVideoControls(wrapper) {
+        const video = wrapper.querySelector("video");
+        const btn = wrapper.querySelector(".play-pause-btn");
+        const controls = wrapper.querySelector(".video-controls");
+        const errorBox = wrapper.querySelector(".video-error");
 
-      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        if (!video) return;
 
-      const homeBtn = document.getElementById('home-btn');
-      const homeBadge = document.createElement('span');
-      homeBadge.className = 'message-badge';
-      homeBadge.style.display = 'none';
-      homeBtn.appendChild(homeBadge);
-      let newPostsCount = 0;
+        video.addEventListener("canplay", () => {
+          btn.classList.add("ready");
+        });
 
-      window.addEventListener('load', () => window.scrollTo(0, 0));
+        video.addEventListener("error", () => {
+          errorBox.classList.add("visible");
+          controls.classList.remove("visible");
+        });
 
-      homeBtn.addEventListener('click', e => {
-        e.preventDefault();
-        newPostsCount = 0;
-        homeBadge.style.display = 'none';
-        homeBadge.textContent = '';
-        location.reload();
-      });
-
-      /* ---------- Debounce Utility ---------- */
-      function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-          const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-          };
-          clearTimeout(timeout);
-          timeout = setTimeout(later, wait);
+        const togglePlay = () => {
+          if (video.paused) {
+            videos.forEach(v => v.pause()); // pause autres vidéos
+            video.play().then(() => {
+              btn.innerHTML = '<i class="fas fa-pause"></i>';
+              controls.classList.add("visible");
+              setTimeout(() => controls.classList.remove("visible"), 1500);
+            });
+          } else {
+            video.pause();
+            btn.innerHTML = '<i class="fas fa-play"></i>';
+            controls.classList.add("visible");
+          }
         };
+
+        btn.addEventListener("click", togglePlay);
+        video.addEventListener("click", togglePlay);
+
+        videos.add(video);
       }
 
-      /* ---------- See More Functionality ---------- */
-      function initSeeMore(post) {
-        const descriptionContainer = post.querySelector('.description-container');
-        const description = descriptionContainer.querySelector('.description');
-        const seeMore = descriptionContainer.querySelector('.see-more');
-        
-        function checkOverflow() {
-          const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
-          const maxHeight = lineHeight * 2;
-          if (description.scrollHeight > maxHeight) {
-            description.classList.add('clamped');
-            seeMore.style.display = 'block';
-          } else {
-            description.classList.remove('clamped');
-            seeMore.style.display = 'none';
-          }
-        }
-
-        checkOverflow();
-
-        seeMore.addEventListener('click', () => {
-          if (description.classList.contains('clamped')) {
-            description.classList.remove('clamped');
-            description.classList.add('expanded');
-            seeMore.textContent = 'Afficher moins';
-          } else {
-            description.classList.remove('expanded');
-            description.classList.add('clamped');
-            seeMore.textContent = 'Afficher plus';
-          }
-        });
-
-        window.addEventListener('resize', checkOverflow);
-      }
-
-      /* ---------- Video Controls Functionality ---------- */
-      function initVideoControls(post) {
-        post.querySelectorAll('.video-wrapper').forEach(wrapper => {
-          const video = wrapper.querySelector('video');
-          const playPauseBtn = wrapper.querySelector('.play-pause-btn');
-          const controls = wrapper.querySelector('.video-controls');
-          const errorMessage = wrapper.querySelector('.video-error');
-
-          if (video && playPauseBtn && controls && errorMessage) {
-            video.removeAttribute('autoplay');
-            video.removeAttribute('loop');
-            video.muted = true; // Muet par défaut pour compatibilité mobile
-
-            let isVideoReady = false;
-            let touchStartY = 0;
-            let touchStartX = 0;
-            let isDragging = false;
-
-            // Vérifier si l'URL est accessible
-            fetch(video.src, { method: 'HEAD' })
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error(`Statut HTTP ${response.status}`);
-                }
-              })
-              .catch(err => {
-                console.error('Erreur de vérification de l\'URL:', video.src, err);
-                errorMessage.textContent = 'Erreur : Vidéo inaccessible ou introuvable.';
-                errorMessage.classList.add('visible');
-                controls.classList.remove('visible');
-                playPauseBtn.style.display = 'none';
-              });
-
-            // Attendre que la vidéo soit prête
-            video.addEventListener('canplay', () => {
-              if (!isVideoReady) {
-                isVideoReady = true;
-                console.log('Vidéo prête:', video.src);
-                playPauseBtn.classList.add('ready');
-                controls.classList.add('visible');
-                errorMessage.classList.remove('visible');
-              }
-            }, { once: true });
-
-            // Gestion des erreurs de chargement
-            video.addEventListener('error', (e) => {
-              const error = video.error;
-              let errorText = 'Erreur de chargement de la vidéo';
-              if (error) {
-                switch (error.code) {
-                  case MediaError.MEDIA_ERR_ABORTED:
-                    errorText = 'Chargement de la vidéo annulé';
-                    break;
-                  case MediaError.MEDIA_ERR_NETWORK:
-                    errorText = 'Erreur réseau lors du chargement';
-                    break;
-                  case MediaError.MEDIA_ERR_DECODE:
-                    errorText = 'Erreur de décodage : format non pris en charge';
-                    break;
-                  case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                    errorText = 'Format vidéo ou source non pris en charge';
-                    break;
-                  default:
-                    errorText = 'Erreur inconnue lors du chargement';
-                }
-                console.error(`Erreur de chargement de la vidéo: ${video.src}, Code: ${error.code}, Message: ${error.message}`);
-              } else {
-                console.error(`Erreur de chargement de la vidéo: ${video.src}, Détails inconnus`);
-              }
-              errorMessage.textContent = errorText;
-              errorMessage.classList.add('visible');
-              controls.classList.remove('visible');
-              playPauseBtn.style.display = 'none';
-            });
-
-            // Gestion des événements tactiles pour détecter le défilement vertical
-            video.addEventListener('touchstart', (e) => {
-              touchStartY = e.touches[0].clientY;
-              touchStartX = e.touches[0].clientX;
-              isDragging = false;
-            });
-
-            video.addEventListener('touchmove', (e) => {
-              const touchY = e.touches[0].clientY;
-              const touchX = e.touches[0].clientX;
-              const deltaY = Math.abs(touchY - touchStartY);
-              const deltaX = Math.abs(touchX - touchStartX);
-              if (deltaY > deltaX && deltaY > 10) {
-                isDragging = true; // Défilement vertical détecté
-                e.stopPropagation(); // Laisser le navigateur gérer le défilement vertical
-              }
-            });
-
-            // Gestion du clic/toucher sur la vidéo ou le bouton
-            const togglePlayPause = (e) => {
-              e.preventDefault();
-              if (isDragging) return; // Ignorer si défilement vertical
-              if (!isVideoReady) {
-                console.log('Interaction ignorée: vidéo pas encore prête:', video.src);
-                return;
-              }
-              if (video.paused || video.ended) {
-                videos.forEach(v => {
-                  if (v !== video && !v.paused) {
-                    v.pause();
-                    const otherBtn = v.closest('.video-wrapper').querySelector('.play-pause-btn');
-                    if (otherBtn) otherBtn.innerHTML = '<i class="fas fa-play"></i>';
-                  }
-                });
-                video.play().then(() => {
-                  playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                  controls.classList.add('visible');
-                  setTimeout(() => {
-                    if (!video.paused) controls.classList.remove('visible');
-                  }, 2000);
-                }).catch(err => {
-                  console.error('Erreur de lecture:', video.src, err);
-                  errorMessage.textContent = `Erreur : Impossible de lire la vidéo (${err.message}).`;
-                  errorMessage.classList.add('visible');
-                  controls.classList.remove('visible');
-                });
-              } else {
-                video.pause();
-                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-                controls.classList.add('visible');
-                setTimeout(() => {
-                  if (video.paused) controls.classList.remove('visible');
-                }, 2000);
-              }
-            };
-
-            // Lier les événements uniquement après que la vidéo est prête
-            const addInteractionListeners = () => {
-              if (isVideoReady) {
-                video.addEventListener('click', togglePlayPause);
-                video.addEventListener('touchend', togglePlayPause); // Utiliser touchend pour éviter conflit avec touchmove
-                playPauseBtn.addEventListener('click', togglePlayPause);
-                playPauseBtn.addEventListener('touchend', togglePlayPause);
-              } else {
-                setTimeout(addInteractionListeners, 100);
-              }
-            };
-
-            addInteractionListeners();
-
-            // Afficher les contrôles au survol
-            wrapper.addEventListener('mouseenter', () => {
-              if (isVideoReady) controls.classList.add('visible');
-            });
-            wrapper.addEventListener('mouseleave', () => {
-              if (isVideoReady && !video.paused) {
-                controls.classList.remove('visible');
-              }
-            });
-            wrapper.addEventListener('touchstart', (e) => {
-              if (isVideoReady && !isDragging) {
-                controls.classList.add('visible');
-                setTimeout(() => {
-                  if (!video.paused) controls.classList.remove('visible');
-                }, 2000);
-              }
-            });
-
-            // Mettre à jour l'icône lors des événements de lecture/pause
-            video.addEventListener('play', () => {
-              playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-              errorMessage.classList.remove('visible');
-            });
-            video.addEventListener('pause', () => {
-              playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-              controls.classList.add('visible');
-            });
-
-            // Ajouter la vidéo au suivi
-            videos.add(video);
-          }
-        });
-
-        // Gestion du défilement vertical pour les images
-        post.querySelectorAll('.post-image').forEach(img => {
-          let touchStartY = 0;
-          let touchStartX = 0;
-          let isDragging = false;
-
-          img.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
-            isDragging = false;
-          });
-
-          img.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            const touchX = e.touches[0].clientX;
-            const deltaY = Math.abs(touchY - touchStartY);
-            const deltaX = Math.abs(touchX - touchStartX);
-            if (deltaY > deltaX && deltaY > 10) {
-              isDragging = true;
-              // Laisser le défilement vertical se produire
-            } else if (deltaX > deltaY && deltaX > 10) {
-              e.stopPropagation(); // Défilement horizontal pour carrousel
-            }
-          });
-
-          img.addEventListener('touchend', (e) => {
-            if (!isDragging) {
-              videos.forEach(v => v.pause());
-            }
-          });
-        });
-      }
-
-      async function toggleLike(button) {
-        const post = button.closest('.post');
-        const postId = post.dataset.postId;
-        const countEl = post.querySelector('.like-count');
-        try {
-          const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
-          if (!res.ok) return;
-          const data = await res.json();
-          countEl.textContent = data.likes;
-          button.classList.toggle('liked', data.liked);
-          const icon = button.querySelector('i');
-          icon.classList.toggle('fa-solid', data.liked);
-          icon.classList.toggle('fa-regular', !data.liked);
-          socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
-        } catch (err) { console.error(err); }
-      }
-
-      function bindLikes(post) {
-        const btn = post.querySelector('.like-btn');
-        if (!btn) return;
-        btn.addEventListener('click', () => toggleLike(btn));
-        const icon = btn.querySelector('i');
-        const isLiked = btn.classList.contains('liked');
-        icon.classList.toggle('fa-solid', isLiked);
-        icon.classList.toggle('fa-regular', !isLiked);
-      }
-
-      function bindCommentForm(post) {
-        const form = post.querySelector('.comment-form');
-        if (!form) return;
-        form.addEventListener('submit', e => {
-          e.preventDefault();
-          const input = form.querySelector('input[name="comment"]');
-          const content = input.value.trim();
-          if (!content) return;
-          const postId = post.dataset.postId;
-          socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
-          input.value = '';
-        });
-      }
-
-      function bindFollowButtons(post) {
-        const btn = post.querySelector('.follow-btn');
-        if (!btn) return;
-        const postUsername = post.querySelector('.username').textContent.trim();
-
-        function updateButton(button, isFollowing) {
-          if (isFollowing) {
-            button.dataset.following = "true";
-            button.classList.add('following');
-            button.innerHTML = 'Abonné ✔';
-            button.disabled = true;
-          } else {
-            button.dataset.following = "false";
-            button.classList.remove('following');
-            button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-            button.disabled = false;
-          }
-        }
-
-        if (!window.followingUsers) window.followingUsers = new Set();
-        if (window.followingUsers.has(postUsername)) updateButton(btn, true);
-        else updateButton(btn, btn.dataset.following === "true");
-
-        btn.addEventListener('click', async () => {
-          if (btn.dataset.following === "true") return;
-          try {
-            const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
-            if (!res.ok) throw new Error('Erreur serveur');
-            const data = await res.json();
-            if (data.following) {
-              window.followingUsers.add(postUsername);
-              document.querySelectorAll('.post').forEach(p => {
-                const usernameEl = p.querySelector('.username');
-                const followBtn = p.querySelector('.follow-btn');
-                if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
-                  updateButton(followBtn, true);
-                }
-              });
-            } else {
-              window.followingUsers.delete(postUsername);
-              updateButton(btn, false);
-            }
-          } catch (e) {
-            console.error(e);
-            alert('Impossible de suivre pour le moment.');
-          }
-        });
-      }
-
-      function applyFollowStateToNewPosts(newPosts) {
-        newPosts.forEach(post => {
-          const usernameEl = post.querySelector('.username');
-          if (!usernameEl) return;
-          const postUsername = usernameEl.textContent.trim();
-          const followBtn = post.querySelector('.follow-btn');
-          if (!followBtn) return;
-          if (window.followingUsers && window.followingUsers.has(postUsername)) {
-            followBtn.dataset.following = "true";
-            followBtn.classList.add('following');
-            followBtn.innerHTML = 'Abonné ✔';
-            followBtn.disabled = true;
-          } else {
-            followBtn.dataset.following = "false";
-            followBtn.classList.remove('following');
-            followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-            followBtn.disabled = false;
-          }
-          bindFollowButtons(post);
-        });
-      }
-
-      function updateComments(postId, username, content) {
-        const post = document.querySelector(`.post[data-post-id="${postId}"]`);
-        if (!post) return;
-        let countEl = post.querySelector('.comment-count');
-        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-        let list = post.querySelector('.comments-list');
-        if (!list) {
-          list = document.createElement('ul');
-          list.className = 'comments-list';
-          post.appendChild(list);
-        }
-        const li = document.createElement('li');
-        li.innerHTML = `<strong>${username}</strong>: ${content}`;
-        list.appendChild(li);
-      }
-
-      /* ---------- Init posts existants ---------- */
-      document.querySelectorAll('.post').forEach(post => {
-        bindLikes(post);
-        bindCommentForm(post);
-        bindFollowButtons(post);
-        initSeeMore(post);
-        initVideoControls(post);
-      });
-
-      /* ---------- Socket.IO ---------- */
-      socket.on('like_updated', data => {
-        const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-        if (post) {
-          const countEl = post.querySelector('.like-count');
-          if (countEl) countEl.textContent = data.likes;
-          const btn = post.querySelector('.like-btn');
-          if (btn) btn.classList.toggle('liked', data.liked);
-          const icon = btn.querySelector('i');
-          icon.classList.toggle('fa-solid', data.liked);
-          icon.classList.toggle('fa-regular', !data.liked);
-        }
-      });
-
-      socket.on('new_comment', data => {
-        updateComments(data.post_id, data.username, data.content);
-      });
-
-      socket.on('new_post', postHtml => {
-        newPostsCount++;
-        homeBadge.style.display = 'inline';
-        homeBadge.textContent = newPostsCount;
-      });
-
-      /* ---------- Gestion badges messages et notifications ---------- */
-      let unreadCount = 0;
-      const updateUnreadBadge = () => {
-        const badge = document.getElementById('unread-count');
-        if (!badge) return;
-        if (unreadCount > 0) {
-          badge.style.display = 'inline';
-          badge.textContent = unreadCount;
-        } else {
-          badge.style.display = 'none';
-        }
-      };
-
-      socket.on('new_message', (message) => {
-        const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-        if (!currentChatUser || currentChatUser !== message.sender) {
-          unreadCount++;
-          updateUnreadBadge();
-        }
-      });
-
-      window.addEventListener('load', () => {
-        if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-          unreadCount = 0;
-          updateUnreadBadge();
-        }
-      });
-
-      let notifCount = 0;
-      const updateNotifBadge = () => {
-        const badge = document.getElementById('notifications-count');
-        if (!badge) return;
-        if (notifCount > 0) {
-          badge.style.display = 'inline';
-          badge.textContent = notifCount;
-        } else {
-          badge.style.display = 'none';
-        }
-      };
-
-      socket.on('new_notification', (notification) => {
-        notifCount++;
-        updateNotifBadge();
-      });
-
-      window.addEventListener('load', () => {
-        if (window.location.pathname.includes('/notifications')) {
-          notifCount = 0;
-          updateNotifBadge();
-        }
-      });
-
-      /* ---------- Carousel Initialization ---------- */
-      function initCarousel(post) {
-        const track = post.querySelector('.carousel-track');
-        const dots = post.querySelectorAll('.carousel-indicators .dot');
-        if (!track || dots.length === 0) return;
-
-        Array.from(track.children).forEach(child => {
-          child.style.width = '100%';
-          child.style.flex = '0 0 100%';
-        });
-
-        track.style.overflowX = 'auto';
-        track.style.scrollSnapType = 'x mandatory';
-
-        track.addEventListener('scroll', () => {
-          const index = Math.round(track.scrollLeft / track.offsetWidth);
-          dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
-        });
-
-        dots.forEach((dot, index) => {
-          dot.addEventListener('click', () => {
-            track.scrollTo({
-              left: index * track.offsetWidth,
-              behavior: 'smooth'
-            });
-          });
-        });
-
-        post.querySelectorAll('.carousel-track video').forEach(video => videos.add(video));
-        initVideoControls(post);
-      }
-
-      document.querySelectorAll('.post').forEach(post => initCarousel(post));
+      document.querySelectorAll(".video-wrapper").forEach(initVideoControls);
     });
   </script>
 </body>
 </html>
+
