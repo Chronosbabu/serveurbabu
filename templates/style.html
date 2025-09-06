@@ -429,66 +429,58 @@
   </style>
 </head>
 <body data-username="{{ username }}">
-  <div class="main-container">
-    <header class="main-header">
-      <h2 class="logo">CHRONOS</h2>
-      <nav class="header-icons">
-        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
-        <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
-          <i class="fa-regular fa-bell"></i>
-          <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+
+
+
+
+<div class="main-container">
+  <header class="main-header">
+    <h2 class="logo">CHRONOS</h2>
+    <nav class="header-icons">
+      <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+      <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+        <i class="fa-regular fa-bell"></i>
+        <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+      </a>
+      <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+      <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+      <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+      <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
+        <i class="fa-regular fa-message"></i>
+        <span class="message-badge" id="unread-count" style="display:none;">0</span>
+      </a>
+      <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+    </nav>
+  </header>
+
+  <main class="scroll-box" id="posts">
+    {% for post in posts %}
+    <div class="post" data-post-id="{{ post.id }}">
+      <div class="user-info">
+        {% if post.avatar %}
+        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+          <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
         </a>
-        <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
-        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
-        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
-        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
-          <i class="fa-regular fa-message"></i>
-          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        {% else %}
+        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+          <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
         </a>
-        <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
-      </nav>
-    </header>
-    <main class="scroll-box" id="posts">
-      {% for post in posts %}
-      <div class="post" data-post-id="{{ post.id }}">
-        <div class="user-info">
-          {% if post.avatar %}
-          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
-          </a>
-          {% else %}
-          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
-          </a>
-          {% endif %}
-          <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-            <p class="username">{{ post.username }}</p>
-          </a>
-        </div>
-        <div class="description-container">
-          <p class="description">{{ post.description }}</p>
-          <span class="see-more">Afficher plus</span>
-        </div>
-        {# ---- Single file ---- #}
-        {% if post.type == "image" and not post.files %}
-        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-        {% elif post.type == "video" and not post.files %}
-        <div class="video-wrapper">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" playsinline webkit-playsinline preload="metadata" muted class="post-video">
-            <source src="{{ url_for('uploaded_file', filename=post.file) }}" type="video/mp4">
-            Votre navigateur ne prend pas en charge la lecture vidéo.
-          </video>
-          <div class="video-controls">
-            <button class="play-pause-btn"><i class="fas fa-play"></i></button>
-          </div>
-          <div class="video-error">Impossible de charger la vidéo.</div>
-        </div>
         {% endif %}
-        {# ---- Multiple files (carousel) ---- #}
-        {% if post.files|length > 0 %}
-        <div class="carousel">
-          <div class="carousel-track">
-            {% for file in post.files %}
+        <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+          <p class="username">{{ post.username }}</p>
+        </a>
+      </div>
+
+      <div class="description-container">
+        <p class="description">{{ post.description }}</p>
+        <span class="see-more">Afficher plus</span>
+      </div>
+
+      {# ---- Multiple files (carousel) ---- #}
+      {% if post.files|length > 0 %}
+      <div class="carousel">
+        <div class="carousel-track">
+          {% for file in post.files %}
             {% if file.type == "image" %}
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
@@ -503,40 +495,47 @@
               <div class="video-error">Impossible de charger la vidéo.</div>
             </div>
             {% endif %}
-            {% endfor %}
-          </div>
-          <div class="carousel-indicators">
-            {% for file in post.files %}
-            <span class="dot{% if loop.first %} active{% endif %}"></span>
-            {% endfor %}
-          </div>
+          {% endfor %}
         </div>
-        {% endif %}
-        <div class="post-actions">
-          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-            <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-          </button>
-          <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-          <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-            <i class="fa-regular fa-comment"></i>
-            <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-          </a>
-          <button
-            class="follow-btn{% if post.following %} following{% endif %}"
-            data-following="{{ 'true' if post.following else 'false' }}"
-          >
-            {% if post.following %}
-            Abonné ✔
-            {% else %}
-            <i class="fa-solid fa-plus"></i> Suivre
-            {% endif %}
-          </button>
+        <div class="carousel-indicators">
+          {% for file in post.files %}
+          <span class="dot{% if loop.first %} active{% endif %}"></span>
+          {% endfor %}
         </div>
-        <p class="date">Publié le {{ post.date }}</p>
       </div>
-      {% endfor %}
-    </main>
-  </div>
+      {% endif %}
+
+      <div class="post-actions">
+        <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+          <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+        </button>
+        <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+        <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+          <i class="fa-regular fa-comment"></i>
+          <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+        </a>
+        <button
+          class="follow-btn{% if post.following %} following{% endif %}"
+          data-following="{{ 'true' if post.following else 'false' }}"
+        >
+          {% if post.following %}
+          Abonné ✔
+          {% else %}
+          <i class="fa-solid fa-plus"></i> Suivre
+          {% endif %}
+        </button>
+      </div>
+
+      <p class="date">Publié le {{ post.date }}</p>
+    </div>
+    {% endfor %}
+  </main>
+</div>
+
+
+
+
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const currentUsername = document.body.dataset.username;
