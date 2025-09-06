@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CHRONOS</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="icon" href="https://via.placeholder.com/32" type="image/png" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     /* ---------- GLOBAL ---------- */
@@ -570,7 +571,7 @@
       const currentUsername = document.body.dataset.username;
       const postsContainer = document.getElementById('posts');
       const videos = new Set();
-      let currentVideo = null;
+
       const socket = io();
 
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -591,6 +592,19 @@
         homeBadge.textContent = '';
         location.reload();
       });
+
+      /* ---------- Debounce Utility ---------- */
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
 
       /* ---------- See More Functionality ---------- */
       function initSeeMore(post) {
@@ -641,62 +655,71 @@
             // Remove autoplay and loop to give user control
             video.removeAttribute('autoplay');
             video.removeAttribute('loop');
-            video.muted = false; // Start unmuted
+            video.muted = false;
 
             // Ensure video is ready before allowing interactions
-            video.addEventListener('loadedmetadata', () => {
-              console.log('Vidéo chargée:', video.src);
+            let isVideoReady = false;
+            video.addEventListener('canplay', () => {
+              isVideoReady = true;
+              console.log('Vidéo prête:', video.src);
             });
 
-            // Toggle controls on video click
-            video.addEventListener('click', (e) => {
+            // Toggle play/pause on video click
+            const togglePlayPause = debounce((e) => {
               e.stopPropagation();
-              if (!e.target.closest('.video-controls, .seek-controls')) {
-                if (video.paused) {
-                  video.play().catch(err => console.error('Erreur de lecture:', err));
-                  playPause.innerHTML = '<i class="fas fa-pause"></i>';
-                } else {
-                  video.pause();
-                  playPause.innerHTML = '<i class="fas fa-play"></i>';
-                }
-                seekControls.classList.toggle('visible');
+              if (!isVideoReady) {
+                console.warn('Vidéo pas encore prête');
+                return;
               }
-            });
+              if (video.paused || video.ended) {
+                videos.forEach(v => {
+                  if (v !== video && !v.paused) v.pause();
+                });
+                video.play().catch(err => console.error('Erreur de lecture:', err));
+                playPause.innerHTML = '<i class="fas fa-pause"></i>';
+              } else {
+                video.pause();
+                playPause.innerHTML = '<i class="fas fa-play"></i>';
+              }
+              seekControls.classList.add('visible');
+              setTimeout(() => seekControls.classList.remove('visible'), 3000);
+            }, 200);
+
+            video.addEventListener('click', togglePlayPause);
+            video.addEventListener('touchstart', togglePlayPause);
 
             // Show/hide controls on hover
             wrapper.addEventListener('mouseenter', () => {
               seekControls.classList.add('visible');
             });
             wrapper.addEventListener('mouseleave', () => {
-              setTimeout(() => {
-                seekControls.classList.remove('visible');
-              }, 3000);
+              setTimeout(() => seekControls.classList.remove('visible'), 3000);
             });
 
-            // Handle touch events for mobile
-            wrapper.addEventListener('touchstart', (e) => {
-              if (!e.target.closest('.video-controls, .seek-controls')) {
-                seekControls.classList.toggle('visible');
-              }
-            });
-
-            // Prevent default touch behavior only for controls
+            // Prevent default touch behavior for controls
             wrapper.querySelectorAll('.mute-btn, .seek-btn, .play-pause-btn').forEach(btn => {
-              btn.addEventListener('click', (e) => {
+              btn.addEventListener('click', e => {
                 e.stopPropagation();
                 e.preventDefault();
               });
-              btn.addEventListener('touchstart', (e) => {
+              btn.addEventListener('touchstart', e => {
                 e.stopPropagation();
                 e.preventDefault();
               });
             });
 
-            // Play/Pause
+            // Play/Pause button
             playPause.addEventListener('click', (e) => {
               e.stopPropagation();
               e.preventDefault();
+              if (!isVideoReady) {
+                console.warn('Vidéo pas encore prête');
+                return;
+              }
               if (video.paused || video.ended) {
+                videos.forEach(v => {
+                  if (v !== video && !v.paused) v.pause();
+                });
                 video.play().catch(err => console.error('Erreur de lecture:', err));
                 playPause.innerHTML = '<i class="fas fa-pause"></i>';
               } else {
@@ -709,24 +732,33 @@
             backward.addEventListener('click', (e) => {
               e.stopPropagation();
               e.preventDefault();
-              video.currentTime = Math.max(0, video.currentTime - 10);
+              if (isVideoReady) {
+                video.currentTime = Math.max(0, video.currentTime - 10);
+              }
             });
 
             // Seek Forward
             forward.addEventListener('click', (e) => {
               e.stopPropagation();
               e.preventDefault();
-              video.currentTime = Math.min(video.duration, video.currentTime + 10);
+              if (isVideoReady) {
+                video.currentTime = Math.min(video.duration, video.currentTime + 10);
+              }
             });
 
             // Mute/Unmute
-            muteBtn.addEventListener('click', (e) => {
+            const toggleMute = debounce((e) => {
               e.stopPropagation();
               e.preventDefault();
-              video.muted = !video.muted;
-              muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
-              console.log('Mute toggled:', video.muted);
-            });
+              if (isVideoReady) {
+                video.muted = !video.muted;
+                muteBtn.innerHTML = `<i class="fas fa-volume-${video.muted ? 'xmark' : 'high'}"></i>`;
+                console.log('Mute toggled:', video.muted);
+              }
+            }, 200);
+
+            muteBtn.addEventListener('click', toggleMute);
+            muteBtn.addEventListener('touchstart', toggleMute);
 
             // Update play/pause button on video events
             video.addEventListener('play', () => {
@@ -740,6 +772,9 @@
             video.addEventListener('error', (e) => {
               console.error('Erreur de chargement de la vidéo:', e);
             });
+
+            // Add video to tracking set
+            videos.add(video);
           }
         });
       }
@@ -872,43 +907,18 @@
         list.appendChild(li);
       }
 
-      /* ---------- Video autoplay ---------- */
-      const ioObserver = new IntersectionObserver((entries) => {
-        let best = null;
-        entries.forEach(entry => {
-          const vid = entry.target;
-          const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-          if (visible && !best) best = vid;
-          if (!visible && !vid.paused) vid.pause();
-        });
-        if (best && currentVideo !== best) {
-          if (currentVideo) currentVideo.pause();
-          currentVideo = best;
-          currentVideo.play().catch(err => console.error('Erreur de lecture automatique:', err));
-        } else if (!best && currentVideo) {
-          currentVideo.pause();
-          currentVideo = null;
-        }
-      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-
-      function observeVideo(vid) {
-        if (!videos.has(vid)) {
-          videos.add(vid);
-          ioObserver.observe(vid);
-        }
-      }
-
       /* ---------- Init posts existants ---------- */
       document.querySelectorAll('.post').forEach(post => {
         bindLikes(post);
         bindCommentForm(post);
         bindFollowButtons(post);
-        post.querySelectorAll('video').forEach(observeVideo);
         initSeeMore(post);
         initVideoControls(post);
       });
       document.querySelectorAll('.post img').forEach(img => {
-        img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+        img.addEventListener('click', () => {
+          videos.forEach(v => v.pause());
+        });
       });
 
       /* ---------- Socket.IO ---------- */
@@ -1015,7 +1025,7 @@
           });
         });
 
-        post.querySelectorAll('.carousel-track video').forEach(observeVideo);
+        post.querySelectorAll('.carousel-track video').forEach(video => videos.add(video));
         initVideoControls(post);
       }
 
