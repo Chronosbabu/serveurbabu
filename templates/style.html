@@ -15,7 +15,6 @@
       background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
       color: #1a1a1a;
       overscroll-behavior: none;
-      touch-action: auto;
     }
     a { 
       text-decoration: none; 
@@ -76,6 +75,7 @@
       background: rgba(0, 119, 255, 0.1);
       transform: scale(1.1);
     }
+
     .message-badge {
       position: absolute;
       top: -2px;
@@ -93,7 +93,6 @@
     /* ---------- POSTS ---------- */
     .scroll-box {
       padding: 20px 10px;
-      touch-action: auto;
     }
     .post {
       background: #fff;
@@ -182,68 +181,34 @@
       border-radius: 0 0 16px 16px;
       background: #000;
       position: relative;
-      pointer-events: auto;
-      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
-    }
-    .video-wrapper {
-      position: relative;
-      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
-      width: 100%;
     }
     .video-controls {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 30;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
+      bottom: 12px;
+      right: 12px;
+      z-index: 10;
     }
-    .video-controls.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .play-pause-btn {
-      background: rgba(0, 0, 0, 0.7);
+    .mute-btn {
+      background: rgba(0, 0, 0, 0.5);
       border: none;
       border-radius: 50%;
-      width: 60px;
-      height: 60px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background 0.3s ease, transform 0.3s ease;
+      transition: background 0.3s ease;
     }
-    .play-pause-btn:hover {
-      background: rgba(0, 0, 0, 0.9);
-      transform: scale(1.1);
-    }
-    .play-pause-btn i {
+    .mute-btn i {
       color: #fff;
-      font-size: 2rem;
+      font-size: 1.2rem;
     }
-    .video-error {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #ff2d55;
-      font-size: 1rem;
-      font-weight: 500;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px 20px;
-      border-radius: 8px;
-      z-index: 30;
-      text-align: center;
+    .mute-btn.muted i.fa-volume-high::before {
+      content: "\f6a9"; /* fa-volume-mute */
     }
-    .video-error.visible {
-      display: block;
+    .mute-btn:hover {
+      background: rgba(0, 0, 0, 0.7);
     }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
@@ -251,7 +216,6 @@
       position: relative;
       width: 100%;
       overflow: hidden;
-      touch-action: pan-y pinch-zoom; /* Permettre défilement vertical */
     }
     .carousel-track {
       display: flex;
@@ -261,7 +225,6 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       scroll-behavior: smooth;
-      touch-action: pan-x pinch-zoom; /* Défilement horizontal pour carrousel */
     }
     .carousel-track::-webkit-scrollbar { 
       display: none; 
@@ -278,7 +241,7 @@
       transform: translateX(-50%);
       display: flex;
       gap: 8px;
-      z-index: 30;
+      z-index: 10;
     }
     .carousel-indicators .dot {
       width: 10px;
@@ -288,7 +251,6 @@
       transition: all 0.3s ease;
       cursor: pointer;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      pointer-events: auto;
     }
     .carousel-indicators .dot.active {
       background: #0077ff;
@@ -333,6 +295,7 @@
     .comment-btn:hover {
       color: #0077ff;
     }
+
     .follow-btn {
       margin-left: auto;
       background: linear-gradient(45deg, #0077ff, #00c6ff);
@@ -408,12 +371,12 @@
       .main-header { 
         padding: 15px; 
       }
-      .play-pause-btn {
-        width: 48px;
-        height: 48px;
+      .mute-btn {
+        width: 28px;
+        height: 28px;
       }
-      .play-pause-btn i {
-        font-size: 1.6rem;
+      .mute-btn i {
+        font-size: 1rem;
       }
     }
 
@@ -429,119 +392,118 @@
   </style>
 </head>
 <body data-username="{{ username }}">
-
-
-
-
-<div class="main-container">
-  <header class="main-header">
-    <h2 class="logo">CHRONOS</h2>
-    <nav class="header-icons">
-      <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
-      <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
-        <i class="fa-regular fa-bell"></i>
-        <span class="message-badge" id="notifications-count" style="display:none;">0</span>
-      </a>
-      <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
-      <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
-      <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
-      <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
-        <i class="fa-regular fa-message"></i>
-        <span class="message-badge" id="unread-count" style="display:none;">0</span>
-      </a>
-      <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
-    </nav>
-  </header>
-
-  <main class="scroll-box" id="posts">
-    {% for post in posts %}
-    <div class="post" data-post-id="{{ post.id }}">
-      <div class="user-info">
-        {% if post.avatar %}
-        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-          <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+  <div class="main-container">
+    <header class="main-header">
+      <h2 class="logo">CHRONOS</h2>
+      <nav class="header-icons">
+        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+        <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+          <i class="fa-regular fa-bell"></i>
+          <span class="message-badge" id="notifications-count" style="display:none;">0</span>
         </a>
-        {% else %}
-        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-          <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+        <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
         </a>
+        <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+      </nav>
+    </header>
+    <main class="scroll-box" id="posts">
+      {% for post in posts %}
+      <div class="post" data-post-id="{{ post.id }}">
+        <div class="user-info">
+          {% if post.avatar %}
+          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+          </a>
+          {% else %}
+          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+          </a>
+          {% endif %}
+          <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+            <p class="username">{{ post.username }}</p>
+          </a>
+        </div>
+        <div class="description-container">
+          <p class="description">{{ post.description }}</p>
+          <span class="see-more">Afficher plus</span>
+        </div>
+        {# ---- Single file ---- #}
+        {% if post.type == "image" and not post.files %}
+        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+        {% elif post.type == "video" and not post.files %}
+        <div class="video-wrapper">
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" autoplay muted loop playsinline class="post-video"></video>
+          <div class="video-controls">
+            <button class="mute-btn muted">
+              <i class="fas fa-volume-high"></i>
+            </button>
+          </div>
+        </div>
         {% endif %}
-        <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-          <p class="username">{{ post.username }}</p>
-        </a>
-      </div>
 
-      <div class="description-container">
-        <p class="description">{{ post.description }}</p>
-        <span class="see-more">Afficher plus</span>
-      </div>
-
-      {# ---- Multiple files (carousel) ---- #}
-      {% if post.files|length > 0 %}
-      <div class="carousel">
-        <div class="carousel-track">
-          {% for file in post.files %}
+        {# ---- Multiple files (carousel) ---- #}
+        {% if post.files|length > 0 %}
+        <div class="carousel">
+          <div class="carousel-track">
+            {% for file in post.files %}
             {% if file.type == "image" %}
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-wrapper">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" playsinline webkit-playsinline preload="metadata" muted class="post-video">
-                <source src="{{ url_for('uploaded_file', filename=file.name) }}" type="video/mp4">
-                Votre navigateur ne prend pas en charge la lecture vidéo.
-              </video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" autoplay muted loop playsinline class="post-video"></video>
               <div class="video-controls">
-                <button class="play-pause-btn"><i class="fas fa-play"></i></button>
+                <button class="mute-btn muted">
+                  <i class="fas fa-volume-high"></i>
+                </button>
               </div>
-              <div class="video-error">Impossible de charger la vidéo.</div>
             </div>
             {% endif %}
-          {% endfor %}
+            {% endfor %}
+          </div>
+          <div class="carousel-indicators">
+            {% for file in post.files %}
+            <span class="dot{% if loop.first %} active{% endif %}"></span>
+            {% endfor %}
+          </div>
         </div>
-        <div class="carousel-indicators">
-          {% for file in post.files %}
-          <span class="dot{% if loop.first %} active{% endif %}"></span>
-          {% endfor %}
+        {% endif %}
+
+        <div class="post-actions">
+          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+            <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+          </button>
+          <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+          <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+            <i class="fa-regular fa-comment"></i>
+            <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+          </a>
+          <button
+            class="follow-btn{% if post.following %} following{% endif %}"
+            data-following="{{ 'true' if post.following else 'false' }}"
+          >
+            {% if post.following %}
+            Abonné ✔
+            {% else %}
+            <i class="fa-solid fa-plus"></i> Suivre
+            {% endif %}
+          </button>
         </div>
+        <p class="date">Publié le {{ post.date }}</p>
       </div>
-      {% endif %}
-
-      <div class="post-actions">
-        <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-          <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-        </button>
-        <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-        <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-          <i class="fa-regular fa-comment"></i>
-          <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-        </a>
-        <button
-          class="follow-btn{% if post.following %} following{% endif %}"
-          data-following="{{ 'true' if post.following else 'false' }}"
-        >
-          {% if post.following %}
-          Abonné ✔
-          {% else %}
-          <i class="fa-solid fa-plus"></i> Suivre
-          {% endif %}
-        </button>
-      </div>
-
-      <p class="date">Publié le {{ post.date }}</p>
-    </div>
-    {% endfor %}
-  </main>
-</div>
-
-
-
-
-
+      {% endfor %}
+    </main>
+  </div>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const currentUsername = document.body.dataset.username;
       const postsContainer = document.getElementById('posts');
       const videos = new Set();
-
+      let currentVideo = null;
       const socket = io();
 
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -562,19 +524,6 @@
         homeBadge.textContent = '';
         location.reload();
       });
-
-      /* ---------- Debounce Utility ---------- */
-      function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-          const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-          };
-          clearTimeout(timeout);
-          timeout = setTimeout(later, wait);
-        };
-      }
 
       /* ---------- See More Functionality ---------- */
       function initSeeMore(post) {
@@ -611,87 +560,17 @@
         window.addEventListener('resize', checkOverflow);
       }
 
-      /* ---------- Video Controls Functionality ---------- */
-      
-function initVideoControls(post) {
-  post.querySelectorAll('.video-wrapper').forEach(wrapper => {
-    const video = wrapper.querySelector('video');
-    const playPauseBtn = wrapper.querySelector('.play-pause-btn');
-    const controls = wrapper.querySelector('.video-controls');
-    const errorMessage = wrapper.querySelector('.video-error');
-
-    if (!video) return;
-
-    // Muet par défaut pour compat mobile
-    video.muted = true;
-
-    // Gestion erreurs
-    video.addEventListener('error', () => {
-      errorMessage.textContent = "Impossible de charger la vidéo.";
-      errorMessage.classList.add("visible");
-      playPauseBtn.style.display = "none";
-    });
-
-    // Lecture / pause
-    const toggle = () => {
-      if (video.paused) {
-        video.play().then(() => {
-          playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-        }).catch(err => {
-          console.error("Erreur lecture:", err);
-          errorMessage.textContent = "Erreur de lecture.";
-          errorMessage.classList.add("visible");
-        });
-      } else {
-        video.pause();
-        playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-      }
-    };
-
-    playPauseBtn.addEventListener("click", toggle);
-    video.addEventListener("click", toggle);
-  });
-}
-
-
-      /* ---------- Gestion des images ---------- */
-      function initImageControls(post) {
-        post.querySelectorAll('.post-image').forEach(img => {
-          let touchStartY = 0;
-          let touchStartX = 0;
-          let isDragging = false;
-
-          img.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
-            isDragging = false;
-          });
-
-          img.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            const touchX = e.touches[0].clientX;
-            const deltaY = Math.abs(touchY - touchStartY);
-            const deltaX = Math.abs(touchX - touchStartX);
-            if (deltaY > deltaX && deltaY > 10) {
-              isDragging = true; // Défilement vertical
-              // Ne pas utiliser e.stopPropagation()
-            } else if (deltaX > deltaY && deltaX > 10) {
-              isDragging = true; // Défilement horizontal pour carrousel
-              e.preventDefault(); // Empêcher le défilement vertical si carrousel
-            }
-          });
-
-          img.addEventListener('touchend', (e) => {
-            if (!isDragging) {
-              videos.forEach(v => {
-                if (!v.paused) {
-                  v.pause();
-                  const btn = v.closest('.video-wrapper').querySelector('.play-pause-btn');
-                  if (btn) btn.innerHTML = '<i class="fas fa-play"></i>';
-                }
-              });
-            }
-          });
+      /* ---------- Video Mute/Unmute Functionality ---------- */
+      function initVideoControls(post) {
+        post.querySelectorAll('.video-wrapper').forEach(wrapper => {
+          const video = wrapper.querySelector('video');
+          const muteBtn = wrapper.querySelector('.mute-btn');
+          if (video && muteBtn) {
+            muteBtn.addEventListener('click', () => {
+              video.muted = !video.muted;
+              muteBtn.classList.toggle('muted', video.muted);
+            });
+          }
         });
       }
 
@@ -823,14 +702,43 @@ function initVideoControls(post) {
         list.appendChild(li);
       }
 
+      /* ---------- Video autoplay ---------- */
+      const ioObserver = new IntersectionObserver((entries) => {
+        let best = null;
+        entries.forEach(entry => {
+          const vid = entry.target;
+          const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+          if (visible && !best) best = vid;
+          if (!visible && !vid.paused) vid.pause();
+        });
+        if (best && currentVideo !== best) {
+          if (currentVideo) currentVideo.pause();
+          currentVideo = best;
+          currentVideo.play().catch(() => {});
+        } else if (!best && currentVideo) {
+          currentVideo.pause();
+          currentVideo = null;
+        }
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+      function observeVideo(vid) {
+        if (!videos.has(vid)) {
+          videos.add(vid);
+          ioObserver.observe(vid);
+        }
+      }
+
       /* ---------- Init posts existants ---------- */
       document.querySelectorAll('.post').forEach(post => {
         bindLikes(post);
         bindCommentForm(post);
         bindFollowButtons(post);
+        post.querySelectorAll('video').forEach(observeVideo);
         initSeeMore(post);
         initVideoControls(post);
-        initImageControls(post);
+      });
+      document.querySelectorAll('.post img').forEach(img => {
+        img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
       });
 
       /* ---------- Socket.IO ---------- */
@@ -937,7 +845,7 @@ function initVideoControls(post) {
           });
         });
 
-        post.querySelectorAll('.carousel-track video').forEach(video => videos.add(video));
+        post.querySelectorAll('.carousel-track video').forEach(observeVideo);
         initVideoControls(post);
       }
 
