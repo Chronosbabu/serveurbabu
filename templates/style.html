@@ -464,7 +464,7 @@
         </div>
         {% endif %}
         <div class="post-actions">
-          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}" data-likes="{{ post.likes if post.likes else 0 }}">
+          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
           </button>
           <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
@@ -528,9 +528,9 @@
       const countEl = post.querySelector('.like-count');
       try {
         const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) throw new Error('Failed to toggle like');
+        if (!res.ok) return;
         const data = await res.json();
-        // Update UI and localStorage
+        // Update UI
         countEl.textContent = data.likes;
         button.classList.toggle('liked', data.liked);
         const icon = button.querySelector('i');
@@ -539,10 +539,11 @@
         // Update localStorage
         if (data.liked) {
           likedPosts[postId] = true;
+          likeCounts[postId] = data.likes;
         } else {
           delete likedPosts[postId];
+          delete likeCounts[postId];
         }
-        likeCounts[postId] = data.likes;
         localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
         localStorage.setItem('likeCounts', JSON.stringify(likeCounts));
         // Emit real-time update
@@ -564,7 +565,7 @@
         icon.classList.add('fa-solid');
         icon.classList.remove('fa-regular');
       }
-      if (likeCounts[postId] !== undefined) {
+      if (likeCounts[postId]) {
         countEl.textContent = likeCounts[postId];
       }
       btn.addEventListener('click', () => toggleLike(btn));
@@ -630,6 +631,8 @@
             updateButton(btn, false);
           }
           localStorage.setItem('followingUsers', JSON.stringify(followingUsers));
+          // Emit real-time follow update
+          socket.emit('follow_updated', { username: postUsername, following: data.following, follower: currentUsername });
         } catch (e) {
           console.error(e);
           alert('Impossible de suivre pour le moment.');
@@ -735,8 +738,9 @@
       const description = post.querySelector('.description');
       const toggleButton = post.querySelector('.toggle-description');
       if (description && toggleButton) {
+        // Check if description exceeds 3 lines
         const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
-        const maxHeight = lineHeight * 3;
+        const maxHeight = lineHeight * 3; // 3 lines
         if (description.scrollHeight > maxHeight) {
           description.classList.add('long');
         } else {
@@ -762,25 +766,45 @@
       const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
       if (post) {
         const countEl = post.querySelector('.like-count');
+        if (countEl) countEl.textContent = data.likes;
         const btn = post.querySelector('.like-btn');
-        if (countEl) {
-          countEl.textContent = data.likes;
-          likeCounts[data.post_id] = data.likes;
-          localStorage.setItem('likeCounts', JSON.stringify(likeCounts));
-        }
         if (btn && data.username === currentUsername) {
           btn.classList.toggle('liked', data.liked);
           const icon = btn.querySelector('i');
           icon.classList.toggle('fa-solid', data.liked);
           icon.classList.toggle('fa-regular', !data.liked);
+          // Update localStorage
           if (data.liked) {
             likedPosts[data.post_id] = true;
+            likeCounts[data.post_id] = data.likes;
           } else {
             delete likedPosts[data.post_id];
+            delete likeCounts[data.post_id];
           }
           localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+          localStorage.setItem('likeCounts', JSON.stringify(likeCounts));
         }
       }
+    });
+
+    socket.on('follow_updated', data => {
+      document.querySelectorAll('.post').forEach(post => {
+        const usernameEl = post.querySelector('.username');
+        const followBtn = post.querySelector('.follow-btn');
+        if (usernameEl && followBtn && usernameEl.textContent.trim() === data.username && data.follower === currentUsername) {
+          followBtn.dataset.following = data.following ? "true" : "false";
+          followBtn.classList.toggle('following', data.following);
+          followBtn.innerHTML = data.following ? 'Abonné ✔' : '<i class="fa-solid fa-plus"></i> Suivre';
+          followBtn.disabled = data.following;
+          // Update localStorage
+          if (data.following) {
+            followingUsers[data.username] = true;
+          } else {
+            delete followingUsers[data.username];
+          }
+          localStorage.setItem('followingUsers', JSON.stringify(followingUsers));
+        }
+      });
     });
 
     socket.on('new_comment', data => {
