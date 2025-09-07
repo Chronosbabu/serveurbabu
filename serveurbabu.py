@@ -399,11 +399,31 @@ def profile(username):
 def search_users():
     if "username" not in session:
         return redirect(url_for("login"))
+
     query = (request.args.get("q") or "").strip().lower()
-    users = load_users()
+    users = load_users()  # ta fonction qui charge les utilisateurs
+    posts = load_posts()  # ta fonction qui charge les publications
+
+    users_results, posts_results = [], []
+
     if query:
-        users = [u for u in users if query in u["username"].lower()]
-    return render_template("search.html", users=users, current_username=session["username"])
+        # Filtrer utilisateurs
+        users_results = [u for u in users if query in u["username"].lower()]
+
+        # Filtrer publications (description)
+        posts_results = [p for p in posts if query in p["description"].lower()]
+    else:
+        users_results = users
+        posts_results = []
+
+    return render_template(
+        "search.html",
+        users=users_results,
+        posts=posts_results,
+        current_username=session["username"],
+        query=request.args.get("q", "")
+    )
+
 
 
 @app.route("/uploads/<filename>")
