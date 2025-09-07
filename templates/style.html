@@ -53,6 +53,7 @@
       align-items: center;
       justify-content: center;
       transition: color 0.2s ease, transform 0.2s ease;
+      position: relative;
     }
     .header-icons a:hover {
       color: #0095f6;
@@ -162,12 +163,14 @@
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      max-height: 2.8em;
       overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
       position: relative;
     }
     .description.expanded {
-      max-height: none;
+      -webkit-line-clamp: unset;
     }
     .toggle-description {
       display: none;
@@ -506,6 +509,12 @@
     let newPostsCount = 0;
 
     window.addEventListener('load', () => window.scrollTo(0, 0));
+
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    });
 
     homeBtn.addEventListener('click', e => {
       e.preventDefault();
