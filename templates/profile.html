@@ -3,49 +3,32 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Profil — {{ profile_user.username }}</title>
+<title>Recherche</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
 /* === RESET & BASE === */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-    font-family: "Segoe UI", Roboto, Arial, sans-serif;
-    background: linear-gradient(135deg, #f9fafb, #e5e7eb);
-    color: #333;
-    line-height: 1.5;
-}
-.main-container { max-width: 900px; margin: 0 auto; padding: 20px; }
-header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 20px; }
-header h2 { font-size: 22px; margin-bottom: 8px; }
-header p a { color: #2563eb; text-decoration: none; font-size: 14px; }
-header p a:hover { text-decoration: underline; }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Segoe UI,Roboto,Arial,sans-serif;background:#f9fafb;color:#333;line-height:1.5;}
+.main-container{max-width:900px;margin:0 auto;padding:20px;}
+header{margin-bottom:20px;}
+header h2{font-size:22px;margin-bottom:6px;}
+header p a{color:#2563eb;text-decoration:none;font-size:14px;}
+header p a:hover{text-decoration:underline;}
+.search-section{margin-bottom:20px;}
+.search-section form{display:flex;gap:8px;}
+.search-section input{flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;}
+.search-section button{padding:8px 14px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;}
+.search-section button:hover{background:#1d4ed8;}
+.scroll-box{display:flex;flex-direction:column;gap:12px;}
+.user-item,.post-item{display:flex;align-items:center;gap:10px;background:#fff;padding:10px;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,0.1);}
+.avatar-user,.avatar-post{width:40px;height:40px;border-radius:50%;object-fit:cover;}
+.avatar-fallback{width:40px;height:40px;background:#93c5fd;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:bold;}
+.username-link{font-weight:bold;color:#111;text-decoration:none;}
+.username-link:hover{text-decoration:underline;}
+.section-title{font-size:18px;margin:20px 0 10px;font-weight:bold;}
 
-.profile-header {
-    display: flex; align-items: center; flex-wrap: wrap;
-    background: #fff; padding: 15px; border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;
-}
-.profile-avatar, .avatar-post { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; cursor: pointer; }
-.profile-avatar-fallback {
-    width: 90px; height: 90px; background: #93c5fd; color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; font-size: 36px; font-weight: bold; cursor: pointer;
-}
-.profile-meta { margin-left: 20px; flex: 1; }
-.profile-meta h1 { margin: 0; font-size: 26px; word-break: break-word; }
-.profile-meta p { margin: 6px 0; color: #555; }
-.follow-count { margin-top: 8px; font-weight: bold; color: #111; display: flex; align-items: center; gap: 6px; }
-.follow-count span { font-size: 16px; color: #2563eb; }
-button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px;
-    font-size: 14px; font-weight: bold; transition: background 0.3s ease; }
-button#message-btn { background: #2563eb; color: #fff; }
-button#message-btn:hover { background: #1d4ed8; }
-
-.profile-section-title { font-size: 20px; margin: 15px 0; font-weight: bold; }
-
-/* ---------- POSTS ---------- */
-.profile-posts { padding: 15px 10px; }
+/* Post Styles from Profile */
 .post {
     background: #fff; margin-bottom: 20px; border-radius: 12px; overflow: hidden;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: transform 0.2s;
@@ -72,7 +55,7 @@ button#message-btn:hover { background: #1d4ed8; }
 
 /* ---------- MEDIA ---------- */
 .post-image, video {
-    width: 100%; height: auto; object-fit: cover; display: block;
+    width: 100%; max-height: 400px; object-fit: contain; display: block;
     border-radius: 0 0 12px 12px; background: #000; cursor: pointer;
 }
 .video-container { position: relative; }
@@ -131,223 +114,141 @@ button#message-btn:hover { background: #1d4ed8; }
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 600px) {
     .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
-    .post-image, video { max-height: 300px; }
-    .profile-header { flex-direction: column; align-items: center; text-align: center; }
-    .profile-meta { margin-left: 0; margin-top: 12px; }
-    .profile-meta h1 { font-size: 22px; }
-    .profile-meta p { font-size: 14px; }
+    .post-image, video { max-height: 70vh; }
     .mute-btn { width: 30px; height: 30px; font-size: 1rem; }
-}
-
-.avatar-modal {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.9); display: none; align-items: center;
-    justify-content: center; z-index: 1000;
-}
-.avatar-modal img {
-    max-width: 95%; max-height: 95%; border-radius: 12px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.6);
 }
 </style>
 </head>
 <body data-username="{{ current_username }}">
 <div class="main-container">
     <header>
-        <h2>👤 Profil de {{ profile_user.username }}</h2>
+        <h2>🔍 Recherche</h2>
         <p>
-            <a href="{{ url_for('index') }}">⬅️ Retour</a>
-            {% if current_username %}
-                | 🔑 <a class="username-link" href="{{ url_for('profile', username=current_username) }}">{{ current_username }}</a>
-            {% endif %}
+            <a href="{{ url_for('index') }}">⬅ Retour</a> |
+            Connecté : <a href="{{ url_for('profile', username=current_username) }}">{{ current_username }}</a>
         </p>
     </header>
 
-    <div class="profile-header">
-        {% if profile_user.avatar %}
-            <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" 
-                 alt="avatar" class="profile-avatar" id="profile-avatar" />
+    <section class="search-section">
+        <form method="GET">
+            <input type="text" name="q" placeholder="Rechercher un utilisateur ou un sujet..." value="{{ query }}" />
+            <button type="submit">Rechercher</button>
+        </form>
+    </section>
+
+    <!-- Résultats utilisateurs -->
+    <div class="section-title">👤 Utilisateurs trouvés</div>
+    <main class="scroll-box">
+        {% if users|length == 0 %}
+            <p style="color:#6b7280;">Aucun utilisateur trouvé.</p>
         {% else %}
-            <div class="profile-avatar-fallback" id="profile-avatar">
-                {{ profile_user.username[:1]|upper }}
+            {% for user in users %}
+            <div class="user-item">
+                {% if user.avatar %}
+                    <a href="{{ url_for('profile', username=user.username) }}">
+                        <img src="{{ url_for('avatar_file', filename=user.avatar) }}" alt="avatar" class="avatar-user" />
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('profile', username=user.username) }}">
+                        <div class="avatar-fallback">{{ user.username[:1]|upper }}</div>
+                    </a>
+                {% endif %}
+                <a class="username-link" href="{{ url_for('profile', username=user.username) }}">
+                    {{ user.username }}
+                </a>
             </div>
-        {% endif %}
-        <div class="profile-meta">
-            <h1>@{{ profile_user.username }}</h1>
-            <p>{{ profile_user.bio if profile_user.bio else "Aucune bio pour le moment." }}</p>
-            <div class="follow-count">👥 <span id="follower-count">{{ profile_user.followers|length }}</span></div>
-            {% if current_username != profile_user.username %}
-                <button id="message-btn">💬 Message</button>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="profile-section-title">📝 Publications</div>
-
-    <main class="profile-posts" id="profile-posts">
-        {% if posts|length == 0 %}
-            <p style="color:#6b7280;">Aucune publication pour l’instant.</p>
-        {% else %}
-            {% for post in posts %}
-                <div class="post" data-post-id="{{ post.id }}">
-                    <div class="user-info">
-                        {% if profile_user.avatar %}
-                            <a class="avatar-link" href="{{ url_for('profile', username=profile_user.username) }}">
-                                <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar" class="avatar-post" />
-                            </a>
-                        {% else %}
-                            <a class="avatar-link" href="{{ url_for('profile', username=profile_user.username) }}">
-                                <div class="avatar-fallback">{{ profile_user.username[:1]|upper }}</div>
-                            </a>
-                        {% endif %}
-                        <a class="username-link" href="{{ url_for('profile', username=profile_user.username) }}">
-                            <p class="username">{{ profile_user.username }}</p>
-                        </a>
-                    </div>
-
-                    <p class="description">{{ post.description }}</p>
-                    <span class="toggle-description">Afficher plus</span>
-
-                    {# ---- Single file ---- #}
-                    {% if post.type == "image" and not post.files %}
-                    <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-                    {% elif post.type == "video" and not post.files %}
-                    <div class="video-container">
-                        <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop></video>
-                        <button class="mute-btn" title="Activer/Désactiver le son">
-                            <i class="fa-solid fa-volume-xmark"></i>
-                        </button>
-                    </div>
-                    {% endif %}
-
-                    {# ---- Multiple files (carousel) ---- #}
-                    {% if post.files|length > 0 %}
-                    <div class="carousel">
-                        <div class="carousel-track">
-                            {% for file in post.files %}
-                            {% if file.type == "image" %}
-                            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
-                            {% elif file.type == "video" %}
-                            <div class="video-container">
-                                <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
-                                <button class="mute-btn" title="Activer/Désactiver le son">
-                                    <i class="fa-solid fa-volume-xmark"></i>
-                                </button>
-                            </div>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        <div class="carousel-indicators">
-                            {% for file in post.files %}
-                            <span class="dot{% if loop.first %} active{% endif %}"></span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="post-actions">
-                        <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-                            <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-                        </button>
-                        <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-                        <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-                            <i class="fa-regular fa-comment"></i>
-                            <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-                        </a>
-                        <button class="follow-btn{% if post.following %} following{% endif %}" data-following="{{ 'true' if post.following else 'false' }}">
-                            {% if post.following %}
-                            Abonné ✔
-                            {% else %}
-                            <i class="fa-solid fa-plus"></i> Suivre
-                            {% endif %}
-                        </button>
-                    </div>
-
-                    <p class="date">Publié le {{ post.date }}</p>
-                </div>
             {% endfor %}
         {% endif %}
     </main>
-</div>
 
-<!-- Modal pour avatar -->
-<div class="avatar-modal" id="avatar-modal">
-    {% if profile_user.avatar %}
-        <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}" alt="avatar-zoom" />
-    {% else %}
-        <div style="color:white; font-size:100px;">{{ profile_user.username[:1]|upper }}</div>
-    {% endif %}
-</div>
+    <!-- Résultats publications -->
+    <div class="section-title">📝 Publications correspondantes</div>
+    <section class="scroll-box">
+        {% if posts|length == 0 %}
+            <p style="color:#6b7280;">Aucune publication trouvée.</p>
+        {% else %}
+            {% for post in posts %}
+            <div class="post" data-post-id="{{ post.id }}">
+                <div class="user-info">
+                    {% if post.avatar %}
+                    <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+                        <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+                    </a>
+                    {% else %}
+                    <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+                        <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+                    </a>
+                    {% endif %}
+                    <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+                        <p class="username">{{ post.username }}</p>
+                    </a>
+                </div>
+                <p class="description">{{ post.description }}</p>
+                <span class="toggle-description">Afficher plus</span>
+                {# ---- Single file ---- #}
+                {% if post.type == "image" and not post.files %}
+                <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
+                {% elif post.type == "video" and not post.files %}
+                <div class="video-container">
+                    <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop></video>
+                    <button class="mute-btn" title="Activer/Désactiver le son">
+                        <i class="fa-solid fa-volume-xmark"></i>
+                    </button>
+                </div>
+                {% endif %}
 
+                {# ---- Multiple files (carousel) ---- #}
+                {% if post.files|length > 0 %}
+                <div class="carousel">
+                    <div class="carousel-track">
+                        {% for file in post.files %}
+                        {% if file.type == "image" %}
+                        <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
+                        {% elif file.type == "video" %}
+                        <div class="video-container">
+                            <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
+                            <button class="mute-btn" title="Activer/Désactiver le son">
+                                <i class="fa-solid fa-volume-xmark"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="carousel-indicators">
+                        {% for file in post.files %}
+                        <span class="dot{% if loop.first %} active{% endif %}"></span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="post-actions">
+                    <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+                        <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+                    </button>
+                    <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+                    <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+                        <i class="fa-regular fa-comment"></i>
+                        <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+                    </a>
+                    <button class="follow-btn{% if post.following %} following{% endif %}" data-following="{{ 'true' if post.following else 'false' }}">
+                        {% if post.following %}
+                        Abonné ✔
+                        {% else %}
+                        <i class="fa-solid fa-plus"></i> Suivre
+                        {% endif %}
+                    </button>
+                </div>
+                <p class="date">Publié le {{ post.date }}</p>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </section>
+</div>
 <script>
-const socket = io();
-socket.emit("join_room", "{{ profile_user.username }}");
-
-socket.on("update_follow", (data) => {
-    if(data.target_user === "{{ profile_user.username }}") {
-        const countEl = document.getElementById("follower-count");
-        let current = parseInt(countEl.textContent);
-        if(data.following) current += 1;
-        else current -= 1;
-        countEl.textContent = current;
-    }
-});
-
-const avatar = document.getElementById("profile-avatar");
-const modal = document.getElementById("avatar-modal");
-
-if (avatar && modal) {
-    avatar.addEventListener("click", () => {
-        modal.style.display = "flex";
-        history.pushState({ avatarOpen: true }, "");
-    });
-
-    modal.addEventListener("click", () => {
-        modal.style.display = "none";
-        if (history.state && history.state.avatarOpen) history.back();
-    });
-
-    window.addEventListener("popstate", () => modal.style.display = "none");
-    window.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            modal.style.display = "none";
-            if (history.state && history.state.avatarOpen) history.back();
-        }
-    });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("message-btn");
-    if (btn) {
-        btn.addEventListener("click", () => {
-            const message = prompt(`Envoyer un message à {{ profile_user.username }} :`);
-            if (message && message.trim() !== "") {
-                fetch("/send_message", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        recipient: "{{ profile_user.username }}",
-                        message: message
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if(data.success) {
-                        alert("Message envoyé !");
-                        window.location.href = "{{ url_for('conversations') }}";
-                    } else {
-                        alert("Erreur lors de l'envoi du message.");
-                    }
-                });
-            }
-        });
-    }
-
-    const currentUsername = "{{ current_username }}";
-    const postsContainer = document.getElementById('profile-posts');
-    const videos = new Set();
-    let currentVideo = null;
-
-    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+document.addEventListener('DOMContentLoaded', () => {
+    const currentUsername = document.body.dataset.username;
+    const socket = io();
 
     async function toggleLike(button) {
         const post = button.closest('.post');
@@ -414,11 +315,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             updateButton(followBtn, true);
                         }
                     });
-                    socket.emit("update_follow", { target_user: postUsername, following: true });
                 } else {
                     window.followingUsers.delete(postUsername);
                     updateButton(btn, false);
-                    socket.emit("update_follow", { target_user: postUsername, following: false });
                 }
             } catch (e) {
                 console.error(e);
@@ -427,91 +326,25 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    /* ---------- Video autoplay and loop ---------- */
-    const ioObserver = new IntersectionObserver((entries) => {
-        let best = null;
-        entries.forEach(entry => {
-            const vid = entry.target;
-            const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-            if (visible && !best) best = vid;
-            if (!visible && !vid.paused) vid.pause();
-        });
-        if (best && currentVideo !== best) {
-            if (currentVideo) currentVideo.pause();
-            currentVideo = best;
-            currentVideo.play().catch(() => {});
-        }
-    }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-
-    function observeVideo(vid) {
-        if (!videos.has(vid)) {
-            videos.add(vid);
-            ioObserver.observe(vid);
-            vid.pause();
-            vid.addEventListener('ended', () => {
-                vid.currentTime = 0;
-                vid.play().catch(() => {});
-            });
-            vid.addEventListener('click', (e) => {
-                if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
-                if (vid.paused) {
-                    vid.play().catch(() => {});
-                } else {
-                    vid.pause();
-                }
-            });
-            let startX, startTime, wasPlaying;
-            vid.addEventListener('touchstart', (e) => {
-                const rect = vid.getBoundingClientRect();
-                if (e.touches[0].clientY < rect.top + rect.height / 2) return;
-                e.preventDefault();
-                startX = e.touches[0].clientX;
-                startTime = vid.currentTime;
-                wasPlaying = !vid.paused;
-                vid.pause();
-            });
-            vid.addEventListener('touchmove', (e) => {
-                if (startX === undefined) return;
-                e.preventDefault();
-                const deltaX = e.touches[0].clientX - startX;
-                const seekSeconds = deltaX / 10;
-                vid.currentTime = Math.max(0, Math.min(startTime + seekSeconds, vid.duration));
-            });
-            vid.addEventListener('touchend', (e) => {
-                if (startX === undefined) return;
-                e.preventDefault();
-                if (wasPlaying) vid.play().catch(() => {});
-                startX = undefined;
-            });
-        }
-    }
-
-    /* ---------- Mute button functionality ---------- */
-    function bindMuteButton(video, muteBtn) {
-        if (!muteBtn) return;
-        muteBtn.addEventListener('click', () => {
-            video.muted = !video.muted;
-            const icon = muteBtn.querySelector('i');
-            icon.classList.toggle('fa-volume-xmark', video.muted);
-            icon.classList.toggle('fa-volume-high', !video.muted);
-        });
-    }
-
     /* ---------- Carousel Initialization ---------- */
     function initCarousel(post) {
         const track = post.querySelector('.carousel-track');
         const dots = post.querySelectorAll('.carousel-indicators .dot');
         if (!track || dots.length === 0) return;
+
         Array.from(track.children).forEach(child => {
             child.style.width = '100%';
             child.style.flex = '0 0 100%';
         });
+
         track.style.overflowX = 'auto';
         track.style.scrollSnapType = 'x mandatory';
+
         track.addEventListener('scroll', () => {
             const index = Math.round(track.scrollLeft / track.offsetWidth);
             dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
         });
+
         dots.forEach((dot, index) => {
             dot.addEventListener('click', () => {
                 track.scrollTo({
@@ -526,11 +359,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.post').forEach(post => {
         bindLikes(post);
         bindFollowButtons(post);
-        post.querySelectorAll('video').forEach(video => {
-            observeVideo(video);
-            const muteBtn = video.parentElement.querySelector('.mute-btn');
-            bindMuteButton(video, muteBtn);
-        });
+        initCarousel(post);
         const description = post.querySelector('.description');
         const toggleButton = post.querySelector('.toggle-description');
         if (description && toggleButton) {
@@ -547,11 +376,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         }
-        initCarousel(post);
-    });
-
-    document.querySelectorAll('.post img').forEach(img => {
-        img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
     });
 
     socket.on('like_updated', data => {
