@@ -12,17 +12,16 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      padding-bottom: 60px; /* Space for bottom navigation bar */
       background: #f0f2f5;
       color: #333;
     }
     a { text-decoration: none; color: inherit; }
-    .main-container { max-width: 900px; margin: 0 auto; }
+    .main-container { max-width: 900px; margin: 0 auto; padding: 20px 20px 60px 20px; }
 
     /* ---------- HEADER ---------- */
     .main-header {
       display: flex;
-      justify-content: flex-start;
+      justify-content: space-between;
       align-items: center;
       padding: 10px 20px;
       background: #fff;
@@ -32,13 +31,30 @@
       z-index: 100;
     }
     .logo { font-size: 1.8rem; font-weight: bold; color: #0077ff; flex-shrink: 0; }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: nowrap;
+    }
+    .header-icons a {
+      position: relative;
+      color: #555;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      min-height: 38px;
+    }
+    .header-icons a:hover { color: #0077ff; }
 
     /* ---------- BOTTOM NAVIGATION BAR ---------- */
     .bottom-nav {
       position: fixed;
       bottom: 0;
       left: 0;
-      right: 0;
+      width: 100%;
       background: #fff;
       box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
       display: flex;
@@ -55,8 +71,10 @@
       justify-content: center;
       min-width: 38px;
       min-height: 38px;
+      position: relative;
     }
     .bottom-nav a:hover { color: #0077ff; }
+
     .message-badge {
       position: absolute;
       top: -5px;
@@ -130,10 +148,9 @@
     .post-image, video {
       width: 100%;
       max-height: 90vh;
-      object-fit: contain;
+      object-fit: cover;
       display: block;
       border-radius: 0 0 12px 12px;
-      background: #000;
       cursor: pointer;
     }
     .video-container {
@@ -250,8 +267,10 @@
     @media (max-width: 600px) {
       .avatar-post, .avatar-fallback { width: 40px; height: 40px; font-size: 1rem; }
       .post-image, video { max-height: 70vh; }
-      .mute-btn { width: 30px; height: 30px; font-size: 1rem; }
+      .header-icons a { font-size: 1.2rem; min-width: 32px; min-height: 32px; }
+      .header-icons { gap: 15px; }
       .bottom-nav a { font-size: 1.2rem; min-width: 32px; min-height: 32px; }
+      .mute-btn { width: 30px; height: 30px; font-size: 1rem; }
     }
 
     /* ---------- BOUTON ACCUEIL ---------- */
@@ -263,6 +282,15 @@
   <div class="main-container">
     <header class="main-header">
       <h2 class="logo">CHRONOS</h2>
+      <nav class="header-icons">
+        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        </a>
+      </nav>
     </header>
     <main class="scroll-box" id="posts">
       {% for post in posts %}
