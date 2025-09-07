@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Conversations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <style>
 /* Reset */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
     font-family: "Segoe UI", Roboto, Arial, sans-serif;
-    background: #f0f2f5;
-    color: #333;
+    background: #f5f6f8;
+    color: #1c2526;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -18,27 +19,31 @@ body {
 
 /* Header */
 .header {
-    background: linear-gradient(135deg, #007BFF, #0056b3);
+    background: linear-gradient(135deg, #1a73e8, #0d47a1);
     color: #fff;
-    padding: 18px;
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    padding: 16px 20px;
+    text-align: left;
+    font-size: 24px;
+    font-weight: 600;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+.header i { font-size: 22px; }
 
 /* Container */
 .conversation-list {
-    max-width: 700px;
+    max-width: 800px;
     width: 100%;
     margin: 20px auto;
     background: #fff;
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
 }
 
 /* Conversation Item */
@@ -46,31 +51,42 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
-    border-bottom: 1px solid #eee;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8ecef;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
     position: relative;
 }
 .conversation:last-child { border-bottom: none; }
-.conversation:hover { background: #f7f9fc; }
+.conversation:hover {
+    background: #f8fafd;
+    transform: translateY(-2px);
+}
+.conversation.unread .conversation-info h4,
+.conversation.unread .conversation-info p {
+    font-weight: 700;
+    color: #1a73e8;
+}
 
 /* Profile Pic */
 .profile-pic {
     flex-shrink: 0;
-    width: 55px;
-    height: 55px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #ccc, #ddd);
-    margin-right: 14px;
+    background: linear-gradient(135deg, #e0e0e0, #b0b0b0);
+    margin-right: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 18px;
-    color: #555;
+    font-size: 20px;
+    color: #fff;
     overflow: hidden;
+    border: 2px solid #e8ecef;
+    transition: border-color 0.2s ease;
 }
+.conversation:hover .profile-pic { border-color: #1a73e8; }
 .profile-pic img {
     width: 100%;
     height: 100%;
@@ -85,16 +101,17 @@ body {
 }
 .conversation-info h4 {
     margin: 0;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
-    color: #222;
+    color: #1c2526;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
+    transition: color 0.2s ease;
 }
 .conversation-info p {
-    margin-top: 4px;
-    color: #666;
+    margin-top: 6px;
+    color: #4b5e6d;
     font-size: 14px;
     text-overflow: ellipsis;
     overflow: hidden;
@@ -107,50 +124,74 @@ body {
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    margin-left: 10px;
+    margin-left: 12px;
 }
 .time {
     font-size: 12px;
-    color: #999;
-    margin-bottom: 6px;
+    color: #7a8a99;
+    margin-bottom: 8px;
+    font-weight: 500;
 }
 .unread-badge {
-    background: red;
-    color: white;
+    background: #e63946;
+    color: #fff;
     font-size: 12px;
-    font-weight: bold;
-    padding: 2px 6px;
+    font-weight: 600;
+    padding: 4px 8px;
     border-radius: 12px;
-    min-width: 20px;
+    min-width: 24px;
     text-align: center;
     line-height: 1.2;
     display: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* Empty state */
 .empty {
     text-align: center;
-    padding: 40px;
-    color: #666;
-    font-size: 15px;
+    padding: 50px 20px;
+    color: #4b5e6d;
+    font-size: 16px;
+    font-weight: 500;
+    background: #fff;
+    border-radius: 12px;
+    margin: 20px auto;
+    max-width: 800px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.empty i {
+    font-size: 24px;
+    color: #1a73e8;
+    margin-bottom: 10px;
 }
 
 /* Responsive */
 @media (max-width: 600px) {
     .conversation-list {
-        margin: 0;
+        margin: 10px 0;
         border-radius: 0;
         box-shadow: none;
     }
+    .conversation {
+        padding: 12px 16px;
+    }
+    .profile-pic {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+    }
+    .conversation-info h4 { font-size: 15px; }
+    .conversation-info p { font-size: 13px; }
+    .header { font-size: 20px; padding: 14px 16px; }
 }
 </style>
 </head>
 <body>
-<div class="header">💬 Mes Conversations</div>
+<div class="header"><i class="fa-solid fa-message"></i> Mes Conversations</div>
 
 <div class="conversation-list">
     {% for conv in conversations %}
-    <div class="conversation" data-username="{{ conv.username }}">
+    <div class="conversation{% if conv.unread_count > 0 %} unread{% endif %}" data-username="{{ conv.username }}">
         <div class="profile-pic">
             {% if conv.profile_pic %}
             <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}" alt="{{ conv.username }}">
@@ -168,7 +209,7 @@ body {
         </div>
     </div>
     {% else %}
-    <div class="empty">Aucune conversation pour l'instant.</div>
+    <div class="empty"><i class="fa-solid fa-inbox"></i><br>Aucune conversation pour l'instant.</div>
     {% endfor %}
 </div>
 
@@ -195,6 +236,7 @@ socket.on('new_message', (msg) => {
             count += 1;
             badge.textContent = count;
             badge.style.display = 'block';
+            conv.classList.add('unread');
 
             // Mettre à jour le dernier message et la date
             conv.querySelector('.last-msg').textContent = msg.text;
@@ -206,7 +248,7 @@ socket.on('new_message', (msg) => {
             parent.prepend(conv);
         } else {
             // Nouvelle conversation
-            location.reload(); // pour simplifier si une nouvelle conversation est arrivée
+            location.reload();
         }
     }
 });
@@ -219,6 +261,7 @@ document.querySelectorAll('.conversation').forEach(conv => {
         const badge = conv.querySelector('.unread-badge');
         badge.style.display = 'none';
         badge.textContent = '';
+        conv.classList.remove('unread');
         window.location.href = `/chat/${username}`;
     });
 });
@@ -231,9 +274,9 @@ socket.on('update_unread', (data) => {
         const badge = conv.querySelector('.unread-badge');
         badge.style.display = 'none';
         badge.textContent = '';
+        conv.classList.remove('unread');
     }
 });
 </script>
 </body>
 </html>
-
