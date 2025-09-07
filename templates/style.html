@@ -127,6 +127,29 @@
       border-radius: 0 0 12px 12px;
       background: #000;
     }
+    .video-container {
+      position: relative;
+    }
+    .mute-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+      z-index: 10;
+    }
+    .mute-btn:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
 
     /* ---------- CAROUSEL MULTIMEDIA ---------- */
     .carousel {
@@ -220,6 +243,7 @@
       .post-image, video { max-height: 70vh; }
       .header-icons a { font-size: 1.2rem; min-width: 32px; min-height: 32px; }
       .header-icons { gap: 8px; }
+      .mute-btn { width: 30px; height: 30px; font-size: 1rem; }
     }
 
     /* ---------- BOUTON ACCUEIL ---------- */
@@ -270,7 +294,12 @@
         {% if post.type == "image" and not post.files %}
         <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
-        <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted></video>
+        <div class="video-container">
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop></video>
+          <button class="mute-btn" title="Activer/Désactiver le son">
+            <i class="fa-solid fa-volume-xmark"></i>
+          </button>
+        </div>
         {% endif %}
 
         {# ---- Multiple files (carousel) ---- #}
@@ -281,7 +310,12 @@
             {% if file.type == "image" %}
             <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
-            <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted class="post-video"></video>
+            <div class="video-container">
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
+              <button class="mute-btn" title="Activer/Désactiver le son">
+                <i class="fa-solid fa-volume-xmark"></i>
+              </button>
+            </div>
             {% endif %}
             {% endfor %}
           </div>
@@ -470,7 +504,7 @@
       list.appendChild(li);
     }
 
-    /* ---------- Video autoplay ---------- */
+    /* ---------- Video autoplay and loop ---------- */
     const ioObserver = new IntersectionObserver((entries) => {
       let best = null;
       entries.forEach(entry => {
@@ -491,7 +525,22 @@
         videos.add(vid);
         ioObserver.observe(vid);
         vid.pause();
+        vid.addEventListener('ended', () => {
+          vid.currentTime = 0;
+          vid.play().catch(() => {});
+        });
       }
+    }
+
+    /* ---------- Mute button functionality ---------- */
+    function bindMuteButton(video, muteBtn) {
+      if (!muteBtn) return;
+      muteBtn.addEventListener('click', () => {
+        video.muted = !video.muted;
+        const icon = muteBtn.querySelector('i');
+        icon.classList.toggle('fa-volume-xmark', video.muted);
+        icon.classList.toggle('fa-volume-high', !video.muted);
+      });
     }
 
     /* ---------- Init posts existants ---------- */
@@ -499,7 +548,11 @@
       bindLikes(post);
       bindCommentForm(post);
       bindFollowButtons(post);
-      post.querySelectorAll('video').forEach(observeVideo);
+      post.querySelectorAll('video').forEach(video => {
+        observeVideo(video);
+        const muteBtn = video.parentElement.querySelector('.mute-btn');
+        bindMuteButton(video, muteBtn);
+      });
       const description = post.querySelector('.description');
       const toggleButton = post.querySelector('.toggle-description');
       if (description && toggleButton) {
@@ -579,7 +632,7 @@
       const badge = document.getElementById('notifications-count');
       if (!badge) return;
       if (notifCount > 0) {
-        badge.style.display = "inline";
+        badge.style.display = 'inline';
         badge.textContent = notifCount;
       } else {
         badge.style.display = 'none';
@@ -632,3 +685,5 @@
 </script>
 </body>
 </html>
+
+
