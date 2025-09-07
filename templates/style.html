@@ -52,6 +52,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
       transition: color 0.2s ease, transform 0.2s ease;
     }
     .header-icons a:hover {
@@ -92,8 +93,8 @@
     }
     .message-badge {
       position: absolute;
-      top: -8px;
-      right: -8px;
+      top: -6px;
+      right: -6px;
       background: #ed4956;
       color: #fff;
       font-size: 0.7rem;
@@ -102,6 +103,7 @@
       border-radius: 50%;
       line-height: 1;
       border: 2px solid #fff;
+      z-index: 10;
     }
 
     /* ---------- POSTS ---------- */
@@ -162,12 +164,17 @@
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      max-height: 2.8em;
+      max-height: 4.2em; /* 3 lines at 1.4em line-height */
       overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
       position: relative;
     }
     .description.expanded {
       max-height: none;
+      -webkit-line-clamp: unset;
     }
     .toggle-description {
       display: none;
@@ -390,7 +397,10 @@
     <header class="main-header">
       <h2 class="logo">CHRONOS</h2>
       <nav class="header-icons">
-        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+        <a href="#" title="Accueil" id="home-btn">
+          <i class="fa-solid fa-house"></i>
+          <span class="message-badge" id="home-badge" style="display:none;">0</span>
+        </a>
         <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
         <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
         <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
@@ -429,7 +439,6 @@
           </button>
         </div>
         {% endif %}
-
         {# ---- Multiple files (carousel) ---- #}
         {% if post.files|length > 0 %}
         <div class="carousel">
@@ -454,7 +463,6 @@
           </div>
         </div>
         {% endif %}
-
         <div class="post-actions">
           <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
@@ -499,10 +507,7 @@
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
     const homeBtn = document.getElementById('home-btn');
-    const homeBadge = document.createElement('span');
-    homeBadge.className = 'message-badge';
-    homeBadge.style.display = 'none';
-    homeBtn.appendChild(homeBadge);
+    const homeBadge = document.getElementById('home-badge');
     let newPostsCount = 0;
 
     window.addEventListener('load', () => window.scrollTo(0, 0));
@@ -511,6 +516,10 @@
       e.preventDefault();
       location.reload();
     });
+
+    // Initialize localStorage for likes and follows
+    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '{}');
+    const followingUsers = JSON.parse(localStorage.getItem('followingUsers') || '{}');
 
     async function toggleLike(button) {
       const post = button.closest('.post');
@@ -525,6 +534,13 @@
         const icon = button.querySelector('i');
         icon.classList.toggle('fa-solid', data.liked);
         icon.classList.toggle('fa-regular', !data.liked);
+        // Update localStorage
+        if (data.liked) {
+          likedPosts[postId] = true;
+        } else {
+          delete likedPosts[postId];
+        }
+        localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
         socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
       } catch (err) { console.error(err); }
     }
@@ -532,11 +548,15 @@
     function bindLikes(post) {
       const btn = post.querySelector('.like-btn');
       if (!btn) return;
+      const postId = post.dataset.postId;
+      // Apply localStorage state
+      if (likedPosts[postId]) {
+        btn.classList.add('liked');
+        const icon = btn.querySelector('i');
+        icon.classList.add('fa-solid');
+        icon.classList.remove('fa-regular');
+      }
       btn.addEventListener('click', () => toggleLike(btn));
-      const icon = btn.querySelector('i');
-      const isLiked = btn.classList.contains('liked');
-      icon.classList.toggle('fa-solid', isLiked);
-      icon.classList.toggle('fa-regular', !isLiked);
     }
 
     function bindCommentForm(post) {
@@ -572,9 +592,12 @@
         }
       }
 
-      if (!window.followingUsers) window.followingUsers = new Set();
-      if (window.followingUsers.has(postUsername)) updateButton(btn, true);
-      else updateButton(btn, btn.dataset.following === "true");
+      // Apply localStorage state
+      if (followingUsers[postUsername]) {
+        updateButton(btn, true);
+      } else {
+        updateButton(btn, btn.dataset.following === "true");
+      }
 
       btn.addEventListener('click', async () => {
         if (btn.dataset.following === "true") return;
@@ -583,7 +606,7 @@
           if (!res.ok) throw new Error('Erreur serveur');
           const data = await res.json();
           if (data.following) {
-            window.followingUsers.add(postUsername);
+            followingUsers[postUsername] = true;
             document.querySelectorAll('.post').forEach(p => {
               const usernameEl = p.querySelector('.username');
               const followBtn = p.querySelector('.follow-btn');
@@ -592,9 +615,10 @@
               }
             });
           } else {
-            window.followingUsers.delete(postUsername);
+            delete followingUsers[postUsername];
             updateButton(btn, false);
           }
+          localStorage.setItem('followingUsers', JSON.stringify(followingUsers));
         } catch (e) {
           console.error(e);
           alert('Impossible de suivre pour le moment.');
@@ -609,7 +633,7 @@
         const postUsername = usernameEl.textContent.trim();
         const followBtn = post.querySelector('.follow-btn');
         if (!followBtn) return;
-        if (window.followingUsers && window.followingUsers.has(postUsername)) {
+        if (followingUsers[postUsername]) {
           followBtn.dataset.following = "true";
           followBtn.classList.add('following');
           followBtn.innerHTML = 'Abonné ✔';
@@ -700,8 +724,13 @@
       const description = post.querySelector('.description');
       const toggleButton = post.querySelector('.toggle-description');
       if (description && toggleButton) {
-        if (description.scrollHeight > description.clientHeight) {
+        // Check if description exceeds 3 lines
+        const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
+        const maxHeight = lineHeight * 3; // 3 lines
+        if (description.scrollHeight > maxHeight) {
           description.classList.add('long');
+        } else {
+          description.classList.remove('long');
         }
         toggleButton.addEventListener('click', () => {
           if (description.classList.contains('expanded')) {
@@ -725,10 +754,19 @@
         const countEl = post.querySelector('.like-count');
         if (countEl) countEl.textContent = data.likes;
         const btn = post.querySelector('.like-btn');
-        if (btn) btn.classList.toggle('liked', data.liked);
-        const icon = btn.querySelector('i');
-        icon.classList.toggle('fa-solid', data.liked);
-        icon.classList.toggle('fa-regular', !data.liked);
+        if (btn) {
+          btn.classList.toggle('liked', data.liked);
+          const icon = btn.querySelector('i');
+          icon.classList.toggle('fa-solid', data.liked);
+          icon.classList.toggle('fa-regular', !data.liked);
+          // Update localStorage
+          if (data.liked) {
+            likedPosts[data.post_id] = true;
+          } else {
+            delete likedPosts[data.post_id];
+          }
+          localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+        }
       }
     });
 
