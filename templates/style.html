@@ -464,7 +464,7 @@
         </div>
         {% endif %}
         <div class="post-actions">
-          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}" data-likes="{{ post.likes if post.likes else 0 }}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
           </button>
           <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
@@ -519,6 +519,7 @@
 
     // Initialize localStorage for likes and follows
     const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '{}');
+    const likeCounts = JSON.parse(localStorage.getItem('likeCounts') || '{}');
     const followingUsers = JSON.parse(localStorage.getItem('followingUsers') || '{}');
 
     async function toggleLike(button) {
@@ -527,8 +528,9 @@
       const countEl = post.querySelector('.like-count');
       try {
         const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('Failed to toggle like');
         const data = await res.json();
+        // Update UI and localStorage
         countEl.textContent = data.likes;
         button.classList.toggle('liked', data.liked);
         const icon = button.querySelector('i');
@@ -540,21 +542,30 @@
         } else {
           delete likedPosts[postId];
         }
+        likeCounts[postId] = data.likes;
         localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
-        socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
-      } catch (err) { console.error(err); }
+        localStorage.setItem('likeCounts', JSON.stringify(likeCounts));
+        // Emit real-time update
+        socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked, username: currentUsername });
+      } catch (err) {
+        console.error(err);
+      }
     }
 
     function bindLikes(post) {
       const btn = post.querySelector('.like-btn');
       if (!btn) return;
       const postId = post.dataset.postId;
+      const countEl = post.querySelector('.like-count');
       // Apply localStorage state
       if (likedPosts[postId]) {
         btn.classList.add('liked');
         const icon = btn.querySelector('i');
         icon.classList.add('fa-solid');
         icon.classList.remove('fa-regular');
+      }
+      if (likeCounts[postId] !== undefined) {
+        countEl.textContent = likeCounts[postId];
       }
       btn.addEventListener('click', () => toggleLike(btn));
     }
@@ -724,9 +735,8 @@
       const description = post.querySelector('.description');
       const toggleButton = post.querySelector('.toggle-description');
       if (description && toggleButton) {
-        // Check if description exceeds 3 lines
         const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
-        const maxHeight = lineHeight * 3; // 3 lines
+        const maxHeight = lineHeight * 3;
         if (description.scrollHeight > maxHeight) {
           description.classList.add('long');
         } else {
@@ -752,14 +762,17 @@
       const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
       if (post) {
         const countEl = post.querySelector('.like-count');
-        if (countEl) countEl.textContent = data.likes;
         const btn = post.querySelector('.like-btn');
-        if (btn) {
+        if (countEl) {
+          countEl.textContent = data.likes;
+          likeCounts[data.post_id] = data.likes;
+          localStorage.setItem('likeCounts', JSON.stringify(likeCounts));
+        }
+        if (btn && data.username === currentUsername) {
           btn.classList.toggle('liked', data.liked);
           const icon = btn.querySelector('i');
           icon.classList.toggle('fa-solid', data.liked);
           icon.classList.toggle('fa-regular', !data.liked);
-          // Update localStorage
           if (data.liked) {
             likedPosts[data.post_id] = true;
           } else {
