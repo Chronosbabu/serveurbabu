@@ -314,7 +314,13 @@
 
       window.addEventListener('load', () => window.scrollTo(0, 0));
 
-      homeBtn.addEventListener('click', e => { e.preventDefault(); location.reload(); });
+      homeBtn.addEventListener('click', e => {
+        e.preventDefault();
+        newPostsCount = 0;
+        homeBadge.style.display = 'none';
+        homeBadge.textContent = '';
+        location.reload();
+      });
 
       async function toggleLike(button) {
         const post = button.closest('.post');
