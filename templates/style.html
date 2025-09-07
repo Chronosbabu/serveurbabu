@@ -538,6 +538,29 @@
             vid.pause();
           }
         });
+        let startX, startTime, wasPlaying;
+        vid.addEventListener('touchstart', (e) => {
+          const rect = vid.getBoundingClientRect();
+          if (e.touches[0].clientY < rect.top + rect.height / 2) return; // not bottom half
+          e.preventDefault();
+          startX = e.touches[0].clientX;
+          startTime = vid.currentTime;
+          wasPlaying = !vid.paused;
+          vid.pause();
+        });
+        vid.addEventListener('touchmove', (e) => {
+          if (startX === undefined) return;
+          e.preventDefault();
+          const deltaX = e.touches[0].clientX - startX;
+          const seekSeconds = deltaX / 10; // 10px per second, adjust as needed
+          vid.currentTime = Math.max(0, Math.min(startTime + seekSeconds, vid.duration));
+        });
+        vid.addEventListener('touchend', (e) => {
+          if (startX === undefined) return;
+          e.preventDefault();
+          if (wasPlaying) vid.play().catch(() => {});
+          startX = undefined;
+        });
       }
     }
 
@@ -694,5 +717,3 @@
 </script>
 </body>
 </html>
-
-
