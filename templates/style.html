@@ -93,8 +93,8 @@
     }
     .message-badge {
       position: absolute;
-      top: -6px;
-      right: -6px;
+      top: -8px;
+      right: -8px;
       background: #ed4956;
       color: #fff;
       font-size: 0.7rem;
@@ -103,7 +103,6 @@
       border-radius: 50%;
       line-height: 1;
       border: 2px solid #fff;
-      z-index: 10;
     }
 
     /* ---------- POSTS ---------- */
@@ -166,11 +165,10 @@
       overflow-wrap: break-word;
       max-height: 4.2em; /* 3 lines at 1.4em line-height */
       overflow: hidden;
+      position: relative;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
-      text-overflow: ellipsis;
-      position: relative;
     }
     .description.expanded {
       max-height: none;
@@ -439,6 +437,7 @@
           </button>
         </div>
         {% endif %}
+
         {# ---- Multiple files (carousel) ---- #}
         {% if post.files|length > 0 %}
         <div class="carousel">
@@ -463,6 +462,7 @@
           </div>
         </div>
         {% endif %}
+
         <div class="post-actions">
           <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
@@ -517,9 +517,9 @@
       location.reload();
     });
 
-    // Initialize localStorage for likes and follows
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '{}');
-    const followingUsers = JSON.parse(localStorage.getItem('followingUsers') || '{}');
+    // Initialize local storage for likes and follows
+    const likedPosts = new Set(JSON.parse(localStorage.getItem('likedPosts') || '[]'));
+    const followingUsers = new Set(JSON.parse(localStorage.getItem('followingUsers') || '[]'));
 
     async function toggleLike(button) {
       const post = button.closest('.post');
@@ -534,13 +534,12 @@
         const icon = button.querySelector('i');
         icon.classList.toggle('fa-solid', data.liked);
         icon.classList.toggle('fa-regular', !data.liked);
-        // Update localStorage
         if (data.liked) {
-          likedPosts[postId] = true;
+          likedPosts.add(postId);
         } else {
-          delete likedPosts[postId];
+          likedPosts.delete(postId);
         }
-        localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+        localStorage.setItem('likedPosts', JSON.stringify([...likedPosts]));
         socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
       } catch (err) { console.error(err); }
     }
@@ -549,8 +548,7 @@
       const btn = post.querySelector('.like-btn');
       if (!btn) return;
       const postId = post.dataset.postId;
-      // Apply localStorage state
-      if (likedPosts[postId]) {
+      if (likedPosts.has(postId)) {
         btn.classList.add('liked');
         const icon = btn.querySelector('i');
         icon.classList.add('fa-solid');
@@ -592,8 +590,7 @@
         }
       }
 
-      // Apply localStorage state
-      if (followingUsers[postUsername]) {
+      if (followingUsers.has(postUsername)) {
         updateButton(btn, true);
       } else {
         updateButton(btn, btn.dataset.following === "true");
@@ -606,7 +603,7 @@
           if (!res.ok) throw new Error('Erreur serveur');
           const data = await res.json();
           if (data.following) {
-            followingUsers[postUsername] = true;
+            followingUsers.add(postUsername);
             document.querySelectorAll('.post').forEach(p => {
               const usernameEl = p.querySelector('.username');
               const followBtn = p.querySelector('.follow-btn');
@@ -615,10 +612,10 @@
               }
             });
           } else {
-            delete followingUsers[postUsername];
+            followingUsers.delete(postUsername);
             updateButton(btn, false);
           }
-          localStorage.setItem('followingUsers', JSON.stringify(followingUsers));
+          localStorage.setItem('followingUsers', JSON.stringify([...followingUsers]));
         } catch (e) {
           console.error(e);
           alert('Impossible de suivre pour le moment.');
@@ -633,7 +630,7 @@
         const postUsername = usernameEl.textContent.trim();
         const followBtn = post.querySelector('.follow-btn');
         if (!followBtn) return;
-        if (followingUsers[postUsername]) {
+        if (followingUsers.has(postUsername)) {
           followBtn.dataset.following = "true";
           followBtn.classList.add('following');
           followBtn.innerHTML = 'Abonné ✔';
@@ -725,9 +722,7 @@
       const toggleButton = post.querySelector('.toggle-description');
       if (description && toggleButton) {
         // Check if description exceeds 3 lines
-        const lineHeight = parseFloat(getComputedStyle(description).lineHeight);
-        const maxHeight = lineHeight * 3; // 3 lines
-        if (description.scrollHeight > maxHeight) {
+        if (description.scrollHeight > description.clientHeight) {
           description.classList.add('long');
         } else {
           description.classList.remove('long');
@@ -754,19 +749,16 @@
         const countEl = post.querySelector('.like-count');
         if (countEl) countEl.textContent = data.likes;
         const btn = post.querySelector('.like-btn');
-        if (btn) {
-          btn.classList.toggle('liked', data.liked);
-          const icon = btn.querySelector('i');
-          icon.classList.toggle('fa-solid', data.liked);
-          icon.classList.toggle('fa-regular', !data.liked);
-          // Update localStorage
-          if (data.liked) {
-            likedPosts[data.post_id] = true;
-          } else {
-            delete likedPosts[data.post_id];
-          }
-          localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+        if (btn) btn.classList.toggle('liked', data.liked);
+        const icon = btn.querySelector('i');
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
+        if (data.liked) {
+          likedPosts.add(data.post_id.toString());
+        } else {
+          likedPosts.delete(data.post_id.toString());
         }
+        localStorage.setItem('likedPosts', JSON.stringify([...likedPosts]));
       }
     });
 
@@ -777,8 +769,10 @@
     /* ---------- Nouveau post badge Accueil ---------- */
     socket.on('new_post', postHtml => {
       newPostsCount++;
-      homeBadge.style.display = 'inline';
-      homeBadge.textContent = newPostsCount;
+      if (homeBadge) {
+        homeBadge.style.display = 'inline';
+        homeBadge.textContent = newPostsCount;
+      }
     });
 
     /* ---------- Gestion badges messages et notifications ---------- */
