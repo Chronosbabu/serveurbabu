@@ -374,9 +374,12 @@ def profile(username):
 
     posts = load_posts()
     user_posts = [p for p in posts if p.get("username") == user["username"]]
+    current_username = session.get("username")
+    current_user = get_user(current_username) if current_username else None
     for p in user_posts:
-        p['liked_by_user'] = session.get("username") in p.get("liked_by", [])
+        p['liked_by_user'] = current_username in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
+        p['following'] = username in current_user.get("following", []) if current_user else False
 
     # Calculer les followers
     all_users = load_users()
@@ -390,7 +393,6 @@ def profile(username):
         current_username=session.get("username"),
         current_avatar=session.get("avatar")
     )
-
 
 
 @app.route("/search", methods=["GET"])
