@@ -126,6 +126,7 @@
       display: block;
       border-radius: 0 0 12px 12px;
       background: #000;
+      cursor: pointer;
     }
     .video-container {
       position: relative;
@@ -528,6 +529,14 @@
         vid.addEventListener('ended', () => {
           vid.currentTime = 0;
           vid.play().catch(() => {});
+        });
+        vid.addEventListener('click', (e) => {
+          if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
+          if (vid.paused) {
+            vid.play().catch(() => {});
+          } else {
+            vid.pause();
+          }
         });
       }
     }
