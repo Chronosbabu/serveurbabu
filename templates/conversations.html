@@ -41,11 +41,7 @@
       font-family: 'Lobster', cursive;
       letter-spacing: 1px;
       flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
-    .logo i { font-size: 1.5rem; }
     .header-icons {
       display: flex;
       align-items: center;
@@ -260,7 +256,6 @@
       .bottom-nav { padding: 10px 0; }
       .bottom-nav a { font-size: 1.3rem; }
       .logo { font-size: 1.5rem; }
-      .logo i { font-size: 1.3rem; }
       .empty { font-size: 0.85rem; padding: 30px 16px; }
       .empty i { font-size: 1.3rem; }
     }
@@ -269,7 +264,7 @@
 <body>
   <div class="main-container">
     <header class="main-header">
-      <h2 class="logo"><i class="fa-regular fa-message"></i> CHRONOS</h2>
+      <h2 class="logo">CHRONOS</h2>
       <nav class="header-icons">
         <a href="{{ url_for('index') }}" title="Accueil"><i class="fa-solid fa-house"></i></a>
         <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
