@@ -142,6 +142,7 @@
       line-height: 1.4;
       white-space: pre-wrap;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-sizing: border-box; /* Ensure consistent sizing */
     }
     .from-me {
       background: #dcf8c6; /* WhatsApp-like green for sent messages */
@@ -235,10 +236,14 @@
       .bottom-nav { padding: 10px 0; }
       .bottom-nav a { font-size: 1.3rem; }
       .messages { padding: 10px 12px; }
-      .message { font-size: 0.85rem; padding: 8px 12px; }
+      .message {
+        font-size: 0.9rem; /* Consistent font-size */
+        padding: 10px 14px; /* Consistent padding */
+        line-height: 1.4; /* Consistent line-height */
+      }
       .message.audio-wrapper audio { width: 200px; }
       .input-box { padding: 6px 12px; }
-      .input-box textarea { font-size: 0.85rem; padding: 8px 10px; }
+      .input-box textarea { font-size: 0.9rem; padding: 10px 12px; }
       .input-box button { width: 36px; height: 36px; font-size: 0.9rem; }
     }
   </style>
@@ -514,7 +519,7 @@
 
     socket.on('new_message', (message) => {
       const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-      if (!currentChatUser || currentChatUser !== message.sender) {
+      if (message.sender !== username && (!currentChatUser || currentChatUser !== message.sender)) {
         unreadCount++;
         updateUnreadBadge();
       }
