@@ -24,8 +24,6 @@ socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 user_notifications = {}  # clé = user_id, valeur = liste de notifications
 
-# --- Fonctions notifications ---
-
 # --- Gestion follow/unfollow persistant ---
 def toggle_follow(current_user, target_user):
     users = load_users()
@@ -180,10 +178,14 @@ def index():
         return redirect(url_for("login"))
 
     posts = load_posts()
+    users = {u["username"]: u for u in load_users()}  # Cache users for efficiency
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
-        p['following'] = is_following(session["username"], p["username"])  # ajoute suivi
+        p['following'] = is_following(session["username"], p["username"])
+        p['avatar'] = users.get(p["username"], {}).get("avatar")  # Dynamic avatar
+        for comment in p.get("comments", []):
+            comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/follow/<username>", methods=["POST"])
@@ -191,16 +193,14 @@ def follow_user(username):
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
     current_user = session["username"]
-    following = toggle_follow(current_user, username)  # persistant
+    following = toggle_follow(current_user, username)
 
-    # ⚡ Mise à jour follow en temps réel
     socketio.emit(
         "update_follow",
         {"target_user": username, "follower": current_user, "following": following},
         room=username
     )
 
-    # ⚡ Ajouter notification uniquement si on suit
     if following:
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append(msg)
@@ -215,8 +215,8 @@ def add_post():
 
     if request.method == "POST":
         content = (request.form.get("content") or "").strip()
-        media_files = request.files.getlist("media")  # ⚡ plusieurs fichiers
-        files_data = []  # liste de dictionnaires {name, type}
+        media_files = request.files.getlist("media")
+        files_data = []
 
         for media_file in media_files:
             if media_file and media_file.filename:
@@ -237,8 +237,8 @@ def add_post():
         new_post = {
             "id": len(posts) + 1,
             "username": session["username"],
-            "avatar": session.get("avatar"),
-            "files": files_data,   # ⚡ liste de dicts avec name + type
+            # Removed "avatar" field
+            "files": files_data,
             "description": content,
             "likes": 0,
             "liked_by": [],
@@ -248,7 +248,6 @@ def add_post():
         posts.insert(0, new_post)
         save_posts(posts)
 
-        # ⚡ plus de broadcast=True → ça envoie déjà à tous
         socketio.emit('new_post', {
             "id": new_post["id"],
             "username": new_post["username"],
@@ -257,7 +256,6 @@ def add_post():
 
         return redirect(url_for("index"))
 
-    # ⚡ important : garder un retour GET
     return render_template("new_post.html")
 
 @app.route("/like/<int:post_id>", methods=["POST"])
@@ -278,10 +276,8 @@ def like_post(post_id):
     else:
         post.setdefault("liked_by", []).append(username)
         liked = True
-
-        # ⚡ Ajouter notification ici
         post_owner = post.get("username")
-        if post_owner != username:  # pas de notification si on like soi-même
+        if post_owner != username:
             notify_like(target_user_id=post_owner, liker_username=username, post_id=post_id)
 
     post["likes"] = len(post["liked_by"])
@@ -299,12 +295,13 @@ def comments(post_id):
     if not post:
         abort(404)
 
+    users = {u["username"]: u for u in load_users()}  # Cache users
     if request.method == "POST":
         content = (request.form.get("comment") or "").strip()
         if content:
             comment_data = {
                 "username": session["username"],
-                "avatar": session.get("avatar"),
+                # Removed "avatar" field
                 "content": content,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
@@ -314,6 +311,9 @@ def comments(post_id):
 
         return redirect(url_for("comments", post_id=post_id))
 
+    post['avatar'] = users.get(post["username"], {}).get("avatar")  # Dynamic post avatar
+    for comment in post.get("comments", []):
+        comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
     return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/profile/<username>")
@@ -323,6 +323,7 @@ def profile(username):
         abort(404)
 
     posts = load_posts()
+    users = {u["username"]: u for u in load_users()}  # Cache users
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
     current_user = get_user(current_username) if current_username else None
@@ -330,11 +331,13 @@ def profile(username):
         p['liked_by_user'] = current_username in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = username in current_user.get("following", []) if current_user else False
+        p['avatar'] = users.get(p["username"], {}).get("avatar")  # Dynamic post avatar
+        for comment in p.get("comments", []):
+            comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
 
-    # Calculer les followers
     all_users = load_users()
     followers = [u["username"] for u in all_users if username in u.get("following", [])]
-    user["followers"] = followers  # ajoute la clé followers dynamiquement
+    user["followers"] = followers
 
     return render_template(
         "profile.html",
@@ -350,20 +353,19 @@ def search_users():
         return redirect(url_for("login"))
 
     query = (request.args.get("q") or "").strip().lower()
-    users = load_users()  # ta fonction qui charge les utilisateurs
-    posts = load_posts()  # ta fonction qui charge les publications
+    users = load_users()
+    posts = load_posts()
+    users_dict = {u["username"]: u for u in users}  # Cache users
 
     users_results, posts_results = [], []
 
     if query:
-        # Filtrer utilisateurs
         users_results = [u for u in users if query in u["username"].lower()]
-
-        # Filtrer publications (description)
         posts_results = [p for p in posts if query in p["description"].lower()]
-    else:
-        users_results = users
-        posts_results = []
+        for p in posts_results:
+            p['avatar'] = users_dict.get(p["username"], {}).get("avatar")  # Dynamic post avatar
+            for comment in p.get("comments", []):
+                comment['avatar'] = users_dict.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
 
     return render_template(
         "search.html",
@@ -411,7 +413,6 @@ def send_file_route():
 
     return jsonify({"success": True, "url": url, "type": file_type})
 
-# --- New Route for Updating Avatar ---
 @app.route("/update_avatar", methods=["POST"])
 def update_avatar():
     if "username" not in session:
@@ -421,7 +422,6 @@ def update_avatar():
     if not file or not file.filename:
         return jsonify({"success": False, "error": "Aucun fichier sélectionné"}), 400
 
-    # Generate unique filename
     username = session["username"]
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in [".jpg", ".jpeg", ".png", ".gif"]:
@@ -430,18 +430,19 @@ def update_avatar():
     filename = f"{username}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
     file.save(os.path.join(AVATAR_FOLDER, filename))
 
-    # Update user data
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
     if user:
         old_avatar = user.get("avatar")
         user["avatar"] = filename
         save_users(users)
-        session["avatar"] = filename  # Update session
-        # Delete old avatar file if it exists
+        session["avatar"] = filename
         if old_avatar and os.path.exists(os.path.join(AVATAR_FOLDER, old_avatar)):
             os.remove(os.path.join(AVATAR_FOLDER, old_avatar))
-        return jsonify({"success": True, "avatar_url": url_for("avatar_file", filename=filename)})
+        new_avatar_url = url_for("avatar_file", filename=filename)
+        # Broadcast avatar update to all connected clients
+        socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url}, broadcast=True)
+        return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
 
 # --- Routes Messages ---
@@ -452,6 +453,7 @@ def conversations():
 
     messages = load_messages()
     username = session.get("username")
+    users = {u["username"]: u for u in load_users()}  # Cache users
     user_conversations = []
 
     for key, conv in messages.items():
@@ -468,7 +470,7 @@ def conversations():
         other_user_data = get_user(other_user)
         user_conversations.append({
             "username": other_user,
-            "profile_pic": other_user_data.get("avatar") if other_user_data else None,
+            "profile_pic": users.get(other_user, {}).get("avatar"),  # Dynamic avatar
             "last_msg": last_msg,
             "last_date": last_date,
             "unread_count": sum(1 for m in conv if username not in m.get("read_by", []))
@@ -483,10 +485,13 @@ def chat(username):
         return redirect(url_for("login"))
 
     messages = load_messages()
+    users = {u["username"]: u for u in load_users()}  # Cache users
     key1 = f"{session['username']}_{username}"
     key2 = f"{username}_{session['username']}"
     conv = messages.get(key1) or messages.get(key2) or []
-    return render_template("chat.html", chat_user=username, messages=conv)
+    for msg in conv:
+        msg['avatar'] = users.get(msg["sender"], {}).get("avatar")  # Dynamic message avatar
+    return render_template("chat.html", chat_user=username, messages=conv, avatar=session.get("avatar"))
 
 @app.route("/send_message", methods=["POST"])
 def send_message_http():
@@ -554,14 +559,13 @@ def handle_send_comment(data):
         return
     comment_data = {
         "username": session["username"],
-        "avatar": session.get("avatar"),
+        # Removed "avatar" field
         "content": content,
         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     post.setdefault("comments", []).append(comment_data)
     save_posts(posts)
 
-    # ⚡ Ajouter notification ici
     post_owner = post.get("username")
     if post_owner != session["username"]:
         notify_comment(target_user_id=post_owner, commenter_username=session["username"], post_id=post_id)
@@ -588,11 +592,10 @@ def notifications():
 
 @socketio.on("join_room")
 def handle_join_room(data):
-    # si data est un dict -> récupérer la clé
     if isinstance(data, dict):
         username = data.get("username")
     else:
-        username = data  # data est une string
+        username = data
     if username:
         join_room(username)
 
