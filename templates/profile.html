@@ -397,6 +397,7 @@
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       margin-bottom: 20px;
+      position: relative;
     }
     .profile-avatar, .profile-avatar-fallback {
       width: 90px;
@@ -411,6 +412,28 @@
       font-weight: bold;
       color: #fff;
       cursor: pointer;
+    }
+    .change-avatar-btn {
+      position: absolute;
+      top: 75px;
+      left: 75px;
+      background: #0095f6;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      z-index: 10;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .change-avatar-btn:hover {
+      background: #00376b;
+      transform: scale(1.1);
     }
     .profile-meta {
       margin-left: 20px;
@@ -491,6 +514,13 @@
       .profile-meta p {
         font-size: 14px;
       }
+      .change-avatar-btn {
+        top: 60px;
+        left: 60px;
+        width: 24px;
+        height: 24px;
+        font-size: 0.8rem;
+      }
     }
   </style>
 </head>
@@ -517,6 +547,12 @@
         <div class="profile-avatar-fallback" id="profile-avatar">
           {{ profile_user.username[:1]|upper }}
         </div>
+      {% endif %}
+      {% if current_username == profile_user.username %}
+        <button class="change-avatar-btn" id="change-avatar-btn" title="Changer la photo de profil">
+          <i class="fa-solid fa-camera"></i>
+        </button>
+        <input type="file" id="avatar-input" accept="image/*" style="display: none;" />
       {% endif %}
       <div class="profile-meta">
         <h1>@{{ profile_user.username }}</h1>
@@ -650,11 +686,15 @@
 
   const avatar = document.getElementById("profile-avatar");
   const modal = document.getElementById("avatar-modal");
+  const changeAvatarBtn = document.getElementById("change-avatar-btn");
+  const avatarInput = document.getElementById("avatar-input");
 
   if (avatar && modal) {
       avatar.addEventListener("click", () => {
-          modal.style.display = "flex";
-          history.pushState({ avatarOpen: true }, "");
+          {% if current_username != profile_user.username %}
+            modal.style.display = "flex";
+            history.pushState({ avatarOpen: true }, "");
+          {% endif %}
       });
 
       modal.addEventListener("click", () => {
@@ -668,6 +708,52 @@
               modal.style.display = "none";
               if (history.state && history.state.avatarOpen) history.back();
           }
+      });
+  }
+
+  if (changeAvatarBtn && avatarInput) {
+      changeAvatarBtn.addEventListener("click", (e) => {
+          e.stopPropagation(); // Prevent triggering avatar modal
+          if (confirm("Changer la photo de profil ?")) {
+              avatarInput.click();
+          }
+      });
+
+      avatarInput.addEventListener("change", () => {
+          const file = avatarInput.files[0];
+          if (!file) return;
+
+          const formData = new FormData();
+          formData.append("avatar", file);
+
+          fetch("/update_avatar", {
+              method: "POST",
+              body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // Update all avatar images on the page
+                  document.querySelectorAll(".profile-avatar, .avatar-post").forEach(img => {
+                      if (img.tagName === "IMG") {
+                          img.src = data.avatar_url;
+                      }
+                  });
+                  // Update modal avatar
+                  const modalImg = document.querySelector("#avatar-modal img");
+                  if (modalImg) {
+                      modalImg.src = data.avatar_url;
+                  }
+                  alert("Photo de profil mise à jour !");
+                  avatarInput.value = ""; // Clear input
+              } else {
+                  alert("Erreur : " + (data.error || "Échec de la mise à jour"));
+              }
+          })
+          .catch(err => {
+              console.error(err);
+              alert("Erreur réseau lors de la mise à jour.");
+          });
       });
   }
 

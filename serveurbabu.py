@@ -49,8 +49,6 @@ def is_following(current_user, target_user):
         return False
     return target_user in cu.get("following", [])
 
-
-
 def notify_like(target_user_id, liker_username, post_id):
     msg = f"{liker_username} a aimé votre publication"
     user_notifications.setdefault(target_user_id, []).append(msg)
@@ -122,29 +120,6 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
-# --- Gestion follow/unfollow persistant ---
-def toggle_follow(current_user, target_user):
-    users = load_users()
-    cu = next((u for u in users if u["username"] == current_user), None)
-    if not cu:
-        return False
-    following_list = cu.setdefault("following", [])
-    if target_user in following_list:
-        following_list.remove(target_user)
-        following = False
-    else:
-        following_list.append(target_user)
-        following = True
-    save_users(users)
-    return following
-
-def is_following(current_user, target_user):
-    users = load_users()
-    cu = next((u for u in users if u["username"] == current_user), None)
-    if not cu:
-        return False
-    return target_user in cu.get("following", [])
-
 # --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -211,9 +186,6 @@ def index():
         p['following'] = is_following(session["username"], p["username"])  # ajoute suivi
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
-
-
-
 @app.route("/follow/<username>", methods=["POST"])
 def follow_user(username):
     if "username" not in session:
@@ -235,20 +207,6 @@ def follow_user(username):
         socketio.emit("new_notification", {"message": msg}, room=username)
 
     return jsonify({"following": following})
-
-
-
-
-
-
-
-
-# --- Le reste du fichier reste identique ---  
-# (routes add_post, like_post, comments, profile, search, uploads, avatars, send_file_route, conversations, chat, send_message_http, SocketIO events, notifications, send_comment)
-# Pour conserver la réponse concise, je garde cette partie inchangée.
-# Tu peux réutiliser le code que tu avais pour ces routes exactement comme avant.
-
-
 
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
@@ -302,11 +260,6 @@ def add_post():
     # ⚡ important : garder un retour GET
     return render_template("new_post.html")
 
-
-
-
-
-
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
     if "username" not in session:
@@ -336,8 +289,6 @@ def like_post(post_id):
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
 
-
-
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
     if "username" not in session:
@@ -364,7 +315,6 @@ def comments(post_id):
         return redirect(url_for("comments", post_id=post_id))
 
     return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
-
 
 @app.route("/profile/<username>")
 def profile(username):
@@ -393,7 +343,6 @@ def profile(username):
         current_username=session.get("username"),
         current_avatar=session.get("avatar")
     )
-
 
 @app.route("/search", methods=["GET"])
 def search_users():
@@ -424,19 +373,14 @@ def search_users():
         query=request.args.get("q", "")
     )
 
-
-
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
-
 
 @app.route("/avatars/<filename>")
 def avatar_file(filename):
     return send_from_directory(AVATAR_FOLDER, filename)
 
-
-# --- Route ajoutée pour l'envoi de fichiers ---
 @app.route("/send_file", methods=["POST"])
 def send_file_route():
     if "username" not in session:
@@ -467,6 +411,38 @@ def send_file_route():
 
     return jsonify({"success": True, "url": url, "type": file_type})
 
+# --- New Route for Updating Avatar ---
+@app.route("/update_avatar", methods=["POST"])
+def update_avatar():
+    if "username" not in session:
+        return jsonify({"success": False, "error": "Non connecté"}), 401
+
+    file = request.files.get("avatar")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "Aucun fichier sélectionné"}), 400
+
+    # Generate unique filename
+    username = session["username"]
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".gif"]:
+        return jsonify({"success": False, "error": "Format d'image non supporté"}), 400
+
+    filename = f"{username}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
+    file.save(os.path.join(AVATAR_FOLDER, filename))
+
+    # Update user data
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user:
+        old_avatar = user.get("avatar")
+        user["avatar"] = filename
+        save_users(users)
+        session["avatar"] = filename  # Update session
+        # Delete old avatar file if it exists
+        if old_avatar and os.path.exists(os.path.join(AVATAR_FOLDER, old_avatar)):
+            os.remove(os.path.join(AVATAR_FOLDER, old_avatar))
+        return jsonify({"success": True, "avatar_url": url_for("avatar_file", filename=filename)})
+    return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
 
 # --- Routes Messages ---
 @app.route("/conversations")
@@ -501,7 +477,6 @@ def conversations():
     user_conversations.sort(key=lambda x: x.get("last_date", ""), reverse=True)
     return render_template("conversations.html", conversations=user_conversations)
 
-
 @app.route("/chat/<username>")
 def chat(username):
     if "username" not in session:
@@ -512,7 +487,6 @@ def chat(username):
     key2 = f"{username}_{session['username']}"
     conv = messages.get(key1) or messages.get(key2) or []
     return render_template("chat.html", chat_user=username, messages=conv)
-
 
 @app.route("/send_message", methods=["POST"])
 def send_message_http():
@@ -533,14 +507,12 @@ def send_message_http():
 
     return jsonify({"success": True})
 
-
 # --- SocketIO events ---
 @socketio.on("connect")
 def handle_connect():
     user = session.get("username")
     if user:
         join_room(user)
-
 
 @socketio.on("send_message")
 def handle_send_message(data):
@@ -553,7 +525,6 @@ def handle_send_message(data):
     entry = append_message(sender, receiver, text, msg_type="text")
     emit("new_message", entry, room=receiver)
     emit("new_message", entry, room=sender)
-
 
 @socketio.on('mark_read')
 def mark_read(data):
@@ -568,7 +539,6 @@ def mark_read(data):
             m.setdefault("read_by", []).append(user)
     save_messages(messages)
     emit('update_unread', {'from': sender}, room=user)
-
 
 @socketio.on('send_comment')
 def handle_send_comment(data):
@@ -598,8 +568,6 @@ def handle_send_comment(data):
 
     emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
 
-
-
 # --- Notifications route ---
 @app.route("/notifications")
 def notifications():
@@ -618,9 +586,6 @@ def notifications():
         notifications=notifications_list
     )
 
-
-
-
 @socketio.on("join_room")
 def handle_join_room(data):
     # si data est un dict -> récupérer la clé
@@ -631,12 +596,6 @@ def handle_join_room(data):
     if username:
         join_room(username)
 
-
-
-
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
-
