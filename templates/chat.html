@@ -1,367 +1,514 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Chat avec {{ chat_user }}</title>
-<style>
-:root {
-  --header-h: 60px;
-  --input-min-h: 40px;
-  --input-max-h: 120px;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+  <title>Chat avec {{ chat_user }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    /* ---------- GLOBAL ---------- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #fafafa;
+      color: #262626;
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { text-decoration: none; color: inherit; }
+    .main-container { max-width: 935px; margin: 0 auto; padding: 20px 20px 80px 20px; }
 
-/* Reset */
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  height: 100%;
-  background: #e5ddd5;
-  overflow: hidden;
-}
+    /* ---------- HEADER ---------- */
+    .main-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: #fff;
+      border-bottom: 1px solid #dbdbdb;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #262626;
+      font-family: 'Lobster', cursive;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: nowrap;
+    }
+    .header-icons a {
+      color: #262626;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, transform 0.2s ease;
+      position: relative;
+    }
+    .header-icons a:hover {
+      color: #0095f6;
+      transform: scale(1.1);
+    }
+    .header-icons a.active {
+      color: #0095f6;
+    }
+    .message-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ed4956;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 50%;
+      line-height: 1;
+      border: 2px solid #fff;
+    }
 
-/* Header fixe */
-.header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--header-h);
-  line-height: var(--header-h);
-  text-align: center;
-  font-size: 18px;
-  font-weight: bold;
-  background: #075E54;
-  color: #fff;
-  z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
+    /* ---------- BOTTOM NAVIGATION BAR ---------- */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #fff;
+      border-top: 1px solid #dbdbdb;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      z-index: 1000;
+      box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
+    }
+    .bottom-nav a {
+      color: #262626;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+    .bottom-nav a:hover {
+      color: #0095f6;
+      transform: scale(1.1);
+    }
+    .bottom-nav a.active {
+      color: #0095f6;
+    }
 
-/* Messages scrollables */
-.messages {
-  position: absolute;
-  top: var(--header-h);
-  bottom: var(--input-min-h + 16px);
-  left: 0;
-  right: 0;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
+    /* ---------- MESSAGES ---------- */
+    .messages {
+      margin-top: 60px; /* Height of header */
+      margin-bottom: 70px; /* Height of input-box + padding */
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      min-height: calc(100vh - 130px); /* Ensure it fills available space */
+    }
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
 
-/* Message individuel */
-.message {
-  padding: 10px 14px;
-  border-radius: 20px;
-  max-width: 75%;
-  word-wrap: break-word;
-  font-size: 15px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-}
-.from-me { background: #dcf8c6; align-self: flex-end; }
-.from-other { background: #fff; align-self: flex-start; }
+    /* ---------- MESSAGE INDIVIDUAL ---------- */
+    .message {
+      padding: 10px 14px;
+      border-radius: 15px;
+      max-width: 75%;
+      word-wrap: break-word;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid #dbdbdb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .from-me {
+      background: #e6f0fa;
+      align-self: flex-end;
+    }
+    .from-other {
+      background: #fff;
+      align-self: flex-start;
+    }
+    .message.audio-wrapper {
+      background: none !important;
+      padding: 0 !important;
+      border: none !important;
+      max-width: 100% !important;
+      box-shadow: none !important;
+    }
+    .message.audio-wrapper audio {
+      width: 250px;
+      display: block;
+      margin: 5px 0;
+      border-radius: 8px;
+    }
+    .message img, .message video {
+      max-width: 100%;
+      border-radius: 15px;
+      display: block;
+    }
+    .message video { max-height: 300px; }
 
-/* Styles spécifiques pour l'audio : supprimer le fond */
-.message.audio-wrapper {
-  background: none !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-  max-width: 100% !important;
-}
-.message.audio-wrapper audio {
-  width: 250px;
-  display: block;
-  margin: 5px 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-  box-shadow: none;
-}
+    /* ---------- INPUT BOX ---------- */
+    .input-box {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      background: #fff;
+      gap: 8px;
+      box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
+      z-index: 1000;
+    }
+    .input-box textarea {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 20px;
+      border: 1px solid #dbdbdb;
+      font-size: 0.9rem;
+      resize: none;
+      min-height: 40px;
+      max-height: 100px;
+      background: #fafafa;
+    }
+    .input-box button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #0095f6;
+      color: #fff;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+    .input-box button:hover { background: #00376b; }
+    #fileBtn { background: #262626; }
+    #fileBtn:hover { background: #1a1a1a; }
+    #micBtn { background: #ed4956; }
+    #micBtn.recording {
+      background: #d32f2f;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(237,73,86,0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(237,73,86,0); }
+      100% { box-shadow: 0 0 0 0 rgba(237,73,86,0); }
+    }
+    .input-box input[type="file"] { display: none; }
 
-/* Zone input fixe */
-.input-box {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  padding: 8px 10px;
-  background: #fff;
-  gap: 8px;
-  box-sizing: border-box;
-  z-index: 20;
-}
-.input-box textarea {
-  flex: 1;
-  padding: 10px 12px;
-  border-radius: 25px;
-  border: 1px solid #ccc;
-  font-size: 16px;
-  resize: none;
-  overflow-y: hidden;
-  min-height: var(--input-min-h);
-  max-height: var(--input-max-h);
-}
-.input-box button {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #25D366;
-  color: #fff;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-}
-.input-box button:hover { background: #128C7E; }
-
-/* Bouton fichier */
-#fileBtn {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #075E54;
-  color: #fff;
-  border: none;
-  font-size: 22px;
-  cursor: pointer;
-}
-#fileBtn:hover { background: #054D46; }
-
-/* Bouton micro */
-#micBtn {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #ff3b30;
-  color: #fff;
-  border: none;
-  font-size: 22px;
-  cursor: pointer;
-}
-#micBtn.recording {
-  background: #d32f2f;
-  animation: pulse 1s infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(255,59,48,0); }
-  100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
-}
-
-/* Scrollbar optionnelle */
-.messages::-webkit-scrollbar { width: 6px; }
-.messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
-
-.message img, .message video {
-  max-width: 100%;
-  border-radius: 15px;
-  display: block;
-}
-.message video { max-height: 300px; }
-
-/* Aperçu fichier */
-.preview {
-  max-width: 100px;
-  max-height: 100px;
-  margin-right: 8px;
-  border-radius: 10px;
-}
-</style>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 600px) {
+      .main-container { padding: 16px 16px 70px 16px; }
+      .main-header { padding: 10px 16px; }
+      .logo { font-size: 1.5rem; }
+      .header-icons { gap: 16px; }
+      .header-icons a { font-size: 1.3rem; }
+      .bottom-nav { padding: 10px 0; }
+      .bottom-nav a { font-size: 1.3rem; }
+      .messages { padding: 10px 12px; }
+      .message { font-size: 0.85rem; padding: 8px 12px; }
+      .message.audio-wrapper audio { width: 200px; }
+      .input-box { padding: 6px 12px; }
+      .input-box textarea { font-size: 0.85rem; padding: 8px 10px; }
+      .input-box button { width: 36px; height: 36px; font-size: 0.9rem; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body data-username="{{ session['username'] }}">
+  <div class="main-container">
+    <header class="main-header">
+      <h2 class="logo">Chat avec {{ chat_user }}</h2>
+      <nav class="header-icons">
+        <a href="{{ url_for('index') }}" title="Accueil"><i class="fa-solid fa-house"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=session.get('username')) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" class="active">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        </a>
+      </nav>
+    </header>
 
-<div class="header">Chat avec {{ chat_user }}</div>
-
-<div class="messages" id="messages">
-  {% for msg in messages %}
-    <div class="message {% if msg.type == 'audio' %}audio-wrapper{% endif %} {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}" data-msg-id="{{ loop.index0 }}">
-      {% if msg.type == 'text' %}
+    <div class="messages" id="messages">
+      {% for msg in messages %}
+      <div class="message {% if msg.type == 'audio' %}audio-wrapper{% endif %} {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}" data-msg-id="{{ loop.index0 }}">
+        {% if msg.type == 'text' %}
         {{ msg.text }}
-      {% elif msg.type == 'image' %}
+        {% elif msg.type == 'image' %}
         <img src="{{ msg.url }}" alt="image">
-      {% elif msg.type == 'video' %}
+        {% elif msg.type == 'video' %}
         <video src="{{ msg.url }}" controls></video>
-      {% elif msg.type == 'audio' %}
+        {% elif msg.type == 'audio' %}
         <audio controls src="{{ msg.url }}"></audio>
-      {% endif %}
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="message from-other">Aucun message pour le moment.</div>
+      {% endfor %}
     </div>
-  {% else %}
-    <div class="message from-other">Aucun message pour le moment.</div>
-  {% endfor %}
-</div>
 
-<div class="input-box">
-  <button id="fileBtn">📎</button>
-  <button id="micBtn">🎤</button>
-  <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
-  <button id="sendBtn">➤</button>
-  <input type="file" id="fileInput" accept="image/*,video/*,audio/*" style="display:none;">
-</div>
+    <div class="input-box">
+      <button id="fileBtn" title="Joindre un fichier"><i class="fa-solid fa-paperclip"></i></button>
+      <button id="micBtn" title="Enregistrer un audio"><i class="fa-solid fa-microphone"></i></button>
+      <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
+      <button id="sendBtn" title="Envoyer"><i class="fa-solid fa-paper-plane"></i></button>
+      <input type="file" id="fileInput" accept="image/*,video/*,audio/*">
+    </div>
 
-<script>
-const socket = io();
-const username = document.body.dataset.username;
-const chatUser = "{{ chat_user }}";
+    <nav class="bottom-nav">
+      <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+        <i class="fa-regular fa-bell"></i>
+        <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+      </a>
+      <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+      <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+    </nav>
+  </div>
 
-const input = document.getElementById('messageInput');
-const btn = document.getElementById('sendBtn');
-const fileBtn = document.getElementById('fileBtn');
-const micBtn = document.getElementById('micBtn');
-const fileInput = document.getElementById('fileInput');
-const messagesDiv = document.getElementById('messages');
+  <script>
+    const socket = io();
+    const username = document.body.dataset.username;
+    const chatUser = "{{ chat_user }}";
+    const input = document.getElementById('messageInput');
+    const btn = document.getElementById('sendBtn');
+    const fileBtn = document.getElementById('fileBtn');
+    const micBtn = document.getElementById('micBtn');
+    const fileInput = document.getElementById('fileInput');
+    const messagesDiv = document.getElementById('messages');
 
-let selectedFile = null; 
-let recordedAudio = null;
-let mediaRecorder, audioChunks = [];
+    let selectedFile = null;
+    let recordedAudio = null;
+    let mediaRecorder, audioChunks = [];
+    let isSending = false; // Prevent duplicate sends
 
-// Rejoindre sa room
-socket.on('connect', () => {
-  socket.emit('join_room', {username: username});
-  socket.emit('mark_read', {sender: chatUser});
-  // Ajuster hauteur dès le chargement
-  adjustInputHeight();
-});
+    // Rejoindre sa room
+    socket.on('connect', () => {
+      socket.emit('join_room', { username: username });
+      socket.emit('mark_read', { sender: chatUser });
+      adjustInputHeight();
+      scrollToBottom();
+    });
 
-// Scroll automatique
-function scrollToBottom(){
-  requestAnimationFrame(()=>{ messagesDiv.scrollTop = messagesDiv.scrollHeight; });
-}
-
-// Ajuster textarea et messagesDiv bottom
-function adjustInputHeight(){
-  input.style.height = 'auto';
-  const newHeight = Math.min(input.scrollHeight, 120);
-  input.style.height = newHeight + 'px';
-  messagesDiv.style.bottom = (newHeight + 16) + 'px';
-}
-
-// Initial adjustment au chargement
-adjustInputHeight();
-
-input.addEventListener('input', adjustInputHeight);
-
-// Ajouter un message
-function addMessage(msg){
-  const div = document.createElement('div');
-  div.className = 'message ' + (msg.sender===username?'from-me':'from-other');
-  if(msg.type==='audio'){ div.classList.add('audio-wrapper'); }
-
-  if(msg.type==='text'){
-    div.textContent = msg.text;
-  } else if(msg.type==='image'){
-    const img = document.createElement('img');
-    img.src = msg.url;
-    div.appendChild(img);
-  } else if(msg.type==='video'){
-    const video = document.createElement('video');
-    video.src = msg.url;
-    video.controls = true;
-    div.appendChild(video);
-  } else if(msg.type==='audio'){
-    const audio = document.createElement('audio');
-    audio.src = msg.url;
-    audio.controls = true;
-    div.appendChild(audio);
-  }
-
-  messagesDiv.appendChild(div);
-  scrollToBottom();
-  adjustInputHeight(); // <- correction : recalculer bottom à chaque ajout
-
-  if(msg.sender === chatUser){
-    socket.emit('mark_read', {sender: chatUser});
-  }
-}
-
-// Envoyer un message
-async function sendMessage(){
-  const text = input.value.trim();
-
-  if(selectedFile){
-    const formData = new FormData();
-    formData.append('recipient', chatUser);
-    formData.append('file', selectedFile);
-    try { await fetch('/send_file', { method:'POST', body: formData }); }
-    catch(e){ alert('Erreur réseau.'); }
-    selectedFile = null;
-    input.value = '';
-    adjustInputHeight();
-    return;
-  }
-
-  if(recordedAudio){
-    const formData = new FormData();
-    formData.append('recipient', chatUser);
-    formData.append('file', recordedAudio, "audio_message.webm");
-    try { await fetch('/send_file', { method:'POST', body: formData }); }
-    catch(e){ alert('Erreur réseau.'); }
-    recordedAudio = null;
-    input.value = '';
-    adjustInputHeight();
-    return;
-  }
-
-  if(text){
-    input.value = '';
-    adjustInputHeight();
-    socket.emit('send_message', {receiver: chatUser, text: text, type:'text'});
-  }
-}
-
-// Fichiers
-fileBtn.addEventListener('click', ()=> fileInput.click());
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files[0];
-  if(!file) return;
-  selectedFile = file;
-  input.value = "[Fichier prêt]";
-  adjustInputHeight();
-});
-
-// Micro
-micBtn.addEventListener('click', async ()=>{
-  if(!mediaRecorder || mediaRecorder.state==="inactive"){
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        recordedAudio = new Blob(audioChunks, {type:"audio/webm"});
-        input.value = "[Audio prêt]";
-        adjustInputHeight();
-      };
-      mediaRecorder.start();
-      micBtn.classList.add("recording");
-    } catch(e){
-      alert("Impossible d'accéder au micro");
+    // Scroll automatique
+    function scrollToBottom() {
+      requestAnimationFrame(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; });
     }
-  } else {
-    mediaRecorder.stop();
-    micBtn.classList.remove("recording");
-  }
-});
 
-// Bouton envoyer
-btn.addEventListener('click', sendMessage);
-input.addEventListener('keypress', e => { 
-  if(e.key==='Enter' && !e.shiftKey){ 
-    e.preventDefault(); 
-    sendMessage(); 
-  } 
-});
+    // Ajuster textarea et messagesDiv bottom
+    function adjustInputHeight() {
+      input.style.height = 'auto';
+      const newHeight = Math.min(Math.max(input.scrollHeight, 40), 100);
+      input.style.height = `${newHeight}px`;
+      messagesDiv.style.marginBottom = `${newHeight + 16}px`;
+    }
 
-// Réception messages
-socket.on('new_message', msg => addMessage(msg));
+    // Initial adjustment au chargement
+    window.addEventListener('load', () => {
+      adjustInputHeight();
+      scrollToBottom();
+    });
 
-scrollToBottom();
-</script>
+    input.addEventListener('input', adjustInputHeight);
+
+    // Ajouter un message
+    function addMessage(msg) {
+      if (document.querySelector(`.message[data-msg-id="${msg.id}"]`)) return; // Prevent duplicates
+      const div = document.createElement('div');
+      div.className = `message ${msg.type === 'audio' ? 'audio-wrapper' : ''} ${msg.sender === username ? 'from-me' : 'from-other'}`;
+      div.dataset.msgId = msg.id || Date.now(); // Use unique ID
+      if (msg.type === 'text') {
+        div.textContent = msg.text;
+      } else if (msg.type === 'image') {
+        const img = document.createElement('img');
+        img.src = msg.url;
+        div.appendChild(img);
+      } else if (msg.type === 'video') {
+        const video = document.createElement('video');
+        video.src = msg.url;
+        video.controls = true;
+        div.appendChild(video);
+      } else if (msg.type === 'audio') {
+        const audio = document.createElement('audio');
+        audio.src = msg.url;
+        audio.controls = true;
+        div.appendChild(audio);
+      }
+      messagesDiv.appendChild(div);
+      scrollToBottom();
+      adjustInputHeight();
+      if (msg.sender === chatUser) {
+        socket.emit('mark_read', { sender: chatUser });
+      }
+    }
+
+    // Envoyer un message
+    async function sendMessage() {
+      if (isSending) return; // Prevent concurrent sends
+      isSending = true;
+      const text = input.value.trim();
+
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('recipient', chatUser);
+        formData.append('file', selectedFile);
+        try {
+          const res = await fetch('/send_file', { method: 'POST', body: formData });
+          if (res.ok) {
+            fileInput.value = ''; // Clear file input
+            selectedFile = null;
+            input.value = '';
+            adjustInputHeight();
+          }
+        } catch (e) {
+          alert('Erreur réseau.');
+        }
+      } else if (recordedAudio) {
+        const formData = new FormData();
+        formData.append('recipient', chatUser);
+        formData.append('file', recordedAudio, "audio_message.webm");
+        try {
+          const res = await fetch('/send_file', { method: 'POST', body: formData });
+          if (res.ok) {
+            recordedAudio = null;
+            input.value = '';
+            adjustInputHeight();
+          }
+        } catch (e) {
+          alert('Erreur réseau.');
+        }
+      } else if (text) {
+        socket.emit('send_message', { receiver: chatUser, text: text, type: 'text' });
+        input.value = '';
+        adjustInputHeight();
+      }
+      isSending = false;
+    }
+
+    // Fichiers
+    fileBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      selectedFile = file;
+      input.value = "[Fichier prêt]";
+      adjustInputHeight();
+    });
+
+    // Micro
+    micBtn.addEventListener('click', async () => {
+      if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            recordedAudio = new Blob(audioChunks, { type: "audio/webm" });
+            input.value = "[Audio prêt]";
+            adjustInputHeight();
+            stream.getTracks().forEach(track => track.stop()); // Stop microphone
+          };
+          mediaRecorder.start();
+          micBtn.classList.add("recording");
+        } catch (e) {
+          alert("Impossible d'accéder au micro");
+        }
+      } else {
+        mediaRecorder.stop();
+        micBtn.classList.remove("recording");
+      }
+    });
+
+    // Bouton envoyer
+    btn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Réception messages
+    socket.on('new_message', msg => addMessage(msg));
+
+    // Gestion badge messages
+    let unreadCount = 0;
+    const updateUnreadBadge = () => {
+      const badge = document.getElementById('unread-count');
+      if (!badge) return;
+      if (unreadCount > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = unreadCount;
+      } else {
+        badge.style.display = 'none';
+      }
+    };
+
+    socket.on('new_message', (message) => {
+      const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+      if (!currentChatUser || currentChatUser !== message.sender) {
+        unreadCount++;
+        updateUnreadBadge();
+      }
+    });
+
+    window.addEventListener('load', () => {
+      if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+        unreadCount = 0;
+        updateUnreadBadge();
+      }
+    });
+
+    // Gestion badge notifications
+    let notifCount = 0;
+    const updateNotifBadge = () => {
+      const badge = document.getElementById('notifications-count');
+      if (!badge) return;
+      if (notifCount > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = notifCount;
+      } else {
+        badge.style.display = 'none';
+      }
+    };
+
+    socket.on('new_notification', (notification) => {
+      notifCount++;
+      updateNotifBadge();
+    });
+
+    window.addEventListener('load', () => {
+      if (window.location.pathname.includes('/notifications')) {
+        notifCount = 0;
+        updateNotifBadge();
+      }
+    });
+  </script>
 </body>
 </html>
-
