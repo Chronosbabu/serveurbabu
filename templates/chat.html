@@ -8,18 +8,23 @@
   <style>
     /* ---------- GLOBAL ---------- */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    html, body {
+      height: 100%;
+      margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       background: #fafafa;
       color: #262626;
       line-height: 1.5;
-      overflow-x: hidden;
-      min-height: 100vh;
+      overflow: hidden; /* Prevent body scrolling */
+    }
+    a { text-decoration: none; color: inherit; }
+    .main-container { 
+      max-width: 935px; 
+      margin: 0 auto; 
+      height: 100%;
       display: flex;
       flex-direction: column;
     }
-    a { text-decoration: none; color: inherit; }
-    .main-container { max-width: 935px; margin: 0 auto; padding: 20px 20px 80px 20px; }
 
     /* ---------- HEADER ---------- */
     .main-header {
@@ -92,7 +97,7 @@
       justify-content: space-around;
       align-items: center;
       padding: 12px 0;
-      z-index: 1000;
+      z-index: 1100; /* Higher than input-box to ensure visibility */
       box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
     }
     .bottom-nav a {
@@ -113,15 +118,16 @@
 
     /* ---------- MESSAGES ---------- */
     .messages {
+      flex: 1;
       margin-top: 60px; /* Height of header */
-      margin-bottom: 70px; /* Height of input-box + padding */
+      margin-bottom: 60px; /* Initial height of input-box */
       padding: 12px 16px;
       display: flex;
       flex-direction: column;
       gap: 8px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      min-height: calc(100vh - 130px); /* Ensure it fills available space */
+      background: #e5e5e5; /* WhatsApp-like background */
     }
     .messages::-webkit-scrollbar { width: 6px; }
     .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
@@ -135,16 +141,14 @@
       font-size: 0.9rem;
       line-height: 1.4;
       white-space: pre-wrap;
-      background: #fff;
-      border: 1px solid #dbdbdb;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .from-me {
-      background: #e6f0fa;
+      background: #dcf8c6; /* WhatsApp-like green for sent messages */
       align-self: flex-end;
     }
     .from-other {
-      background: #fff;
+      background: #ffffff; /* White for received messages */
       align-self: flex-start;
     }
     .message.audio-wrapper {
@@ -170,7 +174,6 @@
     /* ---------- INPUT BOX ---------- */
     .input-box {
       position: fixed;
-      bottom: 0;
       left: 0;
       right: 0;
       display: flex;
@@ -180,6 +183,7 @@
       gap: 8px;
       box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
       z-index: 1000;
+      transition: bottom 0.3s ease; /* Smooth transition for keyboard */
     }
     .input-box textarea {
       flex: 1;
@@ -301,11 +305,12 @@
     const micBtn = document.getElementById('micBtn');
     const fileInput = document.getElementById('fileInput');
     const messagesDiv = document.getElementById('messages');
+    const inputBox = document.querySelector('.input-box');
 
     let selectedFile = null;
     let recordedAudio = null;
     let mediaRecorder, audioChunks = [];
-    let isSending = false; // Prevent duplicate sends
+    let isSending = false;
 
     // Rejoindre sa room
     socket.on('connect', () => {
@@ -313,6 +318,7 @@
       socket.emit('mark_read', { sender: chatUser });
       adjustInputHeight();
       scrollToBottom();
+      adjustMessagesHeight();
     });
 
     // Scroll automatique
@@ -320,28 +326,64 @@
       requestAnimationFrame(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; });
     }
 
-    // Ajuster textarea et messagesDiv bottom
+    // Ajuster la hauteur du textarea
     function adjustInputHeight() {
       input.style.height = 'auto';
       const newHeight = Math.min(Math.max(input.scrollHeight, 40), 100);
       input.style.height = `${newHeight}px`;
-      messagesDiv.style.marginBottom = `${newHeight + 16}px`;
+      adjustMessagesHeight();
     }
 
-    // Initial adjustment au chargement
+    // Ajuster la hauteur du conteneur de messages
+    function adjustMessagesHeight() {
+      const headerHeight = document.querySelector('.main-header').offsetHeight;
+      const inputBoxHeight = inputBox.offsetHeight;
+      messagesDiv.style.marginTop = `${headerHeight}px`;
+      messagesDiv.style.marginBottom = `${inputBoxHeight}px`;
+      // Positionner input-box au-dessus de bottom-nav
+      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight;
+      inputBox.style.bottom = `${bottomNavHeight}px`;
+    }
+
+    // Gérer l'apparition du clavier
+    function handleKeyboard() {
+      const initialHeight = window.innerHeight;
+      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight;
+      window.addEventListener('resize', () => {
+        const newHeight = window.innerHeight;
+        if (newHeight < initialHeight) {
+          // Clavier visible
+          inputBox.style.bottom = `${bottomNavHeight + (initialHeight - newHeight)}px`;
+          scrollToBottom();
+        } else {
+          // Clavier caché
+          inputBox.style.bottom = `${bottomNavHeight}px`;
+        }
+        adjustMessagesHeight();
+      });
+
+      // Gérer le focus du textarea
+      input.addEventListener('focus', () => {
+        setTimeout(scrollToBottom, 300); // Attendre que le clavier apparaisse
+      });
+    }
+
+    // Initialisation
     window.addEventListener('load', () => {
       adjustInputHeight();
       scrollToBottom();
+      adjustMessagesHeight();
+      handleKeyboard();
     });
 
     input.addEventListener('input', adjustInputHeight);
 
     // Ajouter un message
     function addMessage(msg) {
-      if (document.querySelector(`.message[data-msg-id="${msg.id}"]`)) return; // Prevent duplicates
+      if (document.querySelector(`.message[data-msg-id="${msg.id}"]`)) return;
       const div = document.createElement('div');
       div.className = `message ${msg.type === 'audio' ? 'audio-wrapper' : ''} ${msg.sender === username ? 'from-me' : 'from-other'}`;
-      div.dataset.msgId = msg.id || Date.now(); // Use unique ID
+      div.dataset.msgId = msg.id || Date.now();
       if (msg.type === 'text') {
         div.textContent = msg.text;
       } else if (msg.type === 'image') {
@@ -369,7 +411,7 @@
 
     // Envoyer un message
     async function sendMessage() {
-      if (isSending) return; // Prevent concurrent sends
+      if (isSending) return;
       isSending = true;
       const text = input.value.trim();
 
@@ -380,7 +422,7 @@
         try {
           const res = await fetch('/send_file', { method: 'POST', body: formData });
           if (res.ok) {
-            fileInput.value = ''; // Clear file input
+            fileInput.value = '';
             selectedFile = null;
             input.value = '';
             adjustInputHeight();
@@ -432,7 +474,7 @@
             recordedAudio = new Blob(audioChunks, { type: "audio/webm" });
             input.value = "[Audio prêt]";
             adjustInputHeight();
-            stream.getTracks().forEach(track => track.stop()); // Stop microphone
+            stream.getTracks().forEach(track => track.stop());
           };
           mediaRecorder.start();
           micBtn.classList.add("recording");
