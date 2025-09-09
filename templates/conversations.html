@@ -288,7 +288,13 @@
         </div>
         <div class="conversation-info">
           <h4>{{ conv.username }}</h4>
-          <p class="last-msg">{{ conv.last_msg }}</p>
+          <p class="last-msg">
+            {% if conv.last_msg|length > 25 %}
+              {{ conv.last_msg[:25] }}...
+            {% else %}
+              {{ conv.last_msg }}
+            {% endif %}
+          </p>
         </div>
         <div class="right-side">
           <div class="time">{{ conv.last_date }}</div>
@@ -335,8 +341,9 @@
           badge.style.display = 'block';
           conv.classList.add('unread');
 
-          // Mettre à jour le dernier message et la date
-          conv.querySelector('.last-msg').textContent = msg.text;
+          // Truncate message to 25 characters
+          const lastMsg = msg.text.length > 25 ? msg.text.substring(0, 25) + '...' : msg.text;
+          conv.querySelector('.last-msg').textContent = lastMsg;
           const timeElem = conv.querySelector('.time');
           timeElem.textContent = new Date(msg.date).toLocaleString();
 
@@ -425,6 +432,17 @@
       if (window.location.pathname.includes('/notifications')) {
         notifCount = 0;
         updateNotifBadge();
+      }
+    });
+
+    // --- Handle avatar updates ---
+    socket.on('avatar_updated', (data) => {
+      const conv = document.querySelector(`.conversation[data-username='${data.username}']`);
+      if (conv) {
+        const img = conv.querySelector('.profile-pic img');
+        if (img) {
+          img.src = data.new_avatar_url;
+        }
       }
     });
   </script>
