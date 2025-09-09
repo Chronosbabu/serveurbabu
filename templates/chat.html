@@ -137,12 +137,14 @@
       padding: 10px 14px;
       border-radius: 15px;
       max-width: 75%;
-      word-wrap: break-word;
+      min-width: 100px; /* Prevent overly narrow bubbles */
+      overflow-wrap: break-word; /* Modern standard for word wrapping */
       font-size: 0.9rem;
       line-height: 1.4;
       white-space: pre-wrap;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      box-sizing: border-box; /* Ensure consistent sizing */
+      box-sizing: border-box;
+      width: fit-content; /* Ensure bubble fits content */
     }
     .from-me {
       background: #dcf8c6; /* WhatsApp-like green for sent messages */
@@ -157,6 +159,7 @@
       padding: 0 !important;
       border: none !important;
       max-width: 100% !important;
+      min-width: 0 !important; /* Allow audio to size naturally */
       box-shadow: none !important;
     }
     .message.audio-wrapper audio {
@@ -240,6 +243,10 @@
         font-size: 0.9rem; /* Consistent font-size */
         padding: 10px 14px; /* Consistent padding */
         line-height: 1.4; /* Consistent line-height */
+        max-width: 75%;
+        min-width: 100px;
+        overflow-wrap: break-word;
+        width: fit-content;
       }
       .message.audio-wrapper audio { width: 200px; }
       .input-box { padding: 6px 12px; }
