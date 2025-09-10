@@ -347,6 +347,32 @@
       const msgLink = document.getElementById("messages-link");
       const notifLink = document.getElementById("notifications-link");
 
+      // --- Request online users on page load ---
+      socket.emit('request_online_users');
+
+      // --- Handle Socket.IO connection ---
+      socket.on('connect', () => {
+        // Request online users when connected
+        socket.emit('request_online_users');
+      });
+
+      // --- Handle online users list ---
+      socket.on('online_users', (data) => {
+        // Reset all indicators to offline
+        document.querySelectorAll('.online-indicator').forEach(indicator => {
+          indicator.style.display = 'none';
+        });
+        // Set indicators for online users
+        if (data.users) {
+          data.users.forEach(username => {
+            const indicator = document.getElementById(`status-${username}`);
+            if (indicator) {
+              indicator.style.display = 'block';
+            }
+          });
+        }
+      });
+
       // --- Load badge counts from localStorage ---
       const savedMsgs = localStorage.getItem("unreadMsgs");
       const savedNotifs = localStorage.getItem("unreadNotifs");
