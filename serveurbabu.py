@@ -441,7 +441,7 @@ def update_avatar():
             os.remove(os.path.join(AVATAR_FOLDER, old_avatar))
         new_avatar_url = url_for("avatar_file", filename=filename)
         # Broadcast avatar update to all connected clients
-        socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url}, broadcast=True)
+        socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url})
         return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
 
@@ -469,7 +469,7 @@ def delete_post(post_id):
     save_posts(posts)
 
     # Notify all clients to remove the post
-    socketio.emit("post_deleted", {"post_id": post_id}, broadcast=True)
+    socketio.emit("post_deleted", {"post_id": post_id})
 
     return jsonify({"success": True})
 
@@ -598,7 +598,7 @@ def handle_send_comment(data):
     if post_owner != session["username"]:
         notify_comment(target_user_id=post_owner, commenter_username=session["username"], post_id=post_id)
 
-    emit('new_comment', {"post_id": post_id, **comment_data}, broadcast=True)
+    emit('new_comment', {"post_id": post_id, **comment_data})
 
 # --- Notifications route ---
 @app.route("/notifications")
