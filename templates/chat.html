@@ -150,6 +150,7 @@
       overflow: visible !important;
       background-clip: padding-box !important; /* Assurer que le fond respecte le padding */
       -webkit-text-size-adjust: 100% !important; /* Empêcher les ajustements automatiques sur mobile */
+      position: relative; /* For status indicator positioning */
     }
     .from-me {
       background: #dcf8c6 !important; /* WhatsApp-like green for sent messages */
@@ -179,6 +180,18 @@
       display: block !important;
     }
     .message video { max-height: 300px !important; }
+
+    /* ---------- MESSAGE STATUS INDICATOR ---------- */
+    .status-indicator {
+      position: absolute;
+      bottom: 5px;
+      right: 10px;
+      font-size: 0.8rem;
+      color: #8e8e8e;
+    }
+    .status-indicator.pending i::before { content: "\f017"; } /* Clock icon for pending */
+    .status-indicator.sent i::before { content: "\f00c"; } /* Single checkmark for sent */
+    .status-indicator.delivered i::before { content: "\f00c\f00c"; } /* Double checkmark for delivered */
 
     /* ---------- INPUT BOX ---------- */
     .input-box {
@@ -262,6 +275,7 @@
       .input-box { padding: 6px 12px; }
       .input-box textarea { font-size: 0.9rem; padding: 10px 12px; }
       .input-box button { width: 36px; height: 36px; font-size: 0.9rem; }
+      .status-indicator { font-size: 0.7rem; bottom: 4px; right: 8px; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -292,6 +306,9 @@
         <video src="{{ msg.url }}" controls></video>
         {% elif msg.type == 'audio' %}
         <audio controls src="{{ msg.url }}"></audio>
+        {% endif %}
+        {% if msg.sender == session['username'] %}
+        <span class="status-indicator delivered"><i class="fa-solid fa-check"></i></span>
         {% endif %}
       </div>
       {% else %}
@@ -336,10 +353,9 @@
 
     // Normaliser les styles des messages texte
     function normalizeMessages() {
-      console.log('Normalisation des messages...'); // Débogage
+      console.log('Normalisation des messages...');
       const messages = document.querySelectorAll('.message:not(.audio-wrapper)');
       messages.forEach(msg => {
-        // Appliquer des styles stricts pour les messages texte
         msg.style.fontSize = '0.9rem';
         msg.style.lineHeight = '1.4';
         msg.style.padding = '10px 14px';
@@ -351,14 +367,13 @@
         msg.style.overflow = 'visible';
         msg.style.backgroundClip = 'padding-box';
         msg.style.webkitTextSizeAdjust = '100%';
-        // Vérifier les styles appliqués
         console.log(`Message ${msg.dataset.msgId}: font-size=${msg.style.fontSize}, padding=${msg.style.padding}`);
       });
     }
 
-    // Appliquer les styles à tous les messages (y compris audio) pour une couverture complète
+    // Appliquer les styles à tous les messages (y compris audio)
     function normalizeAllMessages() {
-      console.log('Normalisation de tous les messages...'); // Débogage
+      console.log('Normalisation de tous les messages...');
       const messages = document.querySelectorAll('.message');
       messages.forEach(msg => {
         if (msg.classList.contains('audio-wrapper')) {
@@ -390,7 +405,7 @@
       adjustInputHeight();
       scrollToBottom();
       adjustMessagesHeight();
-      normalizeMessages(); // Normaliser les messages texte
+      normalizeMessages();
       console.log('Connexion Socket.IO établie');
     });
 
@@ -435,7 +450,7 @@
           inputBox.style.bottom = `${bottomNavHeight}px`;
         }
         adjustMessagesHeight();
-        normalizeMessages(); // Réappliquer les styles après redimensionnement
+        normalizeMessages();
       });
 
       input.addEventListener('focus', () => {
@@ -449,7 +464,7 @@
       scrollToBottom();
       adjustMessagesHeight();
       handleKeyboard();
-      normalizeAllMessages(); // Normaliser tous les messages au chargement
+      normalizeAllMessages();
       console.log('Page chargée, normalisation initiale effectuée');
     });
 
@@ -461,12 +476,12 @@
 
     input.addEventListener('input', adjustInputHeight);
 
-    // Ajouter un message
-    function addMessage(msg) {
+    // Ajouter un message avec indicateur de statut
+    function addMessage(msg, isLocal = false) {
       if (document.querySelector(`.message[data-msg-id="${msg.id}"]`)) return;
       const div = document.createElement('div');
       div.className = `message ${msg.type === 'audio' ? 'audio-wrapper' : ''} ${msg.sender === username ? 'from-me' : 'from-other'}`;
-      div.dataset.msgId = msg.id || Date.now();
+      div.dataset.msgId = msg.id;
       if (msg.type === 'text') {
         div.textContent = msg.text;
       } else if (msg.type === 'image') {
@@ -504,13 +519,32 @@
         div.style.backgroundClip = 'padding-box';
         div.style.webkitTextSizeAdjust = '100%';
       }
+      // Ajouter l'indicateur de statut pour les messages envoyés
+      if (msg.sender === username) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = `status-indicator ${isLocal ? 'pending' : 'delivered'}`;
+        statusSpan.innerHTML = '<i class="fa-solid fa-check"></i>';
+        div.appendChild(statusSpan);
+      }
       messagesDiv.appendChild(div);
       scrollToBottom();
       adjustInputHeight();
-      if (msg.sender === chatUser) {
+      if (msg.sender === chatUser && !isLocal) {
         socket.emit('mark_read', { sender: chatUser });
       }
-      console.log(`Message ajouté: type=${msg.type}, id=${div.dataset.msgId}`);
+      console.log(`Message ajouté: type=${msg.type}, id=${div.dataset.msgId}, local=${isLocal}`);
+    }
+
+    // Mettre à jour le statut du message
+    function updateMessageStatus(msgId, status) {
+      const message = document.querySelector(`.message[data-msg-id="${msgId}"]`);
+      if (message) {
+        const statusSpan = message.querySelector('.status-indicator');
+        if (statusSpan) {
+          statusSpan.className = `status-indicator ${status}`;
+          console.log(`Statut mis à jour pour message ${msgId}: ${status}`);
+        }
+      }
     }
 
     // Envoyer un message
@@ -551,7 +585,20 @@
           alert('Erreur réseau.');
         }
       } else if (text) {
-        socket.emit('send_message', { receiver: chatUser, text: text, type: 'text' });
+        // Générer un ID unique pour le message
+        const msgId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Ajouter le message localement avec statut "pending"
+        addMessage({
+          id: msgId,
+          sender: username,
+          text: text,
+          type: 'text',
+          date: new Date().toISOString()
+        }, true);
+        // Envoyer le message via Socket.IO
+        socket.emit('send_message', { receiver: chatUser, text: text, type: 'text', id: msgId });
+        // Mettre à jour le statut à "sent"
+        updateMessageStatus(msgId, 'sent');
         input.value = '';
         adjustInputHeight();
       }
@@ -608,8 +655,14 @@
 
     // Réception messages
     socket.on('new_message', msg => {
-      addMessage(msg);
-      normalizeMessages(); // Réappliquer les styles après ajout
+      // Si c'est un message envoyé par l'utilisateur, mettre à jour le statut à "delivered"
+      if (msg.sender === username && msg.id) {
+        updateMessageStatus(msg.id, 'delivered');
+      } else {
+        // Ajouter les messages entrants normalement
+        addMessage(msg);
+      }
+      normalizeMessages();
     });
 
     // Gestion badge messages
