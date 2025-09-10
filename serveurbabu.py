@@ -24,6 +24,11 @@ socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 user_notifications = {}  # clé = user_id, valeur = liste de notifications
 
+# --- Custom Jinja2 filter for timestamp ---
+@app.template_filter('timestamp')
+def timestamp_filter(s):
+    return int(datetime.now().timestamp())
+
 # --- Gestion follow/unfollow persistant ---
 def toggle_follow(current_user, target_user):
     users = load_users()
