@@ -408,7 +408,7 @@
         <div class="user-info">
           {% if post.avatar %}
           <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <img src="{{ url_for('avatar_file', filename=post.avatar) }}" alt="avatar" class="avatar-post" />
+            <img src="{{ url_for('avatar_file', filename=post.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-post" />
           </a>
           {% else %}
           <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
@@ -498,6 +498,53 @@
     const videos = new Set();
     let currentVideo = null;
     const socket = io();
+
+    // --- Badge Management ---
+    const msgBadge = document.getElementById("unread-count");
+    const notifBadge = document.getElementById("notifications-count");
+    const msgLink = document.getElementById("messages-link");
+    const notifLink = document.getElementById("notifications-link");
+
+    // Load badge counts from localStorage
+    const savedMsgs = localStorage.getItem("unreadMsgs");
+    const savedNotifs = localStorage.getItem("unreadNotifs");
+
+    if (savedMsgs && parseInt(savedMsgs) > 0) {
+      msgBadge.textContent = savedMsgs;
+      msgBadge.style.display = "inline-block";
+    }
+    if (savedNotifs && parseInt(savedNotifs) > 0) {
+      notifBadge.textContent = savedNotifs;
+      notifBadge.style.display = "inline-block";
+    }
+
+    // Reset badges when clicking Messages link or visiting conversations/chat pages
+    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+      localStorage.setItem("unreadMsgs", 0);
+      msgBadge.style.display = "none";
+      msgBadge.textContent = "0";
+    }
+
+    // Reset badges when clicking Notifications link or visiting notifications page
+    if (window.location.pathname.includes('/notifications')) {
+      localStorage.setItem("unreadNotifs", 0);
+      notifBadge.style.display = "none";
+      notifBadge.textContent = "0";
+    }
+
+    // Reset message badge on click
+    msgLink.addEventListener("click", () => {
+      localStorage.setItem("unreadMsgs", 0);
+      msgBadge.style.display = "none";
+      msgBadge.textContent = "0";
+    });
+
+    // Reset notification badge on click
+    notifLink.addEventListener("click", () => {
+      localStorage.setItem("unreadNotifs", 0);
+      notifBadge.style.display = "none";
+      notifBadge.textContent = "0";
+    });
 
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
@@ -752,55 +799,23 @@
       homeBadge.textContent = newPostsCount;
     });
 
-    /* ---------- Gestion badges messages et notifications ---------- */
-    let unreadCount = 0;
-    const updateUnreadBadge = () => {
-      const badge = document.getElementById('unread-count');
-      if (!badge) return;
-      if (unreadCount > 0) {
-        badge.style.display = 'inline';
-        badge.textContent = unreadCount;
-      } else {
-        badge.style.display = 'none';
-      }
-    };
-
+    /* ---------- Socket.IO Badge Handlers ---------- */
     socket.on('new_message', (message) => {
       const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
       if (!currentChatUser || currentChatUser !== message.sender) {
-        unreadCount++;
-        updateUnreadBadge();
+        let count = parseInt(localStorage.getItem("unreadMsgs") || "0") + 1;
+        localStorage.setItem("unreadMsgs", count);
+        msgBadge.textContent = count;
+        msgBadge.style.display = "inline-block";
       }
     });
-
-    window.addEventListener('load', () => {
-      if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-        unreadCount = 0;
-        updateUnreadBadge();
-      }
-    });
-
-    let notifCount = 0;
-    const updateNotifBadge = () => {
-      const badge = document.getElementById('notifications-count');
-      if (!badge) return;
-      if (notifCount > 0) {
-        badge.style.display = 'inline';
-        badge.textContent = notifCount;
-      } else {
-        badge.style.display = 'none';
-      }
-    };
 
     socket.on('new_notification', (notification) => {
-      notifCount++;
-      updateNotifBadge();
-    });
-
-    window.addEventListener('load', () => {
-      if (window.location.pathname.includes('/notifications')) {
-        notifCount = 0;
-        updateNotifBadge();
+      if (!window.location.pathname.includes('/notifications')) {
+        let count = parseInt(localStorage.getItem("unreadNotifs") || "0") + 1;
+        localStorage.setItem("unreadNotifs", count);
+        notifBadge.textContent = count;
+        notifBadge.style.display = "inline-block";
       }
     });
 
