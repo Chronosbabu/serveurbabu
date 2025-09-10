@@ -572,9 +572,8 @@
 
     <div class="profile-header">
       {% if profile_user.avatar %}
-        <img src="{{ url_for('avatar_file', filename=profile_user.avatar, t=( 'now' | datetimeformat('%s') ) ) | safe }}" 
-             alt="avatar" class="profile-avatar" id="profile-avatar" 
-             onerror="this.src=this.src.split('?')[0]+'?t='+Date.now()" />
+        <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}?t={{ 'now'|timestamp }}" 
+             alt="avatar" class="profile-avatar" id="profile-avatar" />
       {% else %}
         <div class="profile-avatar-fallback" id="profile-avatar">
           {{ profile_user.username[:1]|upper }}
@@ -607,9 +606,7 @@
             <div class="user-info">
               {% if profile_user.avatar %}
                 <a class="avatar-link" href="{{ url_for('profile', username=profile_user.username) }}">
-                  <img src="{{ url_for('avatar_file', filename=profile_user.avatar, t=( 'now' | datetimeformat('%s') ) ) | safe }}" 
-                       alt="avatar" class="avatar-post" 
-                       onerror="this.src=this.src.split('?')[0]+'?t='+Date.now()" />
+                  <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-post" />
                 </a>
               {% else %}
                 <a class="avatar-link" href="{{ url_for('profile', username=profile_user.username) }}">
@@ -634,10 +631,10 @@
 
             {# ---- Single file ---- #}
             {% if post.type == "image" and not post.files %}
-              <img src="{{ url_for('uploaded_file', filename=post.file) | safe }}" alt="image" class="post-image" />
+              <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
             {% elif post.type == "video" and not post.files %}
               <div class="video-container">
-                <video src="{{ url_for('uploaded_file', filename=post.file) | safe }}" muted loop class="post-video"></video>
+                <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop class="post-video"></video>
                 <button class="mute-btn" title="Activer/Désactiver le son">
                   <i class="fa-solid fa-volume-xmark"></i>
                 </button>
@@ -650,10 +647,10 @@
                 <div class="carousel-track">
                   {% for file in post.files %}
                     {% if file.type == "image" %}
-                      <img src="{{ url_for('uploaded_file', filename=file.name) | safe }}" alt="image" class="post-image" />
+                      <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
                     {% elif file.type == "video" %}
                       <div class="video-container">
-                        <video src="{{ url_for('uploaded_file', filename=file.name) | safe }}" muted loop class="post-video"></video>
+                        <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
                         <button class="mute-btn" title="Activer/Désactiver le son">
                           <i class="fa-solid fa-volume-xmark"></i>
                         </button>
@@ -706,6 +703,422 @@
   <!-- Modal pour avatar -->
   <div class="avatar-modal" id="avatar-modal">
     {% if profile_user.avatar %}
-      <img src="{{ url_for('avatar_file', filename=profile_user.avatar, t=( 'now' | datetimeformat('%s') ) ) | safe }}" 
-           alt="avatar-zoom" 
-           onerror="this.src=this.src.split
+      <img src="{{ url_for('avatar_file', filename=profile_user.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar-zoom" />
+    {% else %}
+      <div style="color:white; font-size:100px;">{{ profile_user.username[:1]|upper }}</div>
+    {% endif %}
+  </div>
+
+  <script>
+  const socket = io();
+  socket.emit("join_room", "{{ profile_user.username }}");
+
+  socket.on("update_follow", (data) => {
+      if (data.target_user === "{{ profile_user.username }}") {
+          const countEl = document.getElementById("follower-count");
+          let current = parseInt(countEl.textContent);
+          if (data.following) current += 1;
+          else current -= 1;
+          countEl.textContent = current;
+      }
+  });
+
+  socket.on("avatar_updated", (data) => {
+      console.log(`Mise à jour de l'avatar reçue pour ${data.username}: ${data.new_avatar_url}`);
+      if (data.username === "{{ profile_user.username }}" || data.username === "{{ current_username }}") {
+          document.querySelectorAll(`img[src*="/avatars/"]`).forEach(img => {
+              if (img.closest(`[href*="/profile/${data.username}"]`) || img.id === "profile-avatar") {
+                  img.src = data.new_avatar_url;
+                  console.log(`Avatar mis à jour: ${img.src}`);
+              }
+          });
+          const modalImg = document.querySelector("#avatar-modal img");
+          if (modalImg && data.username === "{{ profile_user.username }}") {
+              modalImg.src = data.new_avatar_url;
+              console.log(`Avatar modal mis à jour: ${modalImg.src}`);
+          }
+      }
+  });
+
+  socket.on("post_deleted", (data) => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (post) {
+          post.remove();
+      }
+      const postsContainer = document.getElementById("profile-posts");
+      if (postsContainer && !postsContainer.querySelector(".post")) {
+          postsContainer.innerHTML = '<p style="color:#6b7280;">Aucune publication pour l’instant.</p>';
+      }
+  });
+
+  const avatar = document.getElementById("profile-avatar");
+  const modal = document.getElementById("avatar-modal");
+  const changeAvatarBtn = document.getElementById("change-avatar-btn");
+  const avatarInput = document.getElementById("avatar-input");
+
+  if (avatar && modal) {
+      avatar.addEventListener("click", () => {
+          {% if current_username != profile_user.username %}
+            modal.style.display = "flex";
+            history.pushState({ avatarOpen: true }, "");
+          {% endif %}
+      });
+
+      modal.addEventListener("click", () => {
+          modal.style.display = "none";
+          if (history.state && history.state.avatarOpen) history.back();
+      });
+
+      window.addEventListener("popstate", () => modal.style.display = "none");
+      window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+              modal.style.display = "none";
+              if (history.state && history.state.avatarOpen) history.back();
+          }
+      });
+  }
+
+  if (changeAvatarBtn && avatarInput) {
+      changeAvatarBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (confirm("Changer la photo de profil ?")) {
+              avatarInput.click();
+          }
+      });
+
+      avatarInput.addEventListener("change", () => {
+          const file = avatarInput.files[0];
+          if (!file) return;
+
+          const formData = new FormData();
+          formData.append("avatar", file);
+
+          fetch("/update_avatar", {
+              method: "POST",
+              body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  document.querySelectorAll(".profile-avatar, .avatar-post").forEach(img => {
+                      if (img.tagName === "IMG") {
+                          img.src = data.avatar_url;
+                          console.log(`Avatar local mis à jour: ${img.src}`);
+                      }
+                  });
+                  const modalImg = document.querySelector("#avatar-modal img");
+                  if (modalImg) {
+                      modalImg.src = data.avatar_url;
+                      console.log(`Avatar modal local mis à jour: ${modalImg.src}`);
+                  }
+                  alert("Photo de profil mise à jour !");
+                  avatarInput.value = "";
+              } else {
+                  alert("Erreur : " + (data.error || "Échec de la mise à jour"));
+              }
+          })
+          .catch(err => {
+              console.error("Erreur réseau:", err);
+              alert("Erreur réseau lors de la mise à jour.");
+          });
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("message-btn");
+      if (btn) {
+          btn.addEventListener("click", () => {
+              const message = prompt(`Envoyer un message à {{ profile_user.username }} :`);
+              if (message && message.trim() !== "") {
+                  fetch("/send_message", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                          recipient: "{{ profile_user.username }}",
+                          message: message
+                      })
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          alert("Message envoyé !");
+                          window.location.href = "{{ url_for('conversations') }}";
+                      } else {
+                          alert("Erreur lors de l'envoi du message.");
+                      }
+                  });
+              }
+          });
+      }
+
+      const currentUsername = "{{ current_username }}";
+      const postsContainer = document.getElementById('profile-posts');
+      const videos = new Set();
+      let currentVideo = null;
+
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+      async function toggleLike(button) {
+          const post = button.closest('.post');
+          const postId = post.dataset.postId;
+          const countEl = post.querySelector('.like-count');
+          try {
+              const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
+              if (!res.ok) return;
+              const data = await res.json();
+              countEl.textContent = data.likes;
+              button.classList.toggle('liked', data.liked);
+              const icon = button.querySelector('i');
+              icon.classList.toggle('fa-solid', data.liked);
+              icon.classList.toggle('fa-regular', !data.liked);
+              socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
+          } catch (err) { console.error(err); }
+      }
+
+      function bindLikes(post) {
+          const btn = post.querySelector('.like-btn');
+          if (!btn) return;
+          btn.addEventListener('click', () => toggleLike(btn));
+          const icon = btn.querySelector('i');
+          const isLiked = btn.classList.contains('liked');
+          icon.classList.toggle('fa-solid', isLiked);
+          icon.classList.toggle('fa-regular', !isLiked);
+      }
+
+      function bindFollowButtons(post) {
+          const btn = post.querySelector('.follow-btn');
+          if (!btn) return;
+          const postUsername = post.querySelector('.username').textContent.trim();
+
+          function updateButton(button, isFollowing) {
+              if (isFollowing) {
+                  button.dataset.following = "true";
+                  button.classList.add('following');
+                  button.innerHTML = 'Abonné ✔';
+                  button.disabled = true;
+              } else {
+                  button.dataset.following = "false";
+                  button.classList.remove('following');
+                  button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+                  button.disabled = false;
+              }
+          }
+
+          if (!window.followingUsers) window.followingUsers = new Set();
+          if (window.followingUsers.has(postUsername)) updateButton(btn, true);
+          else updateButton(btn, btn.dataset.following === "true");
+
+          btn.addEventListener('click', async () => {
+              if (btn.dataset.following === "true") return;
+              try {
+                  const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
+                  if (!res.ok) throw new Error('Erreur serveur');
+                  const data = await res.json();
+                  if (data.following) {
+                      window.followingUsers.add(postUsername);
+                      document.querySelectorAll('.post').forEach(p => {
+                          const usernameEl = p.querySelector('.username');
+                          const followBtn = p.querySelector('.follow-btn');
+                          if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+                              updateButton(followBtn, true);
+                          }
+                      });
+                      socket.emit("update_follow", { target_user: postUsername, following: true });
+                  } else {
+                      window.followingUsers.delete(postUsername);
+                      updateButton(btn, false);
+                      socket.emit("update_follow", { target_user: postUsername, following: false });
+                  }
+              } catch (e) {
+                  console.error(e);
+                  alert('Impossible de suivre pour le moment.');
+              }
+          });
+      }
+
+      function bindPostMenu(post) {
+          const menuBtn = post.querySelector('.post-menu-btn');
+          const menu = post.querySelector('.post-menu');
+          if (!menuBtn || !menu) return;
+
+          menuBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const isActive = menu.classList.contains('active');
+              document.querySelectorAll('.post-menu.active').forEach(m => m.classList.remove('active'));
+              if (!isActive) {
+                  menu.classList.add('active');
+              }
+          });
+
+          const deleteBtn = menu.querySelector('.delete-btn');
+          if (deleteBtn) {
+              deleteBtn.addEventListener('click', async () => {
+                  if (confirm("Voulez-vous vraiment supprimer cette publication ?")) {
+                      const postId = post.dataset.postId;
+                      try {
+                          const res = await fetch(`/posts/${postId}`, { method: 'DELETE', credentials: 'same-origin' });
+                          const data = await res.json();
+                          if (data.success) {
+                              post.remove();
+                              if (!postsContainer.querySelector('.post')) {
+                                  postsContainer.innerHTML = '<p style="color:#6b7280;">Aucune publication pour l’instant.</p>';
+                              }
+                          } else {
+                              alert("Erreur : " + (data.error || "Échec de la suppression"));
+                          }
+                      } catch (err) {
+                          console.error(err);
+                          alert("Erreur réseau lors de la suppression.");
+                      }
+                  }
+                  menu.classList.remove('active');
+              });
+          }
+
+          document.addEventListener('click', (e) => {
+              if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                  menu.classList.remove('active');
+              }
+          });
+      }
+
+      const ioObserver = new IntersectionObserver((entries) => {
+          let best = null;
+          entries.forEach(entry => {
+              const vid = entry.target;
+              const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+              if (visible && !best) best = vid;
+              if (!visible && !vid.paused) vid.pause();
+          });
+          if (best && currentVideo !== best) {
+              if (currentVideo) currentVideo.pause();
+              currentVideo = best;
+              currentVideo.play().catch(() => {});
+          }
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+      function observeVideo(vid) {
+          if (!videos.has(vid)) {
+              videos.add(vid);
+              ioObserver.observe(vid);
+              vid.pause();
+              vid.addEventListener('ended', () => {
+                  vid.currentTime = 0;
+                  vid.play().catch(() => {});
+              });
+              vid.addEventListener('click', (e) => {
+                  if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
+                  if (vid.paused) {
+                      vid.play().catch(() => {});
+                  } else {
+                      vid.pause();
+                  }
+              });
+              let startX, startTime, wasPlaying;
+              vid.addEventListener('touchstart', (e) => {
+                  const rect = vid.getBoundingClientRect();
+                  if (e.touches[0].clientY < rect.top + rect.height / 2) return;
+                  e.preventDefault();
+                  startX = e.touches[0].clientX;
+                  startTime = vid.currentTime;
+                  wasPlaying = !vid.paused;
+                  vid.pause();
+              });
+              vid.addEventListener('touchmove', (e) => {
+                  if (startX === undefined) return;
+                  e.preventDefault();
+                  const deltaX = e.touches[0].clientX - startX;
+                  const seekSeconds = deltaX / 10;
+                  vid.currentTime = Math.max(0, Math.min(startTime + seekSeconds, vid.duration));
+              });
+              vid.addEventListener('touchend', (e) => {
+                  if (startX === undefined) return;
+                  e.preventDefault();
+                  if (wasPlaying) vid.play().catch(() => {});
+                  startX = undefined;
+              });
+          }
+      }
+
+      function bindMuteButton(video, muteBtn) {
+          if (!muteBtn) return;
+          muteBtn.addEventListener('click', () => {
+              video.muted = !video.muted;
+              const icon = muteBtn.querySelector('i');
+              icon.classList.toggle('fa-volume-xmark', video.muted);
+              icon.classList.toggle('fa-volume-high', !video.muted);
+          });
+      }
+
+      function initCarousel(post) {
+          const track = post.querySelector('.carousel-track');
+          const dots = post.querySelectorAll('.carousel-indicators .dot');
+          if (!track || dots.length === 0) return;
+          Array.from(track.children).forEach(child => {
+              child.style.width = '100%';
+              child.style.flex = '0 0 100%';
+          });
+          track.style.overflowX = 'auto';
+          track.style.scrollSnapType = 'x mandatory';
+          track.addEventListener('scroll', () => {
+              const index = Math.round(track.scrollLeft / track.offsetWidth);
+              dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+          });
+          dots.forEach((dot, index) => {
+              dot.addEventListener('click', () => {
+                  track.scrollTo({
+                      left: index * track.offsetWidth,
+                      behavior: 'smooth'
+                  });
+              });
+          });
+      }
+
+      document.querySelectorAll('.post').forEach(post => {
+          bindLikes(post);
+          bindFollowButtons(post);
+          bindPostMenu(post);
+          post.querySelectorAll('video').forEach(video => {
+              observeVideo(video);
+              const muteBtn = video.parentElement.querySelector('.mute-btn');
+              bindMuteButton(video, muteBtn);
+          });
+          const description = post.querySelector('.description');
+          const toggleButton = post.querySelector('.toggle-description');
+          if (description && toggleButton) {
+              if (description.scrollHeight > description.clientHeight) {
+                  description.classList.add('long');
+              }
+              toggleButton.addEventListener('click', () => {
+                  if (description.classList.contains('expanded')) {
+                      description.classList.remove('expanded');
+                      toggleButton.textContent = 'Afficher plus';
+                  } else {
+                      description.classList.add('expanded');
+                      toggleButton.textContent = 'Afficher moins';
+                  }
+              });
+          }
+          initCarousel(post);
+      });
+
+      document.querySelectorAll('.post img').forEach(img => {
+          img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+      });
+
+      socket.on('like_updated', data => {
+          const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+          if (post) {
+              const countEl = post.querySelector('.like-count');
+              if (countEl) countEl.textContent = data.likes;
+              const btn = post.querySelector('.like-btn');
+              if (btn) btn.classList.toggle('liked', data.liked);
+              const icon = btn.querySelector('i');
+              icon.classList.toggle('fa-solid', data.liked);
+              icon.classList.toggle('fa-regular', !data.liked);
+          }
+      });
+  });
+  </script>
+</body>
+</html>
