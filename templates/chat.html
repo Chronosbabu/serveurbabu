@@ -139,12 +139,16 @@
       max-width: 75%;
       min-width: 100px; /* Prevent overly narrow bubbles */
       overflow-wrap: break-word; /* Modern standard for word wrapping */
-      font-size: 0.9rem;
-      line-height: 1.4;
+      font-size: 0.9rem !important; /* Force consistent font size */
+      line-height: 1.4 !important; /* Force consistent line height */
       white-space: pre-wrap;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       box-sizing: border-box;
       width: fit-content; /* Ensure bubble fits content */
+      /* Ajouté : Réinitialiser les propriétés qui pourraient causer un agrandissement */
+      transform: scale(1);
+      max-height: none;
+      overflow: visible;
     }
     .from-me {
       background: #dcf8c6; /* WhatsApp-like green for sent messages */
@@ -240,9 +244,9 @@
       .bottom-nav a { font-size: 1.3rem; }
       .messages { padding: 10px 12px; }
       .message {
-        font-size: 0.9rem; /* Consistent font-size */
+        font-size: 0.9rem !important; /* Force consistent font size */
         padding: 10px 14px; /* Consistent padding */
-        line-height: 1.4; /* Consistent line-height */
+        line-height: 1.4 !important; /* Force consistent line height */
         max-width: 75%;
         min-width: 100px;
         overflow-wrap: break-word;
@@ -331,7 +335,25 @@
       adjustInputHeight();
       scrollToBottom();
       adjustMessagesHeight();
+      normalizeMessages(); // Ajouté : Normaliser les messages au chargement
     });
+
+    // Normaliser les styles des messages existants
+    function normalizeMessages() {
+      const messages = document.querySelectorAll('.message');
+      messages.forEach(msg => {
+        // Forcer les styles pour éviter les incohérences
+        msg.style.fontSize = '0.9rem';
+        msg.style.lineHeight = '1.4';
+        msg.style.padding = msg.classList.contains('audio-wrapper') ? '0' : '10px 14px';
+        msg.style.maxWidth = msg.classList.contains('audio-wrapper') ? '100%' : '75%';
+        msg.style.minWidth = msg.classList.contains('audio-wrapper') ? '0' : '100px';
+        msg.style.width = 'fit-content';
+        msg.style.transform = 'scale(1)';
+        msg.style.maxHeight = 'none';
+        msg.style.overflow = 'visible';
+      });
+    }
 
     // Scroll automatique
     function scrollToBottom() {
@@ -386,6 +408,7 @@
       scrollToBottom();
       adjustMessagesHeight();
       handleKeyboard();
+      normalizeMessages(); // Ajouté : Normaliser les messages à l'initialisation
     });
 
     input.addEventListener('input', adjustInputHeight);
@@ -413,6 +436,16 @@
         audio.controls = true;
         div.appendChild(audio);
       }
+      // Ajouté : Appliquer les styles explicitement
+      div.style.fontSize = '0.9rem';
+      div.style.lineHeight = '1.4';
+      div.style.padding = msg.type === 'audio' ? '0' : '10px 14px';
+      div.style.maxWidth = msg.type === 'audio' ? '100%' : '75%';
+      div.style.minWidth = msg.type === 'audio' ? '0' : '100px';
+      div.style.width = 'fit-content';
+      div.style.transform = 'scale(1)';
+      div.style.maxHeight = 'none';
+      div.style.overflow = 'visible';
       messagesDiv.appendChild(div);
       scrollToBottom();
       adjustInputHeight();
