@@ -168,6 +168,23 @@
       display: block;
     }
 
+    /* ---------- ONLINE INDICATOR ---------- */
+    .online-indicator {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 12px;
+      height: 12px;
+      background: #4CAF50;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      display: none;
+    }
+    .profile-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
     /* ---------- CONVERSATION INFOS ---------- */
     .conversation-info {
       flex: 1;
@@ -258,6 +275,7 @@
       .logo { font-size: 1.5rem; }
       .empty { font-size: 0.85rem; padding: 30px 16px; }
       .empty i { font-size: 1.3rem; }
+      .online-indicator { width: 10px; height: 10px; bottom: 1px; right: 1px; }
     }
   </style>
 </head>
@@ -269,7 +287,7 @@
         <a href="{{ url_for('index') }}" title="Accueil"><i class="fa-solid fa-house"></i></a>
         <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
         <a href="{{ url_for('profile', username=session.get('username')) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
-        <a href="{{ url_for('conversations') }}" title="Messages" class="active">
+        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link" class="active">
           <i class="fa-regular fa-message"></i>
           <span class="message-badge" id="unread-count" style="display:none;">0</span>
         </a>
@@ -279,12 +297,15 @@
     <div class="conversation-list">
       {% for conv in conversations %}
       <div class="conversation{% if conv.unread_count > 0 %} unread{% endif %}" data-username="{{ conv.username }}">
-        <div class="profile-pic">
-          {% if conv.profile_pic %}
-          <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}" alt="{{ conv.username }}">
-          {% else %}
-          {{ conv.username[0]|upper }}
-          {% endif %}
+        <div class="profile-wrapper">
+          <div class="profile-pic">
+            {% if conv.profile_pic %}
+            <img src="{{ url_for('avatar_file', filename=conv.profile_pic) }}?t={{ 'now'|timestamp }}" alt="{{ conv.username }}">
+            {% else %}
+            {{ conv.username[0]|upper }}
+            {% endif %}
+          </div>
+          <span class="online-indicator" id="status-{{ conv.username }}"></span>
         </div>
         <div class="conversation-info">
           <h4>{{ conv.username }}</h4>
@@ -318,132 +339,148 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const socket = io();
-    const currentUser = "{{ session.get('username') }}";
+    document.addEventListener('DOMContentLoaded', () => {
+      const socket = io();
+      const currentUser = "{{ session.get('username') }}";
+      const msgBadge = document.getElementById("unread-count");
+      const notifBadge = document.getElementById("notifications-count");
+      const msgLink = document.getElementById("messages-link");
+      const notifLink = document.getElementById("notifications-link");
 
-    // --- Initialisation des badges ---
-    document.querySelectorAll('.conversation').forEach(conv => {
-      const badge = conv.querySelector('.unread-badge');
-      if (badge.textContent && parseInt(badge.textContent) > 0) {
-        badge.style.display = 'block';
+      // --- Load badge counts from localStorage ---
+      const savedMsgs = localStorage.getItem("unreadMsgs");
+      const savedNotifs = localStorage.getItem("unreadNotifs");
+
+      if (savedMsgs && parseInt(savedMsgs) > 0) {
+        msgBadge.textContent = savedMsgs;
+        msgBadge.style.display = "inline-block";
       }
-    });
+      if (savedNotifs && parseInt(savedNotifs) > 0) {
+        notifBadge.textContent = savedNotifs;
+        notifBadge.style.display = "inline-block";
+      }
 
-    // --- Réception des nouveaux messages ---
-    socket.on('new_message', (msg) => {
-      if (msg.sender !== currentUser) {
-        const conv = document.querySelector(`.conversation[data-username='${msg.sender}']`);
+      // --- Reset badges when visiting conversations or chat pages ---
+      if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+        localStorage.setItem("unreadMsgs", 0);
+        msgBadge.style.display = "none";
+        msgBadge.textContent = "0";
+      }
+
+      // --- Reset notifications badge when visiting notifications page ---
+      if (window.location.pathname.includes('/notifications')) {
+        localStorage.setItem("unreadNotifs", 0);
+        notifBadge.style.display = "none";
+        notifBadge.textContent = "0";
+      }
+
+      // --- Reset message badge on click ---
+      msgLink.addEventListener("click", () => {
+        localStorage.setItem("unreadMsgs", 0);
+        msgBadge.style.display = "none";
+        msgBadge.textContent = "0";
+      });
+
+      // --- Reset notification badge on click ---
+      notifLink.addEventListener("click", () => {
+        localStorage.setItem("unreadNotifs", 0);
+        notifBadge.style.display = "none";
+        notifBadge.textContent = "0";
+      });
+
+      // --- Initialize unread badges for conversations ---
+      document.querySelectorAll('.conversation').forEach(conv => {
+        const badge = conv.querySelector('.unread-badge');
+        if (badge.textContent && parseInt(badge.textContent) > 0) {
+          badge.style.display = 'block';
+        }
+      });
+
+      // --- Handle new messages ---
+      socket.on('new_message', (msg) => {
+        if (msg.sender !== currentUser) {
+          const conv = document.querySelector(`.conversation[data-username='${msg.sender}']`);
+          const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+          if (!currentChatUser || currentChatUser !== msg.sender) {
+            let count = parseInt(localStorage.getItem("unreadMsgs") || "0") + 1;
+            localStorage.setItem("unreadMsgs", count);
+            msgBadge.textContent = count;
+            msgBadge.style.display = "inline-block";
+          }
+          if (conv) {
+            const badge = conv.querySelector('.unread-badge');
+            let count = parseInt(badge.textContent || "0", 10);
+            count += 1;
+            badge.textContent = count;
+            badge.style.display = 'block';
+            conv.classList.add('unread');
+
+            // Truncate message to 25 characters
+            const lastMsg = msg.text.length > 25 ? msg.text.substring(0, 25) + '...' : msg.text;
+            conv.querySelector('.last-msg').textContent = lastMsg;
+            const timeElem = conv.querySelector('.time');
+            timeElem.textContent = new Date(msg.date).toLocaleString();
+
+            // Move conversation to top
+            const parent = conv.parentElement;
+            parent.prepend(conv);
+          } else {
+            // New conversation
+            location.reload();
+          }
+        }
+      });
+
+      // --- Handle conversation click ---
+      document.querySelectorAll('.conversation').forEach(conv => {
+        conv.addEventListener('click', () => {
+          const username = conv.dataset.username;
+          socket.emit('mark_read', { sender: username });
+          const badge = conv.querySelector('.unread-badge');
+          badge.style.display = 'none';
+          badge.textContent = '';
+          conv.classList.remove('unread');
+          window.location.href = `/chat/${username}`;
+        });
+      });
+
+      // --- Handle read confirmation ---
+      socket.on('update_unread', (data) => {
+        const username = data.from;
+        const conv = document.querySelector(`.conversation[data-username='${username}']`);
         if (conv) {
           const badge = conv.querySelector('.unread-badge');
-          let count = parseInt(badge.textContent || "0", 10);
-          count += 1;
-          badge.textContent = count;
-          badge.style.display = 'block';
-          conv.classList.add('unread');
-
-          // Truncate message to 25 characters
-          const lastMsg = msg.text.length > 25 ? msg.text.substring(0, 25) + '...' : msg.text;
-          conv.querySelector('.last-msg').textContent = lastMsg;
-          const timeElem = conv.querySelector('.time');
-          timeElem.textContent = new Date(msg.date).toLocaleString();
-
-          // Remonter la conversation en haut
-          const parent = conv.parentElement;
-          parent.prepend(conv);
-        } else {
-          // Nouvelle conversation
-          location.reload();
+          badge.style.display = 'none';
+          badge.textContent = '';
+          conv.classList.remove('unread');
         }
-      }
-    });
-
-    // --- Clic sur conversation ---
-    document.querySelectorAll('.conversation').forEach(conv => {
-      conv.addEventListener('click', () => {
-        const username = conv.dataset.username;
-        socket.emit('mark_read', {sender: username});
-        const badge = conv.querySelector('.unread-badge');
-        badge.style.display = 'none';
-        badge.textContent = '';
-        conv.classList.remove('unread');
-        window.location.href = `/chat/${username}`;
       });
-    });
 
-    // --- Confirmation lecture messages ---
-    socket.on('update_unread', (data) => {
-      const username = data.from;
-      const conv = document.querySelector(`.conversation[data-username='${username}']`);
-      if (conv) {
-        const badge = conv.querySelector('.unread-badge');
-        badge.style.display = 'none';
-        badge.textContent = '';
-        conv.classList.remove('unread');
-      }
-    });
-
-    // --- Gestion badge messages ---
-    let unreadCount = 0;
-    const updateUnreadBadge = () => {
-      const badge = document.getElementById('unread-count');
-      if (!badge) return;
-      if (unreadCount > 0) {
-        badge.style.display = 'inline';
-        badge.textContent = unreadCount;
-      } else {
-        badge.style.display = 'none';
-      }
-    };
-
-    socket.on('new_message', (message) => {
-      const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-      if (!currentChatUser || currentChatUser !== message.sender) {
-        unreadCount++;
-        updateUnreadBadge();
-      }
-    });
-
-    window.addEventListener('load', () => {
-      if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-        unreadCount = 0;
-        updateUnreadBadge();
-      }
-    });
-
-    // --- Gestion badge notifications ---
-    let notifCount = 0;
-    const updateNotifBadge = () => {
-      const badge = document.getElementById('notifications-count');
-      if (!badge) return;
-      if (notifCount > 0) {
-        badge.style.display = 'inline';
-        badge.textContent = notifCount;
-      } else {
-        badge.style.display = 'none';
-      }
-    };
-
-    socket.on('new_notification', (notification) => {
-      notifCount++;
-      updateNotifBadge();
-    });
-
-    window.addEventListener('load', () => {
-      if (window.location.pathname.includes('/notifications')) {
-        notifCount = 0;
-        updateNotifBadge();
-      }
-    });
-
-    // --- Handle avatar updates ---
-    socket.on('avatar_updated', (data) => {
-      const conv = document.querySelector(`.conversation[data-username='${data.username}']`);
-      if (conv) {
-        const img = conv.querySelector('.profile-pic img');
-        if (img) {
-          img.src = data.new_avatar_url;
+      // --- Handle user online/offline status ---
+      socket.on('user_online', (data) => {
+        const indicator = document.getElementById(`status-${data.username}`);
+        if (indicator) {
+          indicator.style.display = "block";
         }
-      }
+      });
+
+      socket.on('user_offline', (data) => {
+        const indicator = document.getElementById(`status-${data.username}`);
+        if (indicator) {
+          indicator.style.display = "none";
+        }
+      });
+
+      // --- Handle avatar updates ---
+      socket.on('avatar_updated', (data) => {
+        const conv = document.querySelector(`.conversation[data-username='${data.username}']`);
+        if (conv) {
+          const img = conv.querySelector('.profile-pic img');
+          if (img) {
+            img.src = data.new_avatar_url;
+          }
+        }
+      });
     });
   </script>
 </body>

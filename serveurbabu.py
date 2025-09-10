@@ -22,6 +22,7 @@ MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
+connected_users = set()  # Track online users
 user_notifications = {}  # clé = user_id, valeur = liste de notifications
 
 # --- Custom Jinja2 filter for timestamp ---
@@ -545,6 +546,15 @@ def handle_connect():
     user = session.get("username")
     if user:
         join_room(user)
+        connected_users.add(user)
+        emit('user_online', {'username': user}, broadcast=True)
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    user = session.get("username")
+    if user and user in connected_users:
+        connected_users.remove(user)
+        emit('user_offline', {'username': user}, broadcast=True)
 
 @socketio.on("send_message")
 def handle_send_message(data):
