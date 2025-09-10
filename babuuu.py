@@ -445,34 +445,6 @@ def update_avatar():
         return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
 
-@app.route("/posts/<int:post_id>", methods=["DELETE"])
-def delete_post(post_id):
-    if "username" not in session:
-        return jsonify({"success": False, "error": "Non connecté"}), 401
-
-    posts = load_posts()
-    post = next((p for p in posts if p["id"] == post_id), None)
-    if not post:
-        return jsonify({"success": False, "error": "Post non trouvé"}), 404
-
-    if post["username"] != session["username"]:
-        return jsonify({"success": False, "error": "Non autorisé"}), 403
-
-    # Delete associated media files
-    for file in post.get("files", []):
-        file_path = os.path.join(UPLOAD_FOLDER, file["name"])
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-    # Remove post from posts list
-    posts = [p for p in posts if p["id"] != post_id]
-    save_posts(posts)
-
-    # Notify all clients to remove the post
-    socketio.emit("post_deleted", {"post_id": post_id}, broadcast=True)
-
-    return jsonify({"success": True})
-
 # --- Routes Messages ---
 @app.route("/conversations")
 def conversations():

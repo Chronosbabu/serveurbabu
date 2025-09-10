@@ -117,6 +117,7 @@
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
     }
     .post:hover {
       transform: translateY(-4px);
@@ -186,6 +187,57 @@
     }
     .description.long + .toggle-description {
       display: block;
+    }
+
+    /* ---------- POST MENU ---------- */
+    .post-menu-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      color: #262626;
+      cursor: pointer;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+    .post-menu-btn:hover {
+      color: #0095f6;
+      transform: scale(1.1);
+    }
+    .post-menu {
+      position: absolute;
+      top: 40px;
+      right: 12px;
+      background: #fff;
+      border: 1px solid #dbdbdb;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      display: none;
+      z-index: 100;
+    }
+    .post-menu.active {
+      display: block;
+    }
+    .post-menu button {
+      background: none;
+      border: none;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      color: #262626;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .post-menu button:hover {
+      background: #f0f0f0;
+    }
+    .post-menu button.delete-btn {
+      color: #ed4956;
+    }
+    .post-menu button.delete-btn:hover {
+      background: #ffe6e9;
     }
 
     /* ---------- MEDIA ---------- */
@@ -385,6 +437,9 @@
       .post-actions { padding: 6px 12px; }
       .follow-btn { padding: 5px 12px; font-size: 0.8rem; }
       .date { padding: 6px 12px; }
+      .post-menu-btn { font-size: 1.1rem; }
+      .post-menu { top: 36px; right: 10px; }
+      .post-menu button { font-size: 0.8rem; padding: 8px 12px; }
     }
 
     /* Additional profile-specific styles */
@@ -498,30 +553,6 @@
       border-radius: 12px;
       box-shadow: 0 0 15px rgba(0,0,0,0.6);
     }
-    @media (max-width: 600px) {
-      .profile-header {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .profile-meta {
-        margin-left: 0;
-        margin-top: 12px;
-      }
-      .profile-meta h1 {
-        font-size: 22px;
-      }
-      .profile-meta p {
-        font-size: 14px;
-      }
-      .change-avatar-btn {
-        top: 60px;
-        left: 60px;
-        width: 24px;
-        height: 24px;
-        font-size: 0.8rem;
-      }
-    }
   </style>
 </head>
 <body data-username="{{ current_username }}">
@@ -585,6 +616,14 @@
               <a class="username-link" href="{{ url_for('profile', username=profile_user.username) }}">
                 <p class="username">{{ profile_user.username }}</p>
               </a>
+              {% if current_username == profile_user.username %}
+                <button class="post-menu-btn" title="Options">
+                  <i class="fa-solid fa-ellipsis"></i>
+                </button>
+                <div class="post-menu">
+                  <button class="delete-btn">Supprimer</button>
+                </div>
+              {% endif %}
             </div>
 
             <p class="description">{{ post.description }}</p>
@@ -681,6 +720,32 @@
           if(data.following) current += 1;
           else current -= 1;
           countEl.textContent = current;
+      }
+  });
+
+  socket.on("avatar_updated", (data) => {
+      if (data.username === "{{ profile_user.username }}" || data.username === "{{ current_username }}") {
+          document.querySelectorAll(`img[src*="/avatars/"]`).forEach(img => {
+              if (img.closest(`[href*="/profile/${data.username}"]`) || img.id === "profile-avatar") {
+                  img.src = data.new_avatar_url;
+              }
+          });
+          const modalImg = document.querySelector("#avatar-modal img");
+          if (modalImg && data.username === "{{ profile_user.username }}") {
+              modalImg.src = data.new_avatar_url;
+          }
+      }
+  });
+
+  socket.on("post_deleted", (data) => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (post) {
+          post.remove();
+      }
+      // Update empty state if no posts remain
+      const postsContainer = document.getElementById("profile-posts");
+      if (postsContainer && !postsContainer.querySelector(".post")) {
+          postsContainer.innerHTML = '<p style="color:#6b7280;">Aucune publication pour l’instant.</p>';
       }
   });
 
@@ -869,6 +934,54 @@
           });
       }
 
+      function bindPostMenu(post) {
+          const menuBtn = post.querySelector('.post-menu-btn');
+          const menu = post.querySelector('.post-menu');
+          if (!menuBtn || !menu) return;
+
+          menuBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const isActive = menu.classList.contains('active');
+              document.querySelectorAll('.post-menu.active').forEach(m => m.classList.remove('active'));
+              if (!isActive) {
+                  menu.classList.add('active');
+              }
+          });
+
+          const deleteBtn = menu.querySelector('.delete-btn');
+          if (deleteBtn) {
+              deleteBtn.addEventListener('click', async () => {
+                  if (confirm("Voulez-vous vraiment supprimer cette publication ?")) {
+                      const postId = post.dataset.postId;
+                      try {
+                          const res = await fetch(`/posts/${postId}`, { method: 'DELETE', credentials: 'same-origin' });
+                          const data = await res.json();
+                          if (data.success) {
+                              post.remove();
+                              // Update empty state
+                              if (!postsContainer.querySelector('.post')) {
+                                  postsContainer.innerHTML = '<p style="color:#6b7280;">Aucune publication pour l’instant.</p>';
+                              }
+                          } else {
+                              alert("Erreur : " + (data.error || "Échec de la suppression"));
+                          }
+                      } catch (err) {
+                          console.error(err);
+                          alert("Erreur réseau lors de la suppression.");
+                      }
+                  }
+                  menu.classList.remove('active');
+              });
+          }
+
+          // Close menu when clicking outside
+          document.addEventListener('click', (e) => {
+              if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
+                  menu.classList.remove('active');
+              }
+          });
+      }
+
       /* ---------- Video autoplay and loop ---------- */
       const ioObserver = new IntersectionObserver((entries) => {
           let best = null;
@@ -968,6 +1081,7 @@
       document.querySelectorAll('.post').forEach(post => {
           bindLikes(post);
           bindFollowButtons(post);
+          bindPostMenu(post);
           post.querySelectorAll('video').forEach(video => {
               observeVideo(video);
               const muteBtn = video.parentElement.querySelector('.mute-btn');
