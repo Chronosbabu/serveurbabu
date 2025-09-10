@@ -119,8 +119,6 @@
     /* ---------- MESSAGES ---------- */
     .messages {
       flex: 1;
-      margin-top: 60px; /* Height of header */
-      margin-bottom: 60px; /* Initial height of input-box */
       padding: 12px 16px;
       display: flex;
       flex-direction: column;
@@ -335,7 +333,11 @@
   </div>
 
   <script>
-    const socket = io();
+    const socket = io({
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
     const username = document.body.dataset.username;
     const chatUser = "{{ chat_user }}";
     const input = document.getElementById('messageInput');
@@ -409,6 +411,19 @@
       console.log('Connexion Socket.IO établie');
     });
 
+    // Gérer la reconnexion
+    socket.on('reconnect', (attempt) => {
+      console.log(`Reconnexion réussie après ${attempt} tentatives`);
+      socket.emit('join_room', { username: username });
+      socket.emit('mark_read', { sender: chatUser });
+      adjustMessagesHeight();
+      normalizeMessages();
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('Erreur de reconnexion Socket.IO:', error);
+    });
+
     // Scroll automatique
     function scrollToBottom() {
       requestAnimationFrame(() => {
@@ -428,28 +443,31 @@
 
     // Ajuster la hauteur du conteneur de messages
     function adjustMessagesHeight() {
-      const headerHeight = document.querySelector('.main-header').offsetHeight;
-      const inputBoxHeight = inputBox.offsetHeight;
+      const headerHeight = document.querySelector('.main-header').offsetHeight || 60;
+      const inputBoxHeight = inputBox.offsetHeight || 60;
+      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight || 60;
+      const availableHeight = window.innerHeight - headerHeight - inputBoxHeight - bottomNavHeight;
+      messagesDiv.style.height = `${availableHeight}px`;
       messagesDiv.style.marginTop = `${headerHeight}px`;
       messagesDiv.style.marginBottom = `${inputBoxHeight}px`;
-      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight;
       inputBox.style.bottom = `${bottomNavHeight}px`;
-      console.log(`Hauteur messages ajustée: margin-top=${headerHeight}px, margin-bottom=${inputBoxHeight}px`);
+      console.log(`Hauteur messages ajustée: height=${availableHeight}px, margin-top=${headerHeight}px, margin-bottom=${inputBoxHeight}px, bottom-nav=${bottomNavHeight}px`);
     }
 
     // Gérer l'apparition du clavier
     function handleKeyboard() {
       const initialHeight = window.innerHeight;
-      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight;
+      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight || 60;
       window.addEventListener('resize', () => {
         const newHeight = window.innerHeight;
         if (newHeight < initialHeight) {
-          inputBox.style.bottom = `${bottomNavHeight + (initialHeight - newHeight)}px`;
+          inputBox.style.bottom = `${bottomNavHeight}px`;
+          adjustMessagesHeight();
           scrollToBottom();
         } else {
           inputBox.style.bottom = `${bottomNavHeight}px`;
+          adjustMessagesHeight();
         }
-        adjustMessagesHeight();
         normalizeMessages();
       });
 
@@ -460,6 +478,7 @@
 
     // Initialisation
     window.addEventListener('load', () => {
+      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
       adjustInputHeight();
       scrollToBottom();
       adjustMessagesHeight();
@@ -470,6 +489,8 @@
 
     // Réappliquer les styles lors de la navigation
     window.addEventListener('popstate', () => {
+      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
+      adjustMessagesHeight();
       normalizeAllMessages();
       console.log('Navigation détectée (popstate), styles réappliqués');
     });
@@ -528,7 +549,7 @@
       }
       messagesDiv.appendChild(div);
       scrollToBottom();
-      adjustInputHeight();
+      adjustMessagesHeight();
       if (msg.sender === chatUser && !isLocal) {
         socket.emit('mark_read', { sender: chatUser });
       }
@@ -547,7 +568,7 @@
       }
     }
 
-    // Envoyer un message
+    // Envoyer un message avec tentative de réessai
     async function sendMessage() {
       if (isSending) return;
       isSending = true;
@@ -564,10 +585,13 @@
             selectedFile = null;
             input.value = '';
             adjustInputHeight();
+          } else {
+            console.error('Échec de l\'envoi du fichier, statut:', res.status);
+            alert('Erreur lors de l\'envoi du fichier.');
           }
         } catch (e) {
           console.error('Erreur réseau lors de l\'envoi du fichier:', e);
-          alert('Erreur réseau.');
+          alert('Erreur réseau lors de l\'envoi du fichier.');
         }
       } else if (recordedAudio) {
         const formData = new FormData();
@@ -579,15 +603,16 @@
             recordedAudio = null;
             input.value = '';
             adjustInputHeight();
+          } else {
+            console.error('Échec de l\'envoi de l\'audio, statut:', res.status);
+            alert('Erreur lors de l\'envoi de l\'audio.');
           }
         } catch (e) {
           console.error('Erreur réseau lors de l\'envoi de l\'audio:', e);
-          alert('Erreur réseau.');
+          alert('Erreur réseau lors de l\'envoi de l\'audio.');
         }
       } else if (text) {
-        // Générer un ID unique pour le message
         const msgId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        // Ajouter le message localement avec statut "pending"
         addMessage({
           id: msgId,
           sender: username,
@@ -595,10 +620,26 @@
           type: 'text',
           date: new Date().toISOString()
         }, true);
-        // Envoyer le message via Socket.IO
-        socket.emit('send_message', { receiver: chatUser, text: text, type: 'text', id: msgId });
-        // Mettre à jour le statut à "sent"
-        updateMessageStatus(msgId, 'sent');
+        // Tenter d'envoyer le message
+        let attempts = 0;
+        const maxAttempts = 3;
+        const sendAttempt = () => {
+          if (attempts >= maxAttempts) {
+            console.error('Échec de l\'envoi du message après', maxAttempts, 'tentatives');
+            alert('Échec de l\'envoi du message. Veuillez vérifier votre connexion.');
+            return;
+          }
+          if (socket.connected) {
+            socket.emit('send_message', { receiver: chatUser, text: text, type: 'text', id: msgId });
+            updateMessageStatus(msgId, 'sent');
+            console.log(`Message envoyé: id=${msgId}, texte=${text}`);
+          } else {
+            attempts++;
+            console.warn(`Tentative ${attempts} échouée, Socket.IO non connecté`);
+            setTimeout(sendAttempt, 1000);
+          }
+        };
+        sendAttempt();
         input.value = '';
         adjustInputHeight();
       }
@@ -655,11 +696,9 @@
 
     // Réception messages
     socket.on('new_message', msg => {
-      // Si c'est un message envoyé par l'utilisateur, mettre à jour le statut à "delivered"
       if (msg.sender === username && msg.id) {
         updateMessageStatus(msg.id, 'delivered');
       } else {
-        // Ajouter les messages entrants normalement
         addMessage(msg);
       }
       normalizeMessages();
