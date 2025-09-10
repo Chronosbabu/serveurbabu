@@ -134,29 +134,30 @@
 
     /* ---------- MESSAGE INDIVIDUAL ---------- */
     .message {
-      padding: 10px 14px;
-      border-radius: 15px;
-      max-width: 75%;
-      min-width: 100px; /* Prevent overly narrow bubbles */
-      overflow-wrap: break-word; /* Modern standard for word wrapping */
-      font-size: 0.9rem !important; /* Force consistent font size */
-      line-height: 1.4 !important; /* Force consistent line height */
-      white-space: pre-wrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      box-sizing: border-box;
-      width: fit-content; /* Ensure bubble fits content */
-      /* Ajouté : Réinitialiser les propriétés qui pourraient causer un agrandissement */
-      transform: scale(1);
-      max-height: none;
-      overflow: visible;
+      padding: 10px 14px !important; /* Forcer le padding pour les messages texte */
+      border-radius: 15px !important;
+      max-width: 75% !important;
+      min-width: 100px !important; /* Prevent overly narrow bubbles */
+      overflow-wrap: break-word !important;
+      font-size: 0.9rem !important; /* Forcer la taille de police */
+      line-height: 1.4 !important; /* Forcer la hauteur de ligne */
+      white-space: pre-wrap !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+      box-sizing: border-box !important;
+      width: fit-content !important;
+      transform: scale(1) !important; /* Empêcher toute mise à l'échelle */
+      max-height: none !important;
+      overflow: visible !important;
+      background-clip: padding-box !important; /* Assurer que le fond respecte le padding */
+      -webkit-text-size-adjust: 100% !important; /* Empêcher les ajustements automatiques sur mobile */
     }
     .from-me {
-      background: #dcf8c6; /* WhatsApp-like green for sent messages */
-      align-self: flex-end;
+      background: #dcf8c6 !important; /* WhatsApp-like green for sent messages */
+      align-self: flex-end !important;
     }
     .from-other {
-      background: #ffffff; /* White for received messages */
-      align-self: flex-start;
+      background: #ffffff !important; /* White for received messages */
+      align-self: flex-start !important;
     }
     .message.audio-wrapper {
       background: none !important;
@@ -167,17 +168,17 @@
       box-shadow: none !important;
     }
     .message.audio-wrapper audio {
-      width: 250px;
-      display: block;
-      margin: 5px 0;
-      border-radius: 8px;
+      width: 250px !important;
+      display: block !important;
+      margin: 5px 0 !important;
+      border-radius: 8px !important;
     }
     .message img, .message video {
-      max-width: 100%;
-      border-radius: 15px;
-      display: block;
+      max-width: 100% !important;
+      border-radius: 15px !important;
+      display: block !important;
     }
-    .message video { max-height: 300px; }
+    .message video { max-height: 300px !important; }
 
     /* ---------- INPUT BOX ---------- */
     .input-box {
@@ -244,15 +245,20 @@
       .bottom-nav a { font-size: 1.3rem; }
       .messages { padding: 10px 12px; }
       .message {
-        font-size: 0.9rem !important; /* Force consistent font size */
-        padding: 10px 14px; /* Consistent padding */
-        line-height: 1.4 !important; /* Force consistent line height */
-        max-width: 75%;
-        min-width: 100px;
-        overflow-wrap: break-word;
-        width: fit-content;
+        font-size: 0.9rem !important; /* Forcer la taille de police */
+        padding: 10px 14px !important; /* Forcer le padding */
+        line-height: 1.4 !important; /* Forcer la hauteur de ligne */
+        max-width: 75% !important;
+        min-width: 100px !important;
+        overflow-wrap: break-word !important;
+        width: fit-content !important;
+        transform: scale(1) !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background-clip: padding-box !important;
+        -webkit-text-size-adjust: 100% !important;
       }
-      .message.audio-wrapper audio { width: 200px; }
+      .message.audio-wrapper audio { width: 200px !important; }
       .input-box { padding: 6px 12px; }
       .input-box textarea { font-size: 0.9rem; padding: 10px 12px; }
       .input-box button { width: 36px; height: 36px; font-size: 0.9rem; }
@@ -279,7 +285,7 @@
       {% for msg in messages %}
       <div class="message {% if msg.type == 'audio' %}audio-wrapper{% endif %} {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}" data-msg-id="{{ loop.index0 }}">
         {% if msg.type == 'text' %}
-        {{ msg.text }}
+        {{ msg.text | safe }}
         {% elif msg.type == 'image' %}
         <img src="{{ msg.url }}" alt="image">
         {% elif msg.type == 'video' %}
@@ -328,36 +334,72 @@
     let mediaRecorder, audioChunks = [];
     let isSending = false;
 
-    // Rejoindre sa room
+    // Normaliser les styles des messages texte
+    function normalizeMessages() {
+      console.log('Normalisation des messages...'); // Débogage
+      const messages = document.querySelectorAll('.message:not(.audio-wrapper)');
+      messages.forEach(msg => {
+        // Appliquer des styles stricts pour les messages texte
+        msg.style.fontSize = '0.9rem';
+        msg.style.lineHeight = '1.4';
+        msg.style.padding = '10px 14px';
+        msg.style.maxWidth = '75%';
+        msg.style.minWidth = '100px';
+        msg.style.width = 'fit-content';
+        msg.style.transform = 'scale(1)';
+        msg.style.maxHeight = 'none';
+        msg.style.overflow = 'visible';
+        msg.style.backgroundClip = 'padding-box';
+        msg.style.webkitTextSizeAdjust = '100%';
+        // Vérifier les styles appliqués
+        console.log(`Message ${msg.dataset.msgId}: font-size=${msg.style.fontSize}, padding=${msg.style.padding}`);
+      });
+    }
+
+    // Appliquer les styles à tous les messages (y compris audio) pour une couverture complète
+    function normalizeAllMessages() {
+      console.log('Normalisation de tous les messages...'); // Débogage
+      const messages = document.querySelectorAll('.message');
+      messages.forEach(msg => {
+        if (msg.classList.contains('audio-wrapper')) {
+          msg.style.padding = '0';
+          msg.style.maxWidth = '100%';
+          msg.style.minWidth = '0';
+          msg.style.background = 'none';
+          msg.style.boxShadow = 'none';
+        } else {
+          msg.style.fontSize = '0.9rem';
+          msg.style.lineHeight = '1.4';
+          msg.style.padding = '10px 14px';
+          msg.style.maxWidth = '75%';
+          msg.style.minWidth = '100px';
+          msg.style.width = 'fit-content';
+          msg.style.transform = 'scale(1)';
+          msg.style.maxHeight = 'none';
+          msg.style.overflow = 'visible';
+          msg.style.backgroundClip = 'padding-box';
+          msg.style.webkitTextSizeAdjust = '100%';
+        }
+      });
+    }
+
+    // Rejoindre sa room et normaliser les messages
     socket.on('connect', () => {
       socket.emit('join_room', { username: username });
       socket.emit('mark_read', { sender: chatUser });
       adjustInputHeight();
       scrollToBottom();
       adjustMessagesHeight();
-      normalizeMessages(); // Ajouté : Normaliser les messages au chargement
+      normalizeMessages(); // Normaliser les messages texte
+      console.log('Connexion Socket.IO établie');
     });
-
-    // Normaliser les styles des messages existants
-    function normalizeMessages() {
-      const messages = document.querySelectorAll('.message');
-      messages.forEach(msg => {
-        // Forcer les styles pour éviter les incohérences
-        msg.style.fontSize = '0.9rem';
-        msg.style.lineHeight = '1.4';
-        msg.style.padding = msg.classList.contains('audio-wrapper') ? '0' : '10px 14px';
-        msg.style.maxWidth = msg.classList.contains('audio-wrapper') ? '100%' : '75%';
-        msg.style.minWidth = msg.classList.contains('audio-wrapper') ? '0' : '100px';
-        msg.style.width = 'fit-content';
-        msg.style.transform = 'scale(1)';
-        msg.style.maxHeight = 'none';
-        msg.style.overflow = 'visible';
-      });
-    }
 
     // Scroll automatique
     function scrollToBottom() {
-      requestAnimationFrame(() => { messagesDiv.scrollTop = messagesDiv.scrollHeight; });
+      requestAnimationFrame(() => {
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        console.log('Scroll vers le bas effectué');
+      });
     }
 
     // Ajuster la hauteur du textarea
@@ -366,6 +408,7 @@
       const newHeight = Math.min(Math.max(input.scrollHeight, 40), 100);
       input.style.height = `${newHeight}px`;
       adjustMessagesHeight();
+      console.log(`Hauteur textarea ajustée: ${newHeight}px`);
     }
 
     // Ajuster la hauteur du conteneur de messages
@@ -374,9 +417,9 @@
       const inputBoxHeight = inputBox.offsetHeight;
       messagesDiv.style.marginTop = `${headerHeight}px`;
       messagesDiv.style.marginBottom = `${inputBoxHeight}px`;
-      // Positionner input-box au-dessus de bottom-nav
       const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight;
       inputBox.style.bottom = `${bottomNavHeight}px`;
+      console.log(`Hauteur messages ajustée: margin-top=${headerHeight}px, margin-bottom=${inputBoxHeight}px`);
     }
 
     // Gérer l'apparition du clavier
@@ -386,19 +429,17 @@
       window.addEventListener('resize', () => {
         const newHeight = window.innerHeight;
         if (newHeight < initialHeight) {
-          // Clavier visible
           inputBox.style.bottom = `${bottomNavHeight + (initialHeight - newHeight)}px`;
           scrollToBottom();
         } else {
-          // Clavier caché
           inputBox.style.bottom = `${bottomNavHeight}px`;
         }
         adjustMessagesHeight();
+        normalizeMessages(); // Réappliquer les styles après redimensionnement
       });
 
-      // Gérer le focus du textarea
       input.addEventListener('focus', () => {
-        setTimeout(scrollToBottom, 300); // Attendre que le clavier apparaisse
+        setTimeout(scrollToBottom, 300);
       });
     }
 
@@ -408,7 +449,14 @@
       scrollToBottom();
       adjustMessagesHeight();
       handleKeyboard();
-      normalizeMessages(); // Ajouté : Normaliser les messages à l'initialisation
+      normalizeAllMessages(); // Normaliser tous les messages au chargement
+      console.log('Page chargée, normalisation initiale effectuée');
+    });
+
+    // Réappliquer les styles lors de la navigation
+    window.addEventListener('popstate', () => {
+      normalizeAllMessages();
+      console.log('Navigation détectée (popstate), styles réappliqués');
     });
 
     input.addEventListener('input', adjustInputHeight);
@@ -436,22 +484,33 @@
         audio.controls = true;
         div.appendChild(audio);
       }
-      // Ajouté : Appliquer les styles explicitement
-      div.style.fontSize = '0.9rem';
-      div.style.lineHeight = '1.4';
-      div.style.padding = msg.type === 'audio' ? '0' : '10px 14px';
-      div.style.maxWidth = msg.type === 'audio' ? '100%' : '75%';
-      div.style.minWidth = msg.type === 'audio' ? '0' : '100px';
-      div.style.width = 'fit-content';
-      div.style.transform = 'scale(1)';
-      div.style.maxHeight = 'none';
-      div.style.overflow = 'visible';
+      // Appliquer les styles explicitement
+      if (msg.type === 'audio') {
+        div.style.padding = '0';
+        div.style.maxWidth = '100%';
+        div.style.minWidth = '0';
+        div.style.background = 'none';
+        div.style.boxShadow = 'none';
+      } else {
+        div.style.fontSize = '0.9rem';
+        div.style.lineHeight = '1.4';
+        div.style.padding = '10px 14px';
+        div.style.maxWidth = '75%';
+        div.style.minWidth = '100px';
+        div.style.width = 'fit-content';
+        div.style.transform = 'scale(1)';
+        div.style.maxHeight = 'none';
+        div.style.overflow = 'visible';
+        div.style.backgroundClip = 'padding-box';
+        div.style.webkitTextSizeAdjust = '100%';
+      }
       messagesDiv.appendChild(div);
       scrollToBottom();
       adjustInputHeight();
       if (msg.sender === chatUser) {
         socket.emit('mark_read', { sender: chatUser });
       }
+      console.log(`Message ajouté: type=${msg.type}, id=${div.dataset.msgId}`);
     }
 
     // Envoyer un message
@@ -473,6 +532,7 @@
             adjustInputHeight();
           }
         } catch (e) {
+          console.error('Erreur réseau lors de l\'envoi du fichier:', e);
           alert('Erreur réseau.');
         }
       } else if (recordedAudio) {
@@ -487,6 +547,7 @@
             adjustInputHeight();
           }
         } catch (e) {
+          console.error('Erreur réseau lors de l\'envoi de l\'audio:', e);
           alert('Erreur réseau.');
         }
       } else if (text) {
@@ -505,6 +566,7 @@
       selectedFile = file;
       input.value = "[Fichier prêt]";
       adjustInputHeight();
+      console.log('Fichier sélectionné:', file.name);
     });
 
     // Micro
@@ -520,10 +582,13 @@
             input.value = "[Audio prêt]";
             adjustInputHeight();
             stream.getTracks().forEach(track => track.stop());
+            console.log('Enregistrement audio terminé');
           };
           mediaRecorder.start();
           micBtn.classList.add("recording");
+          console.log('Enregistrement audio démarré');
         } catch (e) {
+          console.error('Erreur d\'accès au micro:', e);
           alert("Impossible d'accéder au micro");
         }
       } else {
@@ -542,7 +607,10 @@
     });
 
     // Réception messages
-    socket.on('new_message', msg => addMessage(msg));
+    socket.on('new_message', msg => {
+      addMessage(msg);
+      normalizeMessages(); // Réappliquer les styles après ajout
+    });
 
     // Gestion badge messages
     let unreadCount = 0;
@@ -562,6 +630,7 @@
       if (message.sender !== username && (!currentChatUser || currentChatUser !== message.sender)) {
         unreadCount++;
         updateUnreadBadge();
+        console.log('Nouveau message non lu, compte:', unreadCount);
       }
     });
 
@@ -588,6 +657,7 @@
     socket.on('new_notification', (notification) => {
       notifCount++;
       updateNotifBadge();
+      console.log('Nouvelle notification, compte:', notifCount);
     });
 
     window.addEventListener('load', () => {
