@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CHRONOS</title>
+  <title>Vidéos - CHRONOS</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
@@ -595,7 +595,7 @@
         <span class="message-badge" id="notifications-count" style="display:none;">0</span>
       </a>
       <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
-      <a href="{{ url_for('videos') }}" title="Vidéos"><i class="fa-solid fa-video"></i></a>
+      <a href="{{ url_for('home') }}" title="Accueil" class="active"><i class="fa-solid fa-video"></i></a>
       <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
     </nav>
   </div>
@@ -964,6 +964,94 @@
     document.querySelectorAll('.post').forEach(post => initCarousel(post));
 
     if (!window.followingUsers) window.followingUsers = new Set();
+
+    function enterVideoMode() {
+      postsContainer.style.display = 'none';
+      const videoContainer = document.createElement('div');
+      videoContainer.className = 'video-feed';
+      document.querySelector('.main-container').appendChild(videoContainer);
+      const allPosts = Array.from(document.querySelectorAll('.post'));
+      allPosts.forEach(post => {
+        const videosInPost = Array.from(post.querySelectorAll('video'));
+        if (videosInPost.length > 0) {
+          videosInPost.forEach(vid => {
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
+            videoItem.dataset.postId = post.dataset.postId;
+            const newVid = vid.cloneNode(true);
+            newVid.muted = false;
+            videoItem.appendChild(newVid);
+            const muteBtn = vid.parentElement.querySelector('.mute-btn').cloneNode(true);
+            videoItem.appendChild(muteBtn);
+            bindMuteButton(newVid, muteBtn);
+            icon = muteBtn.querySelector('i');
+            icon.classList.remove('fa-volume-xmark');
+            icon.classList.add('fa-volume-high');
+            const userInfo = document.createElement('div');
+            userInfo.className = 'video-user-info';
+            const avatarLink = post.querySelector('.avatar-link').cloneNode(true);
+            userInfo.appendChild(avatarLink);
+            const username = post.querySelector('.username').cloneNode(true);
+            userInfo.appendChild(username);
+            const desc = post.querySelector('.description').cloneNode(true);
+            desc.classList.add('expanded');
+            userInfo.appendChild(desc);
+            videoItem.appendChild(userInfo);
+            const actions = document.createElement('div');
+            actions.className = 'video-actions';
+            const newLikeBtn = document.createElement('button');
+            newLikeBtn.className = post.querySelector('.like-btn').className;
+            newLikeBtn.innerHTML = post.querySelector('.like-btn').innerHTML;
+            newLikeBtn.addEventListener('click', () => toggleLike(newLikeBtn));
+            actions.appendChild(newLikeBtn);
+            const likeCount = document.createElement('span');
+            likeCount.className = 'like-count';
+            likeCount.textContent = post.querySelector('.like-count').textContent;
+            actions.appendChild(likeCount);
+            const newCommentBtn = document.createElement('a');
+            newCommentBtn.className = 'comment-btn';
+            newCommentBtn.href = post.querySelector('.comment-btn').href;
+            newCommentBtn.innerHTML = '<i class="fa-regular fa-comment"></i>';
+            const commentCount = document.createElement('span');
+            commentCount.className = 'comment-count';
+            commentCount.textContent = post.querySelector('.comment-count').textContent;
+            newCommentBtn.appendChild(commentCount);
+            actions.appendChild(newCommentBtn);
+            const postUsername = post.querySelector('.username').textContent.trim();
+            const newFollowBtn = post.querySelector('.follow-btn').cloneNode(true);
+            newFollowBtn.dataset.following = post.querySelector('.follow-btn').dataset.following;
+            if (newFollowBtn.dataset.following === "true") {
+              newFollowBtn.classList.add('following');
+              newFollowBtn.innerHTML = 'Abonné ✔';
+              newFollowBtn.disabled = true;
+            }
+            newFollowBtn.addEventListener('click', async () => {
+              if (newFollowBtn.dataset.following === "true") return;
+              try {
+                const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
+                if (!res.ok) throw new Error('Erreur serveur');
+                const data = await res.json();
+                if (data.following) {
+                  window.followingUsers.add(postUsername);
+                } else {
+                  window.followingUsers.delete(postUsername);
+                }
+                updateFollowButtons(postUsername, data.following);
+              } catch (e) {
+                console.error(e);
+                alert('Impossible de suivre pour le moment.');
+              }
+            });
+            actions.appendChild(newFollowBtn);
+            videoItem.appendChild(actions);
+            observeVideo(newVid);
+            videoContainer.appendChild(videoItem);
+          });
+        }
+      });
+    }
+
+    enterVideoMode();
   });
 </script>
 </body>
