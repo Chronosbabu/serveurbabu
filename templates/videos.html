@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vidéos - CHRONOS</title>
+  <title>CHRONOS - Vidéos</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
@@ -11,122 +11,75 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #fafafa;
-      color: #262626;
+      background: #000;
+      color: #fff;
       line-height: 1.5;
-      overflow-x: hidden;
+      overflow: hidden;
     }
     a { text-decoration: none; color: inherit; }
-    .main-container { max-width: 935px; margin: 0 auto; padding: 20px 20px 80px 20px; }
 
-    /* ---------- HEADER ---------- */
-    .main-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 20px;
-      background: #fff;
-      border-bottom: 1px solid #dbdbdb;
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    /* ---------- VIDEO POSTS ---------- */
+    .video-scroll {
+      height: 100vh;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
     }
-    .logo {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #262626;
-      font-family: 'Lobster', cursive;
-      letter-spacing: 1px;
-      flex-shrink: 0;
-    }
-    .header-icons {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      flex-wrap: nowrap;
-    }
-    .header-icons a {
-      color: #262626;
-      font-size: 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: color 0.2s ease, transform 0.2s ease;
+    .video-scroll::-webkit-scrollbar { display: none; }
+    .video-post {
       position: relative;
-    }
-    .header-icons a:hover {
-      color: #0095f6;
-      transform: scale(1.1);
-    }
-
-    /* ---------- BOTTOM NAVIGATION BAR ---------- */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
       width: 100%;
-      background: #fff;
-      border-top: 1px solid #dbdbdb;
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      padding: 12px 0;
-      z-index: 1000;
-      box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
-    }
-    .bottom-nav a {
-      color: #262626;
-      font-size: 1.5rem;
+      height: 100vh;
+      scroll-snap-align: start;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s ease, transform 0.2s ease;
+      background: #000;
+    }
+    .video-container {
       position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .bottom-nav a:hover {
-      color: #0095f6;
-      transform: scale(1.1);
+    .post-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      cursor: pointer;
     }
-    .bottom-nav a.active {
-      color: #0095f6;
-    }
-    .message-badge {
+    .mute-btn {
       position: absolute;
-      top: -8px;
-      right: -8px;
-      background: #ed4956;
+      top: 12px;
+      right: 12px;
+      background: rgba(0, 0, 0, 0.7);
       color: #fff;
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 3px 6px;
+      border: none;
       border-radius: 50%;
-      line-height: 1;
-      border: 2px solid #fff;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      z-index: 10;
+      transition: background 0.2s ease, transform 0.2s ease;
     }
-
-    /* ---------- POSTS ---------- */
-    .scroll-box {
-      padding: 20px 0;
-    }
-    .post {
-      background: #fff;
-      margin-bottom: 24px;
-      border: 1px solid #dbdbdb;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .post:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    .mute-btn:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.1);
     }
     .user-info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
       display: flex;
       align-items: center;
-      padding: 12px 16px;
-      border-bottom: 1px solid #dbdbdb;
+      z-index: 10;
     }
     .avatar-post, .avatar-fallback {
       width: 44px;
@@ -151,18 +104,23 @@
       margin-left: 12px;
       font-weight: 600;
       font-size: 0.95rem;
-      color: #262626;
+      color: #fff;
       transition: color 0.2s ease;
     }
     .username-link:hover {
       color: #0095f6;
     }
     .description {
-      padding: 12px 16px;
+      position: absolute;
+      bottom: 100px;
+      left: 20px;
+      right: 80px;
       font-size: 0.9rem;
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      color: #fff;
+      z-index: 10;
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
@@ -178,7 +136,7 @@
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 600;
-      padding: 0 16px 12px 16px;
+      margin-top: 8px;
       transition: color 0.2s ease;
     }
     .toggle-description:hover {
@@ -188,97 +146,23 @@
       display: block;
     }
 
-    /* ---------- MEDIA ---------- */
-    .post-image, video {
-      width: 100%;
-      max-height: 80vh;
-      object-fit: cover;
-      display: block;
-      background: #000;
-      cursor: pointer;
-    }
-    .video-container {
-      position: relative;
-    }
-    .mute-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      border: none;
-      border-radius: 50%;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1rem;
-      z-index: 10;
-      transition: background 0.2s ease, transform 0.2s ease;
-    }
-    .mute-btn:hover {
-      background: rgba(0, 0, 0, 0.9);
-      transform: scale(1.1);
-    }
-
-    /* ---------- CAROUSEL MULTIMEDIA ---------- */
-    .carousel {
-      position: relative;
-      width: 100%;
-      overflow: hidden;
-    }
-    .carousel-track {
-      display: flex;
-      width: 100%;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      scroll-behavior: smooth;
-    }
-    .carousel-track::-webkit-scrollbar { display: none; }
-    .carousel-track > * {
-      flex: 0 0 100%;
-      width: 100%;
-      scroll-snap-align: start;
-    }
-    .carousel-indicators {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
-      z-index: 10;
-    }
-    .carousel-indicators .dot {
-      width: 8px;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      transition: transform 0.2s ease, background 0.2s ease;
-      cursor: pointer;
-    }
-    .carousel-indicators .dot.active {
-      background: #fff;
-      transform: scale(1.4);
-    }
-
     /* ---------- ACTIONS ---------- */
-    .post-actions {
+    .video-actions {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      padding: 8px 16px;
-      border-top: 1px solid #dbdbdb;
+      gap: 16px;
+      z-index: 10;
     }
     .like-btn {
       border: none;
       background: none;
-      font-size: 1.5rem;
+      font-size: 2rem;
       cursor: pointer;
-      color: #262626;
+      color: #fff;
       transition: transform 0.2s ease, color 0.2s ease;
     }
     .like-btn:hover {
@@ -295,11 +179,8 @@
       100% { transform: scale(1); }
     }
     .comment-btn {
-      display: flex;
-      align-items: center;
-      margin-left: 16px;
-      font-size: 1.5rem;
-      color: #262626;
+      font-size: 2rem;
+      color: #fff;
       transition: transform 0.2s ease, color 0.2s ease;
     }
     .comment-btn:hover {
@@ -307,13 +188,13 @@
       color: #0095f6;
     }
     .like-count, .comment-count {
-      margin-left: 8px;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       font-weight: 600;
-      color: #262626;
+      color: #fff;
+      text-align: center;
+      margin-top: 4px;
     }
     .follow-btn {
-      margin-left: auto;
       background: #0095f6;
       color: #fff;
       border: none;
@@ -343,411 +224,162 @@
       background: #dbdbdb;
     }
 
-    /* ---------- DATE ---------- */
-    .date {
-      font-size: 0.75rem;
-      color: #8e8e8e;
-      padding: 8px 16px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    /* ---------- CAROUSEL MULTIMEDIA ---------- */
+    .carousel {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
     }
-
-    /* ---------- COMMENTS ---------- */
-    .comments-list {
-      padding: 0 16px 12px 16px;
-      list-style: none;
-      margin: 0;
+    .carousel-track {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      scroll-behavior: smooth;
     }
-    .comments-list li {
-      margin-bottom: 8px;
-      font-size: 0.85rem;
-      color: #262626;
+    .carousel-track::-webkit-scrollbar { display: none; }
+    .carousel-track > * {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      scroll-snap-align: start;
     }
-    .comments-list li strong {
-      font-weight: 600;
+    .carousel-indicators {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+    .carousel-indicators .dot {
+      width: 8px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      transition: transform 0.2s ease, background 0.2s ease;
+      cursor: pointer;
+    }
+    .carousel-indicators .dot.active {
+      background: #fff;
+      transform: scale(1.4);
     }
 
     /* ---------- RESPONSIVE ---------- */
     @media (max-width: 600px) {
-      .main-container { padding: 16px 16px 70px 16px; }
       .avatar-post, .avatar-fallback { width: 36px; height: 36px; font-size: 0.9rem; }
-      .post-image, video { max-height: 70vh; }
-      .header-icons { gap: 16px; }
-      .header-icons a { font-size: 1.3rem; }
-      .bottom-nav { padding: 10px 0; }
-      .bottom-nav a { font-size: 1.3rem; }
-      .mute-btn { width: 28px; height: 28px; font-size: 0.9rem; }
-      .logo { font-size: 1.5rem; }
-      .post { margin-bottom: 16px; }
-      .user-info { padding: 10px 12px; }
       .username-link { font-size: 0.9rem; }
-      .description { font-size: 0.85rem; padding: 10px 12px; }
-      .post-actions { padding: 6px 12px; }
+      .description { font-size: 0.85rem; }
+      .mute-btn { width: 28px; height: 28px; font-size: 0.9rem; }
+      .like-btn, .comment-btn { font-size: 1.8rem; }
       .follow-btn { padding: 5px 12px; font-size: 0.8rem; }
-      .date { padding: 6px 12px; }
-    }
-
-    /* ---------- VIDEO MODE ---------- */
-    .video-feed {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow-y: auto;
-      scroll-snap-type: y mandatory;
-      z-index: 50;
-      background: #000;
-    }
-    .video-item {
-      position: relative;
-      height: 100vh;
-      width: 100vw;
-      background: #000;
-      scroll-snap-align: start;
-      overflow: hidden;
-    }
-    .video-item video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    .video-user-info {
-      position: absolute;
-      bottom: 100px;
-      left: 16px;
-      color: #fff;
-      z-index: 20;
-      max-width: 70%;
-    }
-    .video-user-info .avatar-link {
-      display: inline-block;
-      margin-right: 8px;
-    }
-    .video-user-info .avatar-post, .video-user-info .avatar-fallback {
-      width: 32px;
-      height: 32px;
-      border: none;
-      box-shadow: none;
-    }
-    .video-user-info .username {
-      display: inline-block;
-      font-weight: 600;
-      font-size: 1rem;
-    }
-    .video-user-info .description {
-      font-size: 0.9rem;
-      padding: 0;
-      display: block;
-      -webkit-line-clamp: unset;
-      overflow: visible;
-    }
-    .video-actions {
-      position: absolute;
-      bottom: 100px;
-      right: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      color: #fff;
-      z-index: 20;
-    }
-    .video-actions .like-btn, .video-actions .comment-btn {
-      font-size: 2rem;
-      color: #fff;
-      background: none;
-      border: none;
-    }
-    .video-actions .like-btn.liked {
-      color: #ed4956;
-    }
-    .video-actions .like-btn:hover, .video-actions .comment-btn:hover {
-      color: #fff;
-      transform: scale(1.15);
-    }
-    .video-actions .like-count, .video-actions .comment-count {
-      font-size: 0.8rem;
-      color: #fff;
-      margin-left: 0;
-      margin-top: -10px;
-    }
-    .video-actions .follow-btn {
-      background: transparent;
-      border: 1px solid #fff;
-      color: #fff;
-      padding: 4px 8px;
-      font-size: 0.8rem;
-    }
-    .video-actions .follow-btn.following {
-      background: transparent;
-      color: #fff;
-      border-color: #fff;
-    }
-    .video-actions .follow-btn i {
-      color: #fff;
-    }
-    .video-item .mute-btn {
-      top: 20px;
-      right: 20px;
-      background: rgba(255,255,255,0.3);
-      color: #fff;
     }
   </style>
 </head>
 <body data-username="{{ username }}">
-  <div class="main-container">
-    <header class="main-header">
-      <h2 class="logo">CHRONOS</h2>
-      <nav class="header-icons">
-        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
-        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
-        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
-        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
-          <i class="fa-regular fa-message"></i>
-          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+  <main class="video-scroll" id="video-posts">
+    {% for post in posts %}
+    <div class="video-post" data-post-id="{{ post.id }}">
+      <div class="user-info">
+        {% if post.avatar %}
+        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+          <img src="{{ url_for('avatar_file', filename=post.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-post" />
         </a>
-      </nav>
-    </header>
-    <main class="scroll-box" id="posts">
-      {% for post in posts %}
-      <div class="post" data-post-id="{{ post.id }}">
-        <div class="user-info">
-          {% if post.avatar %}
-          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <img src="{{ url_for('avatar_file', filename=post.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-post" />
-          </a>
-          {% else %}
-          <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
-          </a>
-          {% endif %}
-          <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
-            <p class="username">{{ post.username }}</p>
-          </a>
-        </div>
-        <p class="description">{{ post.description }}</p>
-        <span class="toggle-description">Afficher plus</span>
-        {# ---- Single file ---- #}
-        {% if post.type == "image" and not post.files %}
-        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-        {% elif post.type == "video" and not post.files %}
-        <div class="video-container">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop class="post-video"></video>
-          <button class="mute-btn" title="Activer/Désactiver le son">
-            <i class="fa-solid fa-volume-xmark"></i>
-          </button>
-        </div>
+        {% else %}
+        <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
+          <div class="avatar-fallback">{{ post.username[:1]|upper }}</div>
+        </a>
         {% endif %}
-
-        {# ---- Multiple files (carousel) ---- #}
-        {% if post.files|length > 0 %}
-        <div class="carousel">
-          <div class="carousel-track">
-            {% for file in post.files %}
-            {% if file.type == "image" %}
-            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
-            {% elif file.type == "video" %}
-            <div class="video-container">
-              <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
-              <button class="mute-btn" title="Activer/Désactiver le son">
-                <i class="fa-solid fa-volume-xmark"></i>
-              </button>
-            </div>
-            {% endif %}
-            {% endfor %}
-          </div>
-          <div class="carousel-indicators">
-            {% for file in post.files %}
-            <span class="dot{% if loop.first %} active{% endif %}"></span>
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
-
-        <div class="post-actions">
-          <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
-            <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
-          </button>
-          <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-          <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
-            <i class="fa-regular fa-comment"></i>
-            <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-          </a>
-          <button
-            class="follow-btn{% if post.following %} following{% endif %}"
-            data-following="{{ 'true' if post.following else 'false' }}"
-          >
-            {% if post.following %}
-            Abonné ✔
-            {% else %}
-            <i class="fa-solid fa-plus"></i> Suivre
-            {% endif %}
-          </button>
-        </div>
-        <p class="date">Publié le {{ post.date }}</p>
+        <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
+          <p class="username">{{ post.username }}</p>
+        </a>
       </div>
-      {% endfor %}
-    </main>
-    <nav class="bottom-nav">
-      <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
-        <i class="fa-regular fa-bell"></i>
-        <span class="message-badge" id="notifications-count" style="display:none;">0</span>
-      </a>
-      <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
-      <a href="{{ url_for('index') }}" title="Accueil" class="active"><i class="fa-solid fa-video"></i></a>
-      <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
-    </nav>
-  </div>
+      <p class="description">{{ post.description }}</p>
+      <span class="toggle-description">Afficher plus</span>
+      {# ---- Single video ---- #}
+      {% if post.type == "video" and not post.files %}
+      <div class="video-container">
+        <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop class="post-video"></video>
+        <button class="mute-btn" title="Activer/Désactiver le son">
+          <i class="fa-solid fa-volume-xmark"></i>
+        </button>
+      </div>
+      {% endif %}
+      {# ---- Multiple files (carousel, only videos) ---- #}
+      {% if post.files|length > 0 %}
+      <div class="carousel">
+        <div class="carousel-track">
+          {% for file in post.files %}
+          {% if file.type == "video" %}
+          <div class="video-container">
+            <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
+            <button class="mute-btn" title="Activer/Désactiver le son">
+              <i class="fa-solid fa-volume-xmark"></i>
+            </button>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        <div class="carousel-indicators">
+          {% for file in post.files %}
+          {% if file.type == "video" %}
+          <span class="dot{% if loop.first %} active{% endif %}"></span>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="video-actions">
+        <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
+          <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+          <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
+        </button>
+        <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+          <i class="fa-regular fa-comment"></i>
+          <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
+        </a>
+        <button
+          class="follow-btn{% if post.following %} following{% endif %}"
+          data-following="{{ 'true' if post.following else 'false' }}"
+        >
+          {% if post.following %}
+          Abonné ✔
+          {% else %}
+          <i class="fa-solid fa-plus"></i> Suivre
+          {% endif %}
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </main>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const currentUsername = document.body.dataset.username;
-    const postsContainer = document.getElementById('posts');
+    const postsContainer = document.getElementById('video-posts');
     const videos = new Set();
     let currentVideo = null;
     const socket = io();
 
-    // --- Badge Management ---
-    const msgBadge = document.getElementById("unread-count");
-    const notifBadge = document.getElementById("notifications-count");
-    const msgLink = document.getElementById("messages-link");
-    const notifLink = document.getElementById("notifications-link");
-
-    // Load badge counts from localStorage
-    const savedMsgs = localStorage.getItem("unreadMsgs");
-    const savedNotifs = localStorage.getItem("unreadNotifs");
-
-    if (savedMsgs && parseInt(savedMsgs) > 0) {
-      msgBadge.textContent = savedMsgs;
-      msgBadge.style.display = "inline-block";
-    }
-    if (savedNotifs && parseInt(savedNotifs) > 0) {
-      notifBadge.textContent = savedNotifs;
-      notifBadge.style.display = "inline-block";
-    }
-
-    // Reset badges when clicking Messages link or visiting conversations/chat pages
-    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-      localStorage.setItem("unreadMsgs", 0);
-      msgBadge.style.display = "none";
-      msgBadge.textContent = "0";
-    }
-
-    // Reset badges when clicking Notifications link or visiting notifications page
-    if (window.location.pathname.includes('/notifications')) {
-      localStorage.setItem("unreadNotifs", 0);
-      notifBadge.style.display = "none";
-      notifBadge.textContent = "0";
-    }
-
-    // Reset message badge on click
-    msgLink.addEventListener("click", () => {
-      localStorage.setItem("unreadMsgs", 0);
-      msgBadge.style.display = "none";
-      msgBadge.textContent = "0";
-    });
-
-    // Reset notification badge on click
-    notifLink.addEventListener("click", () => {
-      localStorage.setItem("unreadNotifs", 0);
-      notifBadge.style.display = "none";
-      notifBadge.textContent = "0";
-    });
-
-    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-
-    const homeBtn = document.getElementById('home-btn');
-    const homeBadge = document.createElement('span');
-    homeBadge.className = 'message-badge';
-    homeBadge.style.display = 'none';
-    homeBtn.appendChild(homeBadge);
-    let newPostsCount = 0;
-
-    window.addEventListener('load', () => window.scrollTo(0, 0));
-
-    window.addEventListener('pageshow', (event) => {
-      if (event.persisted) {
-        window.location.reload();
-      }
-    });
-
-    homeBtn.addEventListener('click', e => {
-      e.preventDefault();
-      location.reload();
-    });
-
-    function updateLikeButtons(postId, liked, likes) {
-      [...document.querySelectorAll(`.post[data-post-id="${postId}"]`), ...document.querySelectorAll(`.video-item[data-post-id="${postId}"]`)].forEach(container => {
-        const btn = container.querySelector('.like-btn');
-        if (btn) {
-          btn.classList.toggle('liked', liked);
-          const icon = btn.querySelector('i');
-          icon.classList.toggle('fa-solid', liked);
-          icon.classList.toggle('fa-regular', !liked);
-        }
-        const countEl = container.querySelector('.like-count');
-        if (countEl) countEl.textContent = likes;
-      });
-    }
-
     async function toggleLike(button) {
-      const container = button.closest('.post') || button.closest('.video-item');
-      const postId = container.dataset.postId;
+      const post = button.closest('.video-post');
+      const postId = post.dataset.postId;
+      const countEl = post.querySelector('.like-count');
       try {
         const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
         if (!res.ok) return;
         const data = await res.json();
-        updateLikeButtons(postId, data.liked, data.likes);
+        countEl.textContent = data.likes;
+        button.classList.toggle('liked', data.liked);
+        const icon = button.querySelector('i');
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
         socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
       } catch (err) { console.error(err); }
-    }
-
-    function updateCommentCounts(postId, newCount) {
-      [...document.querySelectorAll(`.post[data-post-id="${postId}"]`), ...document.querySelectorAll(`.video-item[data-post-id="${postId}"]`)].forEach(container => {
-        const countEl = container.querySelector('.comment-count');
-        if (countEl) countEl.textContent = newCount;
-      });
-    }
-
-    function updateComments(postId, username, content) {
-      const post = document.querySelector(`.post[data-post-id="${postId}"]`);
-      if (post) {
-        let list = post.querySelector('.comments-list');
-        if (!list) {
-          list = document.createElement('ul');
-          list.className = 'comments-list';
-          post.appendChild(list);
-        }
-        const li = document.createElement('li');
-        li.innerHTML = `<strong>${username}</strong>: ${content}`;
-        list.appendChild(li);
-      }
-      let currentCount = parseInt(document.querySelector(`[data-post-id="${postId}"] .comment-count`)?.textContent || "0");
-      updateCommentCounts(postId, currentCount + 1);
-    }
-
-    function updateButton(button, isFollowing) {
-      if (isFollowing) {
-        button.dataset.following = "true";
-        button.classList.add('following');
-        button.innerHTML = 'Abonné ✔';
-        button.disabled = true;
-      } else {
-        button.dataset.following = "false";
-        button.classList.remove('following');
-        button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-        button.disabled = false;
-      }
-    }
-
-    function updateFollowButtons(username, isFollowing) {
-      [...document.querySelectorAll('.post'), ...document.querySelectorAll('.video-item')].forEach(container => {
-        const u = container.querySelector('.username');
-        if (u && u.textContent.trim() === username) {
-          const b = container.querySelector('.follow-btn');
-          if (b) updateButton(b, isFollowing);
-        }
-      });
     }
 
     function bindLikes(post) {
@@ -760,26 +392,28 @@
       icon.classList.toggle('fa-regular', !isLiked);
     }
 
-    function bindCommentForm(post) {
-      const form = post.querySelector('.comment-form');
-      if (!form) return;
-      form.addEventListener('submit', e => {
-        e.preventDefault();
-        const input = form.querySelector('input[name="comment"]');
-        const content = input.value.trim();
-        if (!content) return;
-        const postId = post.dataset.postId;
-        socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
-        input.value = '';
-      });
-    }
-
     function bindFollowButtons(post) {
       const btn = post.querySelector('.follow-btn');
       if (!btn) return;
       const postUsername = post.querySelector('.username').textContent.trim();
 
+      function updateButton(button, isFollowing) {
+        if (isFollowing) {
+          button.dataset.following = "true";
+          button.classList.add('following');
+          button.innerHTML = 'Abonné ✔';
+          button.disabled = true;
+        } else {
+          button.dataset.following = "false";
+          button.classList.remove('following');
+          button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+          button.disabled = false;
+        }
+      }
+
+      if (!window.followingUsers) window.followingUsers = new Set();
       if (window.followingUsers.has(postUsername)) updateButton(btn, true);
+      else updateButton(btn, btn.dataset.following === "true");
 
       btn.addEventListener('click', async () => {
         if (btn.dataset.following === "true") return;
@@ -789,30 +423,21 @@
           const data = await res.json();
           if (data.following) {
             window.followingUsers.add(postUsername);
+            document.querySelectorAll('.video-post').forEach(p => {
+              const usernameEl = p.querySelector('.username');
+              const followBtn = p.querySelector('.follow-btn');
+              if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+                updateButton(followBtn, true);
+              }
+            });
           } else {
             window.followingUsers.delete(postUsername);
+            updateButton(btn, false);
           }
-          updateFollowButtons(postUsername, data.following);
         } catch (e) {
           console.error(e);
           alert('Impossible de suivre pour le moment.');
         }
-      });
-    }
-
-    function applyFollowStateToNewPosts(newPosts) {
-      newPosts.forEach(post => {
-        const usernameEl = post.querySelector('.username');
-        if (!usernameEl) return;
-        const postUsername = usernameEl.textContent.trim();
-        const followBtn = post.querySelector('.follow-btn');
-        if (!followBtn) return;
-        if (window.followingUsers && window.followingUsers.has(postUsername)) {
-          updateButton(followBtn, true);
-        } else {
-          updateButton(followBtn, false);
-        }
-        bindFollowButtons(post);
       });
     }
 
@@ -855,20 +480,17 @@
     /* ---------- Mute button functionality ---------- */
     function bindMuteButton(video, muteBtn) {
       if (!muteBtn) return;
-      const icon = muteBtn.querySelector('i');
-      icon.classList.toggle('fa-volume-xmark', video.muted);
-      icon.classList.toggle('fa-volume-high', !video.muted);
       muteBtn.addEventListener('click', () => {
         video.muted = !video.muted;
+        const icon = muteBtn.querySelector('i');
         icon.classList.toggle('fa-volume-xmark', video.muted);
         icon.classList.toggle('fa-volume-high', !video.muted);
       });
     }
 
     /* ---------- Init posts existants ---------- */
-    document.querySelectorAll('.post').forEach(post => {
+    document.querySelectorAll('.video-post').forEach(post => {
       bindLikes(post);
-      bindCommentForm(post);
       bindFollowButtons(post);
       post.querySelectorAll('video').forEach(video => {
         observeVideo(video);
@@ -892,43 +514,26 @@
         });
       }
     });
-    document.querySelectorAll('.post img').forEach(img => {
-      img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
-    });
 
     /* ---------- Socket.IO ---------- */
     socket.on('like_updated', data => {
-      updateLikeButtons(data.post_id, data.liked, data.likes);
-    });
-
-    socket.on('new_comment', data => {
-      updateComments(data.post_id, data.username, data.content);
-    });
-
-    /* ---------- Nouveau post badge Accueil ---------- */
-    socket.on('new_post', postHtml => {
-      newPostsCount++;
-      homeBadge.style.display = 'inline';
-      homeBadge.textContent = newPostsCount;
-    });
-
-    /* ---------- Socket.IO Badge Handlers ---------- */
-    socket.on('new_message', (message) => {
-      const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-      if (!currentChatUser || currentChatUser !== message.sender) {
-        let count = parseInt(localStorage.getItem("unreadMsgs") || "0") + 1;
-        localStorage.setItem("unreadMsgs", count);
-        msgBadge.textContent = count;
-        msgBadge.style.display = "inline-block";
+      const post = document.querySelector(`.video-post[data-post-id="${data.post_id}"]`);
+      if (post) {
+        const countEl = post.querySelector('.like-count');
+        if (countEl) countEl.textContent = data.likes;
+        const btn = post.querySelector('.like-btn');
+        if (btn) btn.classList.toggle('liked', data.liked);
+        const icon = btn.querySelector('i');
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
       }
     });
 
-    socket.on('new_notification', (notification) => {
-      if (!window.location.pathname.includes('/notifications')) {
-        let count = parseInt(localStorage.getItem("unreadNotifs") || "0") + 1;
-        localStorage.setItem("unreadNotifs", count);
-        notifBadge.textContent = count;
-        notifBadge.style.display = "inline-block";
+    socket.on('new_comment', data => {
+      const post = document.querySelector(`.video-post[data-post-id="${data.post_id}"]`);
+      if (post) {
+        const countEl = post.querySelector('.comment-count');
+        if (countEl) countEl.textContent = parseInt(countEl.textContent || "0") + 1;
       }
     });
 
@@ -940,6 +545,7 @@
 
       Array.from(track.children).forEach(child => {
         child.style.width = '100%';
+        child.style.height = '100%';
         child.style.flex = '0 0 100%';
       });
 
@@ -961,97 +567,7 @@
       });
     }
 
-    document.querySelectorAll('.post').forEach(post => initCarousel(post));
-
-    if (!window.followingUsers) window.followingUsers = new Set();
-
-    function enterVideoMode() {
-      postsContainer.style.display = 'none';
-      const videoContainer = document.createElement('div');
-      videoContainer.className = 'video-feed';
-      document.querySelector('.main-container').appendChild(videoContainer);
-      const allPosts = Array.from(document.querySelectorAll('.post'));
-      allPosts.forEach(post => {
-        const videosInPost = Array.from(post.querySelectorAll('video'));
-        if (videosInPost.length > 0) {
-          videosInPost.forEach(vid => {
-            const videoItem = document.createElement('div');
-            videoItem.className = 'video-item';
-            videoItem.dataset.postId = post.dataset.postId;
-            const newVid = vid.cloneNode(true);
-            newVid.muted = false;
-            videoItem.appendChild(newVid);
-            const muteBtn = vid.parentElement.querySelector('.mute-btn').cloneNode(true);
-            videoItem.appendChild(muteBtn);
-            bindMuteButton(newVid, muteBtn);
-            icon = muteBtn.querySelector('i');
-            icon.classList.remove('fa-volume-xmark');
-            icon.classList.add('fa-volume-high');
-            const userInfo = document.createElement('div');
-            userInfo.className = 'video-user-info';
-            const avatarLink = post.querySelector('.avatar-link').cloneNode(true);
-            userInfo.appendChild(avatarLink);
-            const username = post.querySelector('.username').cloneNode(true);
-            userInfo.appendChild(username);
-            const desc = post.querySelector('.description').cloneNode(true);
-            desc.classList.add('expanded');
-            userInfo.appendChild(desc);
-            videoItem.appendChild(userInfo);
-            const actions = document.createElement('div');
-            actions.className = 'video-actions';
-            const newLikeBtn = document.createElement('button');
-            newLikeBtn.className = post.querySelector('.like-btn').className;
-            newLikeBtn.innerHTML = post.querySelector('.like-btn').innerHTML;
-            newLikeBtn.addEventListener('click', () => toggleLike(newLikeBtn));
-            actions.appendChild(newLikeBtn);
-            const likeCount = document.createElement('span');
-            likeCount.className = 'like-count';
-            likeCount.textContent = post.querySelector('.like-count').textContent;
-            actions.appendChild(likeCount);
-            const newCommentBtn = document.createElement('a');
-            newCommentBtn.className = 'comment-btn';
-            newCommentBtn.href = post.querySelector('.comment-btn').href;
-            newCommentBtn.innerHTML = '<i class="fa-regular fa-comment"></i>';
-            const commentCount = document.createElement('span');
-            commentCount.className = 'comment-count';
-            commentCount.textContent = post.querySelector('.comment-count').textContent;
-            newCommentBtn.appendChild(commentCount);
-            actions.appendChild(newCommentBtn);
-            const postUsername = post.querySelector('.username').textContent.trim();
-            const newFollowBtn = post.querySelector('.follow-btn').cloneNode(true);
-            newFollowBtn.dataset.following = post.querySelector('.follow-btn').dataset.following;
-            if (newFollowBtn.dataset.following === "true") {
-              newFollowBtn.classList.add('following');
-              newFollowBtn.innerHTML = 'Abonné ✔';
-              newFollowBtn.disabled = true;
-            }
-            newFollowBtn.addEventListener('click', async () => {
-              if (newFollowBtn.dataset.following === "true") return;
-              try {
-                const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
-                if (!res.ok) throw new Error('Erreur serveur');
-                const data = await res.json();
-                if (data.following) {
-                  window.followingUsers.add(postUsername);
-                } else {
-                  window.followingUsers.delete(postUsername);
-                }
-                updateFollowButtons(postUsername, data.following);
-              } catch (e) {
-                console.error(e);
-                alert('Impossible de suivre pour le moment.');
-              }
-            });
-            actions.appendChild(newFollowBtn);
-            videoItem.appendChild(actions);
-            observeVideo(newVid);
-            videoContainer.appendChild(videoItem);
-          });
-        }
-      });
-    }
-
-    enterVideoMode();
+    document.querySelectorAll('.video-post').forEach(post => initCarousel(post));
   });
 </script>
 </body>
