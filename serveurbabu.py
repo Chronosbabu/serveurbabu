@@ -634,6 +634,15 @@ def handle_join_room(data):
         username = data
     if username:
         join_room(username)
+        
+
+@app.route("/videos")
+def videos():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    return render_template("videos.html", username=session["username"], avatar=session.get("avatar"))
+
+        
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
