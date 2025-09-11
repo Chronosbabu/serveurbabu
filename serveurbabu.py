@@ -635,12 +635,41 @@ def handle_join_room(data):
     if username:
         join_room(username)
         
-
 @app.route("/videos")
 def videos():
     if "username" not in session:
         return redirect(url_for("login"))
-    return render_template("videos.html", username=session["username"], avatar=session.get("avatar"))
+
+    posts = load_posts()
+    users = {u["username"]: u for u in load_users()}  # Cache users for efficiency
+
+    # Filtrer les posts pour ne garder que ceux avec des vidéos
+    video_posts = []
+    for p in posts:
+        has_video = False
+        if p.get("type") == "video" and not p.get("files"):  # Post avec une seule vidéo
+            has_video = True
+        elif p.get("files"):  # Post avec plusieurs fichiers
+            for file in p["files"]:
+                if file["type"] == "video":
+                    has_video = True
+                    break
+        if has_video:
+            p['liked_by_user'] = session["username"] in p.get("liked_by", [])
+            p['comments_count'] = len(p.get("comments", []))
+            p['following'] = is_following(session["username"], p["username"])
+            p['avatar'] = users.get(p["username"], {}).get("avatar")  # Dynamic avatar
+            for comment in p.get("comments", []):
+                comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
+            video_posts.append(p)
+
+    return render_template(
+        "videos.html",
+        posts=video_posts,
+        username=session["username"],
+        avatar=session.get("avatar")
+    )
+
 
         
 
