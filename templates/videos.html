@@ -24,6 +24,7 @@
       overflow-y: auto;
       scroll-snap-type: y mandatory;
       scrollbar-width: none;
+      scroll-behavior: smooth;
     }
     .video-scroll::-webkit-scrollbar { display: none; }
     .video-post {
@@ -149,7 +150,7 @@
     /* ---------- ACTIONS ---------- */
     .video-actions {
       position: absolute;
-      bottom: 20px;
+      bottom: 120px;
       right: 20px;
       display: flex;
       flex-direction: column;
@@ -278,6 +279,7 @@
       .mute-btn { width: 28px; height: 28px; font-size: 0.9rem; }
       .like-btn, .comment-btn { font-size: 1.8rem; }
       .follow-btn { padding: 5px 12px; font-size: 0.8rem; }
+      .video-actions { bottom: 100px; }
     }
   </style>
 </head>
@@ -364,6 +366,41 @@
     const videos = new Set();
     let currentVideo = null;
     const socket = io();
+
+    // --- Scroll Control for Sequential Video Navigation ---
+    let isScrolling = false;
+    let lastScrollTop = 0;
+
+    function snapToNearestVideo() {
+      if (isScrolling) return;
+      isScrolling = true;
+      const scrollContainer = postsContainer;
+      const scrollTop = scrollContainer.scrollTop;
+      const windowHeight = window.innerHeight;
+      const currentIndex = Math.round(scrollTop / windowHeight);
+      const targetScrollTop = currentIndex * windowHeight;
+
+      scrollContainer.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+      });
+
+      setTimeout(() => {
+        isScrolling = false;
+      }, 500); // Adjust timeout to match smooth scroll duration
+    }
+
+    postsContainer.addEventListener('scroll', () => {
+      if (!isScrolling) {
+        const scrollTop = postsContainer.scrollTop;
+        const scrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
+        lastScrollTop = scrollTop;
+
+        // Debounce scroll to ensure smooth snapping
+        clearTimeout(postsContainer.scrollTimeout);
+        postsContainer.scrollTimeout = setTimeout(snapToNearestVideo, 150);
+      }
+    });
 
     async function toggleLike(button) {
       const post = button.closest('.video-post');
