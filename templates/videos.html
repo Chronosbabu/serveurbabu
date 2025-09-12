@@ -111,22 +111,26 @@
     .username-link:hover {
       color: #0095f6;
     }
-    .description {
+    .description-container {
       position: absolute;
-      bottom: 100px;
+      top: 70px;
       left: 20px;
       right: 80px;
+      z-index: 10;
+    }
+    .description {
       font-size: 0.9rem;
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: break-word;
       color: #fff;
-      z-index: 10;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 12px;
+      border-radius: 8px;
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      position: relative;
+      -webkit-line-clamp: 1;
     }
     .description.expanded {
       -webkit-line-clamp: unset;
@@ -137,7 +141,7 @@
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 600;
-      margin-top: 8px;
+      margin-top: 6px;
       transition: color 0.2s ease;
     }
     .toggle-description:hover {
@@ -275,7 +279,9 @@
     @media (max-width: 600px) {
       .avatar-post, .avatar-fallback { width: 36px; height: 36px; font-size: 0.9rem; }
       .username-link { font-size: 0.9rem; }
-      .description { font-size: 0.85rem; }
+      .description-container { top: 60px; }
+      .description { font-size: 0.85rem; padding: 6px 10px; }
+      .toggle-description { font-size: 0.8rem; margin-top: 4px; }
       .mute-btn { width: 28px; height: 28px; font-size: 0.9rem; }
       .like-btn, .comment-btn { font-size: 1.8rem; }
       .follow-btn { padding: 5px 12px; font-size: 0.8rem; }
@@ -301,8 +307,10 @@
           <p class="username">{{ post.username }}</p>
         </a>
       </div>
-      <p class="description">{{ post.description }}</p>
-      <span class="toggle-description">Afficher plus</span>
+      <div class="description-container">
+        <p class="description">{{ post.description }}</p>
+        <span class="toggle-description">Afficher plus</span>
+      </div>
       {# ---- Single video ---- #}
       {% if post.type == "video" and not post.files %}
       <div class="video-container">
