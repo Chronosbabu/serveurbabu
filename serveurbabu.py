@@ -19,6 +19,8 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = os.path.join(DATA_DIR, "posts.json")
 USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
+BANK_FILE = os.path.join(DATA_DIR, "bank_accounts.json")
+CONVERSIONS_FILE = os.path.join(DATA_DIR, "conversions.json")
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
@@ -70,7 +72,7 @@ def handle_join(data):
         join_room(str(user_id))
 
 # --- Initialisation fichiers ---
-for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {})]:
+for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (BANK_FILE, []), (CONVERSIONS_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -99,6 +101,14 @@ def load_messages():
 def save_messages(messages):
     with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=2)
+
+def load_bank():
+    with open(BANK_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_bank(bank):
+    with open(BANK_FILE, "w", encoding="utf-8") as f:
+        json.dump(bank, f, ensure_ascii=False, indent=2)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -670,8 +680,103 @@ def videos():
         avatar=session.get("avatar")
     )
 
+@app.route("/user_exists/<username>", methods=["GET"])
+def user_exists(username):
+    return jsonify({"exists": bool(get_user(username))})
 
-        
+@app.route("/account")
+def account():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    return render_template("account.html")
+
+@app.route("/bank/status", methods=["GET"])
+def bank_status():
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    un = session["username"]
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == un), None)
+    return jsonify({"exists": bool(acc)})
+
+@app.route("/bank/create", methods=["POST"])
+def bank_create():
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    data = request.json
+    pwd = data.get("password")
+    if not pwd:
+        return jsonify({"error": "Mot de passe requis"}), 400
+    un = session["username"]
+    bank = load_bank()
+    if next((a for a in bank if a["username"] == un), None):
+        return jsonify({"error": "Compte existe déjà"}), 400
+    bank.append({"username": un, "password": hash_password(pwd), "balance_franc": 0, "balance_dollar": 0})
+    save_bank(bank)
+    return jsonify({"success": True})
+
+@app.route("/bank/login", methods=["POST"])
+def bank_login():
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    data = request.json
+    pwd = data.get("password")
+    if not pwd:
+        return jsonify({"error": "Mot de passe requis"}), 400
+    un = session["username"]
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == un), None)
+    if not acc:
+        return jsonify({"error": "Compte non trouvé"}), 404
+    if acc["password"] != hash_password(pwd):
+        return jsonify({"error": "Mot de passe incorrect"}), 401
+    return jsonify({"success": True, "balances": {"franc": acc["balance_franc"], "dollar": acc["balance_dollar"]}})
+
+@app.route("/bank/convert", methods=["POST"])
+def bank_convert():
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    data = request.json
+    currency = data.get("currency")  # "franc" or "dollar"
+    amount = data.get("amount")
+    phone = data.get("phone")
+    if not all([currency, amount is not None, phone]) or amount <= 0:
+        return jsonify({"error": "Données invalides"}), 400
+    bank = load_bank()
+    un = session["username"]
+    acc = next((a for a in bank if a["username"] == un), None)
+    if not acc:
+        return jsonify({"error": "Compte non trouvé"}), 404
+    key = f"balance_{currency}"
+    if key not in acc or acc[key] < amount:
+        return jsonify({"error": f"Solde insuffisant en {currency}"}), 400
+    acc[key] -= amount
+    save_bank(bank)
+    convs = []
+    with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
+        convs = json.load(f)
+    convs.append({"username": un, "phone": phone, "amount": amount, "currency": currency})
+    with open(CONVERSIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(convs, f, ensure_ascii=False, indent=2)
+    currency_name = "francs" if currency == "franc" else "dollars"
+    return jsonify({"success": True, "message": f"Vous avez converti {amount} {currency_name} à {phone}. Attendez votre réponse dans 5 heures du temps."})
+
+@app.route("/deposit", methods=["POST"])
+def deposit():
+    data = request.json
+    un = data.get("username")
+    franc = data.get("franc", 0)
+    dollar = data.get("dollar", 0)
+    if not un or (franc == 0 and dollar == 0):
+        return jsonify({"error": "Données invalides"}), 400
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == un), None)
+    if not acc:
+        return jsonify({"error": "Compte non trouvé"}), 404
+    acc["balance_franc"] += franc
+    acc["balance_dollar"] += dollar
+    save_bank(bank)
+    return jsonify({"success": True, "message": f"Vous avez déposé {franc} francs et {dollar} dollars pour {un}"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
