@@ -877,7 +877,7 @@
       const textarea = form.querySelector('textarea');
       const submitButton = form.querySelector('button');
       const postId = form.dataset.postId;
-      const commentsBox = post.querySelector('#commentsBox-' + postId);  // Fixed selector without template syntax
+      const commentsBox = post.querySelector('#commentsBox-' + postId);
 
       form.addEventListener('submit', e => {
         e.preventDefault();
