@@ -602,7 +602,7 @@
               <p class="no-comments">Aucun commentaire pour l’instant.</p>
             {% else %}
               {% for comment in post.comments %}
-              <div class="comment" data-comment-id="{{ comment.id }}">
+              <div class="comment">
                 {% if comment.avatar %}
                 <a href="{{ url_for('profile', username=comment.username) }}">
                   <img src="{{ url_for('avatar_file', filename=comment.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-comment" />
@@ -877,7 +877,7 @@
       const textarea = form.querySelector('textarea');
       const submitButton = form.querySelector('button');
       const postId = form.dataset.postId;
-      const commentsBox = post.querySelector(`#commentsBox-${postId}`);
+      const commentsBox = post.querySelector('#commentsBox-' + postId);  // Fixed selector without template syntax
 
       form.addEventListener('submit', e => {
         e.preventDefault();
@@ -999,7 +999,7 @@
     socket.on('new_comment', data => {
       const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
       if (!post) return;
-      const commentsBox = post.querySelector(`#commentsBox-${data.post_id}`);
+      const commentsBox = post.querySelector('#commentsBox-' + data.post_id);
       if (!commentsBox) return;
 
       // Check if comment already exists to prevent duplicates
@@ -1025,6 +1025,8 @@
         if (commentsBox.parentElement.classList.contains('open')) {
           commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comments when section is open
         }
+        const countEl = post.querySelector('.comment-count');
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
       }
     });
 
