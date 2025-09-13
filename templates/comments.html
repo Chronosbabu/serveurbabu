@@ -69,7 +69,7 @@
     .scroll-box {
       flex: 1;
       overflow-y: auto;
-      padding: 16px 16px 80px 16px; /* Increased bottom padding to prevent form overlap */
+      padding: 16px 16px 100px 16px; /* Further increased bottom padding */
       scrollbar-width: none;
     }
     .scroll-box::-webkit-scrollbar { display: none; }
@@ -82,6 +82,8 @@
       display: flex;
       align-items: flex-start;
       padding: 8px 0;
+      opacity: 1; /* Ensure visibility */
+      z-index: 1; /* Ensure above any background */
     }
     .avatar-comment, .avatar-fallback {
       width: 36px;
@@ -193,7 +195,7 @@
       header { padding: 10px 12px; }
       header h2 { font-size: 1.1rem; }
       header a { font-size: 0.85rem; }
-      .scroll-box { padding: 12px 12px 80px 12px; }
+      .scroll-box { padding: 12px 12px 100px 12px; }
       .avatar-comment, .avatar-fallback { width: 32px; height: 32px; font-size: 0.9rem; }
       .comment-content p:first-child { font-size: 0.85rem; }
       .comment-content p:nth-child(2) { font-size: 0.8rem; }
