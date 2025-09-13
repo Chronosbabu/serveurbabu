@@ -107,6 +107,7 @@
     }
     .comment-content {
       flex: 1;
+      max-width: calc(100% - 46px); /* Ensure comment content doesn't overflow */
     }
     .comment-content p:first-child {
       font-weight: 600;
@@ -121,8 +122,9 @@
       color: #262626;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      white-space: normal;
-      max-width: 100%;
+      white-space: normal; /* Ensure natural line breaks */
+      max-width: 100%; /* Prevent overflow */
+      line-height: 1.4; /* Improve readability */
     }
     .comment-content small {
       font-size: 0.75rem;
@@ -164,6 +166,9 @@
       background: #fafafa;
       color: #262626;
       font-family: inherit;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap; /* Allow line breaks in textarea */
     }
     .comment-form textarea:focus {
       outline: none;
@@ -197,6 +202,7 @@
       header a { font-size: 0.85rem; }
       .scroll-box { padding: 12px 12px 100px 12px; }
       .avatar-comment, .avatar-fallback { width: 32px; height: 32px; font-size: 0.9rem; }
+      .comment-content { max-width: calc(100% - 42px); }
       .comment-content p:first-child { font-size: 0.85rem; }
       .comment-content p:nth-child(2) { font-size: 0.8rem; }
       .comment-content small { font-size: 0.7rem; }
@@ -293,24 +299,26 @@
       const noComments = commentsBox.querySelector('.no-comments');
       if (noComments) noComments.remove();
 
-      // Create new comment element
-      const commentDiv = document.createElement('div');
-      commentDiv.className = 'comment';
-      const avatarHtml = data.avatar
-        ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
-        : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
-      commentDiv.innerHTML = `
-        ${avatarHtml}
-        <div class="comment-content">
-          <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
-          <p>${data.content}</p>
-          <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
-        </div>
-      `;
-      commentsBox.appendChild(commentDiv);
-
-      // Scroll to the bottom of the comments
-      commentsBox.scrollTop = commentsBox.scrollHeight;
+      // Check if comment already exists to prevent duplicates
+      const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
+      if (!existingComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment';
+        commentDiv.dataset.commentId = data.comment_id;
+        const avatarHtml = data.avatar
+          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+          : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
+        commentDiv.innerHTML = `
+          ${avatarHtml}
+          <div class="comment-content">
+            <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
+            <p>${data.content}</p>
+            <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+          </div>
+        `;
+        commentsBox.appendChild(commentDiv);
+        commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comments
+      }
     });
 
     // --- Close Modal ---

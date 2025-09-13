@@ -163,6 +163,8 @@
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      white-space: normal; /* Ensure natural line breaks */
+      max-width: 100%; /* Prevent overflow */
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
@@ -399,6 +401,7 @@
     }
     .comment-content {
       flex: 1;
+      max-width: calc(100% - 46px); /* Ensure comment content doesn't overflow */
     }
     .comment-content p:first-child {
       font-weight: 600;
@@ -413,8 +416,9 @@
       color: #262626;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      white-space: normal;
-      max-width: 100%;
+      white-space: normal; /* Ensure natural line breaks */
+      max-width: 100%; /* Prevent overflow */
+      line-height: 1.4; /* Improve readability */
     }
     .comment-content small {
       font-size: 0.75rem;
@@ -455,6 +459,9 @@
       background: #fafafa;
       color: #262626;
       font-family: inherit;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap; /* Allow line breaks in textarea */
     }
     .comment-form textarea:focus {
       outline: none;
