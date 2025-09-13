@@ -881,8 +881,9 @@
 
       form.addEventListener('submit', e => {
         e.preventDefault();
-        const content = textarea.value.trim();
+        let content = textarea.value.trim();
         if (!content) return;
+        textarea.value = '';
         submitButton.disabled = true; // Disable button to prevent multiple submissions
         fetch(`/comments/${postId}`, {
           method: 'POST',
@@ -913,14 +914,18 @@
               if (noComments) noComments.remove();
               commentsBox.appendChild(commentDiv);
               commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comment
-              textarea.value = '';
               textarea.focus();
               const countEl = post.querySelector('.comment-count');
               countEl.textContent = parseInt(countEl.textContent || "0") + 1;
               socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: data.avatar });
             });
+          } else {
+            textarea.value = content;
           }
-        }).catch(err => console.error(err)).finally(() => {
+        }).catch(err => {
+          console.error(err);
+          textarea.value = content;
+        }).finally(() => {
           submitButton.disabled = false; // Re-enable button
         });
       });
