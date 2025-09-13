@@ -16,6 +16,9 @@
       line-height: 1.5;
       overflow-x: hidden;
     }
+    body.modal-open {
+      overflow: hidden;
+    }
     a { text-decoration: none; color: inherit; }
     .main-container { max-width: 935px; margin: 0 auto; padding: 20px 20px 80px 20px; }
 
@@ -108,11 +111,11 @@
     /* ---------- POSTS ---------- */
     .scroll-box {
       padding: 20px 0;
-      transition: transform 0.3s ease, filter 0.3s ease;
+      transition: transform 0.3s ease, opacity 0.3s ease;
     }
     .scroll-box.modal-open {
       transform: translateX(-30%);
-      filter: blur(2px);
+      opacity: 0.7;
     }
     .post {
       background: #fff;
@@ -472,6 +475,7 @@
           </button>
         </div>
         {% endif %}
+
         {# ---- Multiple files (carousel) ---- #}
         {% if post.files|length > 0 %}
         <div class="carousel">
@@ -496,6 +500,7 @@
           </div>
         </div>
         {% endif %}
+
         <div class="post-actions">
           <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
@@ -891,6 +896,7 @@
         modal.classList.add('open');
         backdrop.classList.add('open');
         scrollBox.classList.add('modal-open');
+        document.body.classList.add('modal-open');
         if (currentVideo) currentVideo.pause();
       });
     });
@@ -899,6 +905,7 @@
       modal.classList.remove('open');
       backdrop.classList.remove('open');
       scrollBox.classList.remove('modal-open');
+      document.body.classList.remove('modal-open');
       iframe.src = '';
     });
   });
