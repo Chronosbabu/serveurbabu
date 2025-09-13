@@ -108,6 +108,11 @@
     /* ---------- POSTS ---------- */
     .scroll-box {
       padding: 20px 0;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+    .scroll-box.modal-open {
+      transform: translateX(-30%);
+      filter: blur(2px);
     }
     .post {
       background: #fff;
@@ -367,6 +372,38 @@
       font-weight: 600;
     }
 
+    /* ---------- MODAL FOR COMMENTS ---------- */
+    .comments-modal {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 60%;
+      height: 100%;
+      background: #fff;
+      border-left: 1px solid #dbdbdb;
+      transform: translateX(100%);
+      transition: transform 0.3s ease-in-out;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+    }
+    .comments-modal.open {
+      transform: translateX(0);
+    }
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      z-index: 1999;
+      display: none;
+    }
+    .modal-backdrop.open {
+      display: block;
+    }
+
     /* ---------- RESPONSIVE ---------- */
     @media (max-width: 600px) {
       .main-container { padding: 16px 16px 70px 16px; }
@@ -385,6 +422,8 @@
       .post-actions { padding: 6px 12px; }
       .follow-btn { padding: 5px 12px; font-size: 0.8rem; }
       .date { padding: 6px 12px; }
+      .scroll-box.modal-open { transform: translateY(-30%); }
+      .comments-modal { width: 100%; height: 60%; top: auto; bottom: 0; border-left: none; border-top: 1px solid #dbdbdb; }
     }
   </style>
 </head>
@@ -433,7 +472,6 @@
           </button>
         </div>
         {% endif %}
-
         {# ---- Multiple files (carousel) ---- #}
         {% if post.files|length > 0 %}
         <div class="carousel">
@@ -458,16 +496,15 @@
           </div>
         </div>
         {% endif %}
-
         <div class="post-actions">
           <button class="like-btn{% if post.liked_by_user %} liked{% endif %}">
             <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
           </button>
           <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
-          <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+          <button class="comment-btn" data-comments-url="{{ url_for('comments', post_id=post.id) }}">
             <i class="fa-regular fa-comment"></i>
             <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-          </a>
+          </button>
           <button
             class="follow-btn{% if post.following %} following{% endif %}"
             data-following="{{ 'true' if post.following else 'false' }}"
@@ -493,6 +530,10 @@
       <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
     </nav>
   </div>
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="comments-modal" id="commentsModal">
+    <iframe class="comments-iframe" id="commentsIframe"></iframe>
+  </div>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const currentUsername = document.body.dataset.username;
@@ -500,6 +541,10 @@
     const videos = new Set();
     let currentVideo = null;
     const socket = io();
+    const modal = document.getElementById('commentsModal');
+    const backdrop = document.getElementById('modalBackdrop');
+    const iframe = document.getElementById('commentsIframe');
+    const scrollBox = document.getElementById('posts');
 
     // --- Badge Management ---
     const msgBadge = document.getElementById("unread-count");
@@ -542,7 +587,7 @@
     });
 
     // Reset notification badge on click
-    notifLink.addEventListener("click", () => {
+    notifLink.addEventListener('click', () => {
       localStorage.setItem("unreadNotifs", 0);
       notifBadge.style.display = "none";
       notifBadge.textContent = "0";
@@ -595,20 +640,6 @@
       const isLiked = btn.classList.contains('liked');
       icon.classList.toggle('fa-solid', isLiked);
       icon.classList.toggle('fa-regular', !isLiked);
-    }
-
-    function bindCommentForm(post) {
-      const form = post.querySelector('.comment-form');
-      if (!form) return;
-      form.addEventListener('submit', e => {
-        e.preventDefault();
-        const input = form.querySelector('input[name="comment"]');
-        const content = input.value.trim();
-        if (!content) return;
-        const postId = post.dataset.postId;
-        socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
-        input.value = '';
-      });
     }
 
     function bindFollowButtons(post) {
@@ -748,7 +779,6 @@
     /* ---------- Init posts existants ---------- */
     document.querySelectorAll('.post').forEach(post => {
       bindLikes(post);
-      bindCommentForm(post);
       bindFollowButtons(post);
       post.querySelectorAll('video').forEach(video => {
         observeVideo(video);
@@ -851,6 +881,26 @@
     }
 
     document.querySelectorAll('.post').forEach(post => initCarousel(post));
+
+    /* ---------- Comments Modal Handler ---------- */
+    document.querySelectorAll('.comment-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        const url = btn.dataset.commentsUrl;
+        iframe.src = url;
+        modal.classList.add('open');
+        backdrop.classList.add('open');
+        scrollBox.classList.add('modal-open');
+        if (currentVideo) currentVideo.pause();
+      });
+    });
+
+    backdrop.addEventListener('click', () => {
+      modal.classList.remove('open');
+      backdrop.classList.remove('open');
+      scrollBox.classList.remove('modal-open');
+      iframe.src = '';
+    });
   });
 </script>
 </body>
