@@ -314,16 +314,20 @@ def comments(post_id):
     if request.method == "POST":
         content = (request.form.get("comment") or "").strip()
         if content:
+            next_id = len(post.setdefault("comments", [])) + 1
             comment_data = {
+                "id": next_id,
                 "username": session["username"],
                 "content": content,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
-            post.setdefault("comments", []).append(comment_data)
+            post["comments"].append(comment_data)
             save_posts(posts)
-            socketio.emit('new_comment', {"post_id": post_id, **comment_data})
-
-        return redirect(url_for("comments", post_id=post_id))
+            post_owner = post["username"]
+            if post_owner != session["username"]:
+                notify_comment(post_owner, session["username"], post_id)
+            socketio.emit('new_comment', {"post_id": post_id, "comment_id": next_id, "username": comment_data["username"], "content": comment_data["content"], "date": comment_data["date"]})
+            return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
 
     post['avatar'] = users.get(post["username"], {}).get("avatar")  # Dynamic post avatar
     for comment in post.get("comments", []):
