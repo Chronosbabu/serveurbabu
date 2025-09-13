@@ -326,7 +326,6 @@ def comments(post_id):
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
-            socketio.emit('new_comment', {"post_id": post_id, "comment_id": next_id, "username": comment_data["username"], "content": comment_data["content"], "date": comment_data["date"]})
             return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
 
     post['avatar'] = users.get(post["username"], {}).get("avatar")  # Dynamic post avatar
@@ -608,19 +607,13 @@ def handle_send_comment(data):
     post = next((p for p in posts if p["id"] == post_id), None)
     if not post:
         return
-    comment_data = {
-        "username": session["username"],
-        "content": content,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    post.setdefault("comments", []).append(comment_data)
-    save_posts(posts)
-
     post_owner = post.get("username")
-    if post_owner != session["username"]:
-        notify_comment(target_user_id=post_owner, commenter_username=session["username"], post_id=post_id)
-
-    emit('new_comment', {"post_id": post_id, **comment_data})
+    if post_owner != data['username']:
+        notify_comment(target_user_id=post_owner, commenter_username=data['username'], post_id=post_id)
+    avatar = data.get('avatar') or get_user(data['username'])['avatar'] if get_user(data['username']) else None
+    date = data.get('date') or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    comment_id = data.get('comment_id') or None
+    emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date})
 
 # --- Notifications route ---
 @app.route("/notifications")
