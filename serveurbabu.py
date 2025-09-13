@@ -778,6 +778,13 @@ def deposit():
     save_bank(bank)
     return jsonify({"success": True, "message": f"Vous avez déposé {franc} francs et {dollar} dollars pour {un}"})
 
+@app.route("/conversions", methods=["GET"])
+def get_conversions():
+    convs = []
+    with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
+        convs = json.load(f)
+    return jsonify(convs)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
