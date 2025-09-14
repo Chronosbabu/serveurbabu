@@ -1,8 +1,10 @@
+# Fichier 1: Serveur central (app.py) modifié avec les nouvelles fonctionnalités
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
 from datetime import datetime
 from werkzeug.utils import secure_filename
+import requests  # Ajouté pour potentiellement, mais pas utilisé ici
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -21,6 +23,8 @@ USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 BANK_FILE = os.path.join(DATA_DIR, "bank_accounts.json")
 CONVERSIONS_FILE = os.path.join(DATA_DIR, "conversions.json")
+MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")  # Nouveau: pour les matches
+BETS_FILE = os.path.join(DATA_DIR, "bets.json")  # Nouveau: pour les paris
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
@@ -72,7 +76,7 @@ def handle_join(data):
         join_room(str(user_id))
 
 # --- Initialisation fichiers ---
-for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (BANK_FILE, []), (CONVERSIONS_FILE, [])]:
+for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (BANK_FILE, []), (CONVERSIONS_FILE, []), (MATCHES_FILE, []), (BETS_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -109,6 +113,22 @@ def load_bank():
 def save_bank(bank):
     with open(BANK_FILE, "w", encoding="utf-8") as f:
         json.dump(bank, f, ensure_ascii=False, indent=2)
+
+def load_matches():
+    with open(MATCHES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_matches(matches):
+    with open(MATCHES_FILE, "w", encoding="utf-8") as f:
+        json.dump(matches, f, ensure_ascii=False, indent=2)
+
+def load_bets():
+    with open(BETS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_bets(bets):
+    with open(BETS_FILE, "w", encoding="utf-8") as f:
+        json.dump(bets, f, ensure_ascii=False, indent=2)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -781,6 +801,119 @@ def get_conversions():
     with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
         convs = json.load(f)
     return jsonify(convs)
+
+# --- Nouvelles routes pour paris sportifs ---
+@app.route("/pari")
+def pari():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    matches = [m for m in load_matches() if not m.get("result")]  # Matches ouverts (sans résultat)
+    return render_template("pari.html", matches=matches, username=session["username"])
+
+@app.route("/publish_match", methods=["POST"])
+def publish_match():
+    data = request.json
+    team1 = data.get("team1")
+    team2 = data.get("team2")
+    if not team1 or not team2:
+        return jsonify({"error": "Équipes requises"}), 400
+    matches = load_matches()
+    match_id = len(matches) + 1
+    new_match = {"id": match_id, "team1": team1, "team2": team2, "result": None}
+    matches.append(new_match)
+    save_matches(matches)
+    socketio.emit("new_match", new_match)  # Notifier tous les users en temps réel
+    return jsonify({"success": True, "match": new_match})
+
+@app.route("/publish_result", methods=["POST"])
+def publish_result():
+    data = request.json
+    match_id = data.get("match_id")
+    result = data.get("result")  # "team1", "team2" ou "0" pour nul
+    matches = load_matches()
+    match = next((m for m in matches if m["id"] == match_id), None)
+    if not match:
+        return jsonify({"error": "Match non trouvé"}), 404
+    if match.get("result"):
+        return jsonify({"error": "Résultat déjà publié"}), 400
+    match["result"] = result
+    save_matches(matches)
+
+    # Distribuer les gains
+    bets = load_bets()
+    bank = load_bank()
+    for bet in bets:
+        if bet["match_id"] == match_id:
+            if (bet["choice"] == "1" and result == match["team1"]) or \
+               (bet["choice"] == "2" and result == match["team2"]) or \
+               (bet["choice"] == "0" and result == "0"):
+                # Gagné: doubler le montant
+                acc = next((a for a in bank if a["username"] == bet["username"]), None)
+                if acc:
+                    key = "balance_franc" if bet["currency"] == "franc" else "balance_dollar"
+                    acc[key] += bet["amount"] * 2  # Pari initial + gain (double)
+    save_bets(bets)
+    save_bank(bank)
+    socketio.emit("match_result", {"match_id": match_id, "result": result})  # Notifier
+    return jsonify({"success": True})
+
+@app.route("/place_bet", methods=["POST"])
+def place_bet():
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    data = request.json
+    match_id = data.get("match_id")
+    choice = data.get("choice")  # "1", "2", "0"
+    currency = data.get("currency")  # "franc" or "dollar"
+    amount = data.get("amount")
+    pwd = data.get("password")
+    if not all([match_id, choice, currency, amount, pwd]):
+        return jsonify({"error": "Données manquantes"}), 400
+
+    matches = load_matches()
+    match = next((m for m in matches if m["id"] == match_id and not m.get("result")), None)
+    if not match:
+        return jsonify({"error": "Match non disponible"}), 404
+
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == session["username"]), None)
+    if not acc or acc["password"] != hash_password(pwd):
+        return jsonify({"error": "Mot de passe incorrect ou compte non trouvé"}), 401
+
+    key = "balance_franc" if currency == "franc" else "balance_dollar"
+    if acc[key] < amount:
+        return jsonify({"error": "Solde insuffisant"}), 400
+
+    acc[key] -= amount
+    save_bank(bank)
+
+    bets = load_bets()
+    bets.append({
+        "username": session["username"],
+        "match_id": match_id,
+        "choice": choice,
+        "amount": amount,
+        "currency": currency
+    })
+    save_bets(bets)
+
+    return jsonify({"success": True, "message": "Pari placé avec succès"})
+
+@app.route("/get_matches", methods=["GET"])
+def get_matches():
+    matches = [m for m in load_matches() if not m.get("result")]
+    return jsonify(matches)
+
+@app.route("/get_balances", methods=["GET"])
+def get_balances():
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    un = session["username"]
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == un), None)
+    if not acc:
+        return jsonify({"error": "Compte non trouvé"}), 404
+    return jsonify({"balances": {"franc": acc["balance_franc"], "dollar": acc["balance_dollar"]}})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))

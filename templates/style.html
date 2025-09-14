@@ -1,3 +1,4 @@
+<!-- Fichier 2: style.html modifié avec le bouton pour parier (icône de pari dans la barre du bas, à droite du bouton logout) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -646,6 +647,7 @@
       <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
       <a href="{{ url_for('videos') }}" title="Vidéos"><i class="fa-solid fa-video"></i></a>
       <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+      <a href="{{ url_for('pari') }}" title="Parier"><i class="fa-solid fa-trophy"></i></a> <!-- Nouveau bouton pour parier (icône trophée pour sport/pari) -->
     </nav>
   </div>
 <script>
