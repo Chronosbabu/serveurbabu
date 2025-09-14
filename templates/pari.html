@@ -1,4 +1,3 @@
-<!-- Fichier 3: pari.html (nouveau fichier pour l'interface des paris) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -8,7 +7,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
-    /* Styles similaires à style.html pour cohérence */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -62,7 +60,6 @@
     const socket = io();
     const matchesContainer = document.getElementById('matches');
 
-    // Charger matches initiaux et écouter les nouveaux
     async function loadMatches() {
       const res = await fetch('/get_matches');
       const matches = await res.json();
@@ -94,7 +91,7 @@
 
     socket.on('match_result', data => {
       const matchEl = document.querySelector(`.match[data-match-id="${data.match_id}"]`);
-      if (matchEl) matchEl.remove();  // Retirer le match fermé
+      if (matchEl) matchEl.remove();
       alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result}. Vérifiez votre solde !`);
     });
 
@@ -105,7 +102,6 @@
         let pwd = prompt("Entrez le mot de passe de votre compte bancaire:");
         if (!pwd) return;
 
-        // Vérifier pwd et obtenir soldes (amélioration: vérifier pwd d'abord)
         let loginRes = await fetch('/bank/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -115,7 +111,7 @@
 
         let choice = prompt("1. Première équipe gagne\n2. Nul\n3. Seconde équipe gagne");
         if (!['1', '2', '3'].includes(choice)) return alert('Choix invalide');
-        choice = choice === '3' ? '2' : choice;  // Adapter: 1=team1, 2=team2, 0=nul
+        choice = choice === '3' ? '2' : choice === '2' ? '0' : choice;
 
         let currencyChoice = prompt("1. Franc\n2. Dollar");
         let currency = currencyChoice === '1' ? 'franc' : 'dollar';
@@ -135,7 +131,6 @@
 
         if (res.success) {
           alert(res.message);
-          // Mettre à jour soldes localement si besoin, mais recharger ou notifier
         } else {
           alert(res.error);
         }
@@ -143,7 +138,7 @@
     }
 
     document.querySelectorAll('.match').forEach(bindBetButton);
-    loadMatches();  // Charger au démarrage
+    loadMatches();
   </script>
 </body>
 </html>

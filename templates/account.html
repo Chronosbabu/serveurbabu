@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compte Bancaire</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -49,6 +50,8 @@
         <button id="convert">Convertir</button>
     </div>
     <script>
+        const socket = io();
+
         async function init() {
             let res = await fetch("/bank/status").then(r => r.json());
             if (res.error) {
@@ -113,6 +116,11 @@
                 }
             }
         }
+
+        socket.on('balance_updated', data => {
+            document.getElementById("balances").innerHTML = `Franc: ${data.balance_franc} <br> Dollar: ${data.balance_dollar}`;
+        });
+
         document.addEventListener("DOMContentLoaded", init);
     </script>
 </body>

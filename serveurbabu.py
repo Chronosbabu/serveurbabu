@@ -1,10 +1,9 @@
-# Fichier 1: Serveur central (app.py) modifié avec les nouvelles fonctionnalités
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
 from datetime import datetime
 from werkzeug.utils import secure_filename
-import requests  # Ajouté pour potentiellement, mais pas utilisé ici
+import requests
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -23,20 +22,18 @@ USER_FILE = os.path.join(DATA_DIR, "users.json")
 MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
 BANK_FILE = os.path.join(DATA_DIR, "bank_accounts.json")
 CONVERSIONS_FILE = os.path.join(DATA_DIR, "conversions.json")
-MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")  # Nouveau: pour les matches
-BETS_FILE = os.path.join(DATA_DIR, "bets.json")  # Nouveau: pour les paris
+MATCHES_FILE = os.path.join(DATA_DIR, "matches.json")
+BETS_FILE = os.path.join(DATA_DIR, "bets.json")
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
-connected_users = set()  # Track online users
-user_notifications = {}  # clé = user_id, valeur = liste de notifications
+connected_users = set()
+user_notifications = {}
 
-# --- Custom Jinja2 filter for timestamp ---
 @app.template_filter('timestamp')
 def timestamp_filter(s):
     return int(datetime.now().timestamp())
 
-# --- Gestion follow/unfollow persistant ---
 def toggle_follow(current_user, target_user):
     users = load_users()
     cu = next((u for u in users if u["username"] == current_user), None)
@@ -75,13 +72,11 @@ def handle_join(data):
     if user_id:
         join_room(str(user_id))
 
-# --- Initialisation fichiers ---
 for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (BANK_FILE, []), (CONVERSIONS_FILE, []), (MATCHES_FILE, []), (BETS_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
 
-# --- Utilitaires ---
 def load_posts():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -154,7 +149,6 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
-# --- Routes utilisateurs/posts ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -196,7 +190,7 @@ def login():
         if user:
             session["username"] = user["username"]
             session["avatar"] = user.get("avatar")
-            session["user_id"] = user.get("username")  # user_id pour notifications
+            session["user_id"] = user.get("username")
             return redirect(url_for("index"))
         return "Nom ou mot de passe incorrect !", 401
     return render_template("login.html")
@@ -214,14 +208,14 @@ def index():
         return redirect(url_for("login"))
 
     posts = load_posts()
-    users = {u["username"]: u for u in load_users()}  # Cache users for efficiency
+    users = {u["username"]: u for u in load_users()}
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
-        p['avatar'] = users.get(p["username"], {}).get("avatar")  # Dynamic avatar
+        p['avatar'] = users.get(p["username"], {}).get("avatar")
         for comment in p.get("comments", []):
-            comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
+            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/follow/<username>", methods=["POST"])
@@ -330,7 +324,7 @@ def comments(post_id):
     if not post:
         abort(404)
 
-    users = {u["username"]: u for u in load_users()}  # Cache users
+    users = {u["username"]: u for u in load_users()}
     if request.method == "POST":
         content = (request.form.get("comment") or "").strip()
         if content:
@@ -348,9 +342,9 @@ def comments(post_id):
                 notify_comment(post_owner, session["username"], post_id)
             return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
 
-    post['avatar'] = users.get(post["username"], {}).get("avatar")  # Dynamic post avatar
+    post['avatar'] = users.get(post["username"], {}).get("avatar")
     for comment in post.get("comments", []):
-        comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
+        comment['avatar'] = users.get(comment["username"], {}).get("avatar")
     return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/profile/<username>")
@@ -360,7 +354,7 @@ def profile(username):
         abort(404)
 
     posts = load_posts()
-    users = {u["username"]: u for u in load_users()}  # Cache users
+    users = {u["username"]: u for u in load_users()}
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
     current_user = get_user(current_username) if current_username else None
@@ -368,9 +362,9 @@ def profile(username):
         p['liked_by_user'] = current_username in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = username in current_user.get("following", []) if current_user else False
-        p['avatar'] = users.get(p["username"], {}).get("avatar")  # Dynamic post avatar
+        p['avatar'] = users.get(p["username"], {}).get("avatar")
         for comment in p.get("comments", []):
-            comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
+            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
 
     all_users = load_users()
     followers = [u["username"] for u in all_users if username in u.get("following", [])]
@@ -392,7 +386,7 @@ def search_users():
     query = (request.args.get("q") or "").strip().lower()
     users = load_users()
     posts = load_posts()
-    users_dict = {u["username"]: u for u in users}  # Cache users
+    users_dict = {u["username"]: u for u in users}
 
     users_results, posts_results = [], []
 
@@ -400,9 +394,9 @@ def search_users():
         users_results = [u for u in users if query in u["username"].lower()]
         posts_results = [p for p in posts if query in p["description"].lower()]
         for p in posts_results:
-            p['avatar'] = users_dict.get(p["username"], {}).get("avatar")  # Dynamic post avatar
+            p['avatar'] = users_dict.get(p["username"], {}).get("avatar")
             for comment in p.get("comments", []):
-                comment['avatar'] = users_dict.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
+                comment['avatar'] = users_dict.get(comment["username"], {}).get("avatar")
 
     return render_template(
         "search.html",
@@ -506,7 +500,6 @@ def delete_post(post_id):
 
     return jsonify({"success": True})
 
-# --- Routes Messages ---
 @app.route("/conversations")
 def conversations():
     if "username" not in session:
@@ -514,7 +507,7 @@ def conversations():
 
     messages = load_messages()
     username = session.get("username")
-    users = {u["username"]: u for u in load_users()}  # Cache users
+    users = {u["username"]: u for u in load_users()}
     user_conversations = []
 
     for key, conv in messages.items():
@@ -546,7 +539,7 @@ def chat(username):
         return redirect(url_for("login"))
 
     messages = load_messages()
-    users = {u["username"]: u for u in load_users()}  # Cache users
+    users = {u["username"]: u for u in load_users()}
     key1 = f"{session['username']}_{username}"
     key2 = f"{username}_{session['username']}"
     conv = messages.get(key1) or messages.get(key2) or []
@@ -573,7 +566,6 @@ def send_message_http():
 
     return jsonify({"success": True})
 
-# --- SocketIO events ---
 @socketio.on("connect")
 def handle_connect():
     user = session.get("username")
@@ -635,7 +627,6 @@ def handle_send_comment(data):
     comment_id = data.get('comment_id') or None
     emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date})
 
-# --- Notifications route ---
 @app.route("/notifications")
 def notifications():
     if not session.get("user_id"):
@@ -661,22 +652,21 @@ def handle_join_room(data):
         username = data
     if username:
         join_room(username)
-        
+
 @app.route("/videos")
 def videos():
     if "username" not in session:
         return redirect(url_for("login"))
 
     posts = load_posts()
-    users = {u["username"]: u for u in load_users()}  # Cache users for efficiency
+    users = {u["username"]: u for u in load_users()}
 
-    # Filtrer les posts pour ne garder que ceux avec des vidéos
     video_posts = []
     for p in posts:
         has_video = False
-        if p.get("type") == "video" and not p.get("files"):  # Post avec une seule vidéo
+        if p.get("type") == "video" and not p.get("files"):
             has_video = True
-        elif p.get("files"):  # Post avec plusieurs fichiers
+        elif p.get("files"):
             for file in p["files"]:
                 if file["type"] == "video":
                     has_video = True
@@ -685,9 +675,9 @@ def videos():
             p['liked_by_user'] = session["username"] in p.get("liked_by", [])
             p['comments_count'] = len(p.get("comments", []))
             p['following'] = is_following(session["username"], p["username"])
-            p['avatar'] = users.get(p["username"], {}).get("avatar")  # Dynamic avatar
+            p['avatar'] = users.get(p["username"], {}).get("avatar")
             for comment in p.get("comments", []):
-                comment['avatar'] = users.get(comment["username"], {}).get("avatar")  # Dynamic comment avatar
+                comment['avatar'] = users.get(comment["username"], {}).get("avatar")
             video_posts.append(p)
 
     return render_template(
@@ -754,7 +744,7 @@ def bank_convert():
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
     data = request.json
-    currency = data.get("currency")  # "franc" or "dollar"
+    currency = data.get("currency")
     amount = data.get("amount")
     phone = data.get("phone")
     if not all([currency, amount is not None, phone]) or amount <= 0:
@@ -802,12 +792,11 @@ def get_conversions():
         convs = json.load(f)
     return jsonify(convs)
 
-# --- Nouvelles routes pour paris sportifs ---
 @app.route("/pari")
 def pari():
     if "username" not in session:
         return redirect(url_for("login"))
-    matches = [m for m in load_matches() if not m.get("result")]  # Matches ouverts (sans résultat)
+    matches = [m for m in load_matches() if not m.get("result")]
     return render_template("pari.html", matches=matches, username=session["username"])
 
 @app.route("/publish_match", methods=["POST"])
@@ -822,7 +811,7 @@ def publish_match():
     new_match = {"id": match_id, "team1": team1, "team2": team2, "result": None}
     matches.append(new_match)
     save_matches(matches)
-    socketio.emit("new_match", new_match)  # Notifier tous les users en temps réel
+    socketio.emit("new_match", new_match)
     return jsonify({"success": True, "match": new_match})
 
 @app.route("/publish_result", methods=["POST"])
@@ -839,7 +828,7 @@ def publish_result():
     match["result"] = result
     save_matches(matches)
 
-    # Distribuer les gains
+    # Distribuer les gains avec bonus de 50% pour nul
     bets = load_bets()
     bank = load_bank()
     for bet in bets:
@@ -847,14 +836,19 @@ def publish_result():
             if (bet["choice"] == "1" and result == match["team1"]) or \
                (bet["choice"] == "2" and result == match["team2"]) or \
                (bet["choice"] == "0" and result == "0"):
-                # Gagné: doubler le montant
                 acc = next((a for a in bank if a["username"] == bet["username"]), None)
                 if acc:
                     key = "balance_franc" if bet["currency"] == "franc" else "balance_dollar"
-                    acc[key] += bet["amount"] * 2  # Pari initial + gain (double)
+                    multiplier = 2.5 if bet["choice"] == "0" else 2  # 50% bonus pour nul
+                    acc[key] += bet["amount"] * multiplier
+                    socketio.emit("balance_updated", {
+                        "username": bet["username"],
+                        "balance_franc": acc["balance_franc"],
+                        "balance_dollar": acc["balance_dollar"]
+                    }, room=bet["username"])
     save_bets(bets)
     save_bank(bank)
-    socketio.emit("match_result", {"match_id": match_id, "result": result})  # Notifier
+    socketio.emit("match_result", {"match_id": match_id, "result": result})
     return jsonify({"success": True})
 
 @app.route("/place_bet", methods=["POST"])
@@ -863,8 +857,8 @@ def place_bet():
         return jsonify({"error": "Non connecté"}), 401
     data = request.json
     match_id = data.get("match_id")
-    choice = data.get("choice")  # "1", "2", "0"
-    currency = data.get("currency")  # "franc" or "dollar"
+    choice = data.get("choice")
+    currency = data.get("currency")
     amount = data.get("amount")
     pwd = data.get("password")
     if not all([match_id, choice, currency, amount, pwd]):
@@ -874,6 +868,11 @@ def place_bet():
     match = next((m for m in matches if m["id"] == match_id and not m.get("result")), None)
     if not match:
         return jsonify({"error": "Match non disponible"}), 404
+
+    # Vérifier si l'utilisateur a déjà parié sur ce match
+    bets = load_bets()
+    if any(b["username"] == session["username"] and b["match_id"] == match_id for b in bets):
+        return jsonify({"error": "Pari impossible car vous avez déjà parié pour ce match"}), 400
 
     bank = load_bank()
     acc = next((a for a in bank if a["username"] == session["username"]), None)
@@ -887,7 +886,6 @@ def place_bet():
     acc[key] -= amount
     save_bank(bank)
 
-    bets = load_bets()
     bets.append({
         "username": session["username"],
         "match_id": match_id,
