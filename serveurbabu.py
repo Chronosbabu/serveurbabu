@@ -828,7 +828,7 @@ def publish_result():
     match["result"] = result
     save_matches(matches)
 
-    # Distribuer les gains avec bonus de 50% pour nul
+    # Distribuer les gains
     bets = load_bets()
     bank = load_bank()
     for bet in bets:
@@ -839,8 +839,7 @@ def publish_result():
                 acc = next((a for a in bank if a["username"] == bet["username"]), None)
                 if acc:
                     key = "balance_franc" if bet["currency"] == "franc" else "balance_dollar"
-                    multiplier = 2.5 if bet["choice"] == "0" else 2  # 50% bonus pour nul
-                    acc[key] += bet["amount"] * multiplier
+                    acc[key] += bet["amount"] * 2  # Double le montant misé
                     socketio.emit("balance_updated", {
                         "username": bet["username"],
                         "balance_franc": acc["balance_franc"],
