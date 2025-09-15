@@ -1,4 +1,4 @@
-<!-- Fichier 2: style.html modifié avec le bouton pour parier (icône de pari dans la barre du bas, à droite du bouton logout) -->
+<!-- Fichier 2: style.html (page principale) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -647,7 +647,10 @@
       <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
       <a href="{{ url_for('videos') }}" title="Vidéos"><i class="fa-solid fa-video"></i></a>
       <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
-      <a href="{{ url_for('pari') }}" title="Parier"><i class="fa-solid fa-trophy"></i></a> <!-- Nouveau bouton pour parier (icône trophée pour sport/pari) -->
+      <a href="{{ url_for('pari') }}" title="Parier" id="pari-link">
+        <i class="fa-solid fa-trophy"></i>
+        <span class="message-badge" id="new-matches-count" style="display:none;">0</span>
+      </a> <!-- Nouveau bouton pour parier (icône trophée pour sport/pari) -->
     </nav>
   </div>
 <script>
@@ -661,12 +664,14 @@
     // --- Badge Management ---
     const msgBadge = document.getElementById("unread-count");
     const notifBadge = document.getElementById("notifications-count");
+    const matchesBadge = document.getElementById("new-matches-count");
     const msgLink = document.getElementById("messages-link");
     const notifLink = document.getElementById("notifications-link");
 
     // Load badge counts from localStorage
     const savedMsgs = localStorage.getItem("unreadMsgs");
     const savedNotifs = localStorage.getItem("unreadNotifs");
+    const savedMatches = localStorage.getItem("newMatches");
 
     if (savedMsgs && parseInt(savedMsgs) > 0) {
       msgBadge.textContent = savedMsgs;
@@ -675,6 +680,10 @@
     if (savedNotifs && parseInt(savedNotifs) > 0) {
       notifBadge.textContent = savedNotifs;
       notifBadge.style.display = "inline-block";
+    }
+    if (savedMatches && parseInt(savedMatches) > 0) {
+      matchesBadge.textContent = savedMatches;
+      matchesBadge.style.display = "inline-block";
     }
 
     // Reset badges when clicking Messages link or visiting conversations/chat pages
@@ -1069,6 +1078,14 @@
         notifBadge.textContent = count;
         notifBadge.style.display = "inline-block";
       }
+    });
+
+    // New: Handle new match badge
+    socket.on('new_match', () => {
+      let count = parseInt(localStorage.getItem("newMatches") || "0") + 1;
+      localStorage.setItem("newMatches", count);
+      matchesBadge.textContent = count;
+      matchesBadge.style.display = "inline-block";
     });
 
     /* ---------- Carousel Initialization ---------- */

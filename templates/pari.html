@@ -1,4 +1,4 @@
-<!-- Fichier 2: pari.html (interface pari) -->
+<!-- Fichier 3: pari.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -163,6 +163,9 @@
 
     document.querySelectorAll('.match').forEach(bindBetButton);
     loadMatches();
+
+    // Reset new matches count on load of pari page
+    localStorage.setItem("newMatches", 0);
   </script>
 </body>
 </html>
