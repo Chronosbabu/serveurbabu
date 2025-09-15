@@ -132,9 +132,9 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def generate_account_id():
-    characters = string.ascii_letters + string.digits
     while True:
-        account_id = ''.join(random.choice(characters) for _ in range(8))
+        digits = ''.join(random.choice(string.digits) for _ in range(6))
+        account_id = '01' + digits
         bank = load_bank()
         if not any(acc.get("account_id") == account_id for acc in bank):
             return account_id
