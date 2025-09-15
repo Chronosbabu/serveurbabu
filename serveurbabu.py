@@ -832,12 +832,15 @@ def pari():
 def publish_match():
     data = request.json
     team1 = data.get("team1")
+    odd1 = data.get("odd1")
     team2 = data.get("team2")
-    if not team1 or not team2:
-        return jsonify({"error": "Équipes requises"}), 400
+    odd2 = data.get("odd2")
+    odd_draw = data.get("odd_draw", 0)
+    if not team1 or not team2 or not odd1 or not odd2:
+        return jsonify({"error": "Équipes et cotes requises"}), 400
     matches = load_matches()
     match_id = len(matches) + 1
-    new_match = {"id": match_id, "team1": team1, "team2": team2, "result": None}
+    new_match = {"id": match_id, "team1": team1, "odd_team1": float(odd1), "team2": team2, "odd_team2": float(odd2), "odd_draw": float(odd_draw), "result": None}
     matches.append(new_match)
     save_matches(matches)
     socketio.emit("new_match", new_match)
@@ -862,13 +865,18 @@ def publish_result():
     bank = load_bank()
     for bet in bets:
         if bet["match_id"] == match_id:
-            if (bet["choice"] == "1" and result == match["team1"]) or \
-               (bet["choice"] == "2" and result == match["team2"]) or \
-               (bet["choice"] == "0" and result == "0"):
+            odd = 0
+            if bet["choice"] == "1" and result == match["team1"]:
+                odd = match["odd_team1"]
+            elif bet["choice"] == "2" and result == match["team2"]:
+                odd = match["odd_team2"]
+            elif bet["choice"] == "0" and result == "0":
+                odd = match["odd_draw"]
+            if odd > 0:
                 acc = next((a for a in bank if a["username"] == bet["username"]), None)
                 if acc:
                     key = "balance_franc" if bet["currency"] == "franc" else "balance_dollar"
-                    acc[key] += bet["amount"] * 2  # Double le montant misé
+                    acc[key] += bet["amount"] * odd
                     socketio.emit("balance_updated", {
                         "username": bet["username"],
                         "balance_franc": acc["balance_franc"],

@@ -1,3 +1,4 @@
+<!-- Fichier 2: pari.html (interface pari) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -42,6 +43,11 @@
       font-weight: 600;
     }
     .bet-btn:hover { background: #00376b; }
+    .odd {
+      font-size: 0.8em;
+      color: #8e8e8e;
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -50,7 +56,13 @@
     <div class="matches-list" id="matches">
       {% for match in matches %}
       <div class="match" data-match-id="{{ match.id }}">
-        <span class="match-name">{{ match.team1 }} vs {{ match.team2 }}</span>
+        <span class="match-name">
+          <span class="odd">cote: {{ match.odd_team1 }}</span>
+          {{ match.team1 }} vs 
+          <span class="odd">cote: {{ match.odd_team2 }}</span>
+          {{ match.team2 }}
+          <span class="odd">nul: cote {{ match.odd_draw }}</span>
+        </span>
         <button class="bet-btn">Parier</button>
       </div>
       {% endfor %}
@@ -69,7 +81,13 @@
         div.className = 'match';
         div.dataset.matchId = match.id;
         div.innerHTML = `
-          <span class="match-name">${match.team1} vs ${match.team2}</span>
+          <span class="match-name">
+            <span class="odd">cote: ${match.odd_team1}</span>
+            ${match.team1} vs 
+            <span class="odd">cote: ${match.odd_team2}</span>
+            ${match.team2}
+            <span class="odd">nul: cote ${match.odd_draw}</span>
+          </span>
           <button class="bet-btn">Parier</button>
         `;
         matchesContainer.appendChild(div);
@@ -82,7 +100,13 @@
       div.className = 'match';
       div.dataset.matchId = match.id;
       div.innerHTML = `
-        <span class="match-name">${match.team1} vs ${match.team2}</span>
+        <span class="match-name">
+          <span class="odd">cote: ${match.odd_team1}</span>
+          ${match.team1} vs 
+          <span class="odd">cote: ${match.odd_team2}</span>
+          ${match.team2}
+          <span class="odd">nul: cote ${match.odd_draw}</span>
+        </span>
         <button class="bet-btn">Parier</button>
       `;
       matchesContainer.insertBefore(div, matchesContainer.firstChild);
