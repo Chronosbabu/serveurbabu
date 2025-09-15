@@ -1,3 +1,4 @@
+<!-- Fichier 2: account.html (compte bancaire) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -67,7 +68,7 @@
                     body: JSON.stringify({ password: pwd })
                 }).then(r => r.json());
                 if (cr.success) {
-                    alert("Compte créé avec succès");
+                    alert("Compte créé avec succès. Votre ID de compte est: " + cr.account_id);
                 } else {
                     alert(cr.error);
                     return;
@@ -85,7 +86,8 @@
                 if (lr.success) {
                     logged = true;
                     let balances = lr.balances;
-                    document.getElementById("balances").innerHTML = `Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                    let account_id = lr.account_id;
+                    document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
                     let btn = document.getElementById("convert");
                     btn.style.display = "block";
                     btn.onclick = async () => {
@@ -106,7 +108,7 @@
                         if (cv.success) {
                             alert(cv.message);
                             balances[currency] -= amount;
-                            document.getElementById("balances").innerHTML = `Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
                         } else {
                             alert(cv.error);
                         }
@@ -118,7 +120,7 @@
         }
 
         socket.on('balance_updated', data => {
-            document.getElementById("balances").innerHTML = `Franc: ${data.balance_franc} <br> Dollar: ${data.balance_dollar}`;
+            document.getElementById("balances").innerHTML = `ID: ${data.account_id || ''} <br> Franc: ${data.balance_franc} <br> Dollar: ${data.balance_dollar}`;
         });
 
         document.addEventListener("DOMContentLoaded", init);

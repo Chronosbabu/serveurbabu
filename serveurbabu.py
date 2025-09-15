@@ -1,9 +1,12 @@
+# Fichier 1: app.py (serveur)
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import requests
+import random
+import string
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -127,6 +130,14 @@ def save_bets(bets):
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+def generate_account_id():
+    characters = string.ascii_letters + string.digits
+    while True:
+        account_id = ''.join(random.choice(characters) for _ in range(8))
+        bank = load_bank()
+        if not any(acc.get("account_id") == account_id for acc in bank):
+            return account_id
 
 def get_user(username):
     users = load_users()
@@ -718,9 +729,10 @@ def bank_create():
     bank = load_bank()
     if next((a for a in bank if a["username"] == un), None):
         return jsonify({"error": "Compte existe déjà"}), 400
-    bank.append({"username": un, "password": hash_password(pwd), "balance_franc": 0, "balance_dollar": 0})
+    account_id = generate_account_id()
+    bank.append({"username": un, "password": hash_password(pwd), "balance_franc": 0, "balance_dollar": 0, "account_id": account_id})
     save_bank(bank)
-    return jsonify({"success": True})
+    return jsonify({"success": True, "account_id": account_id})
 
 @app.route("/bank/login", methods=["POST"])
 def bank_login():
@@ -737,7 +749,19 @@ def bank_login():
         return jsonify({"error": "Compte non trouvé"}), 404
     if acc["password"] != hash_password(pwd):
         return jsonify({"error": "Mot de passe incorrect"}), 401
-    return jsonify({"success": True, "balances": {"franc": acc["balance_franc"], "dollar": acc["balance_dollar"]}})
+    return jsonify({"success": True, "balances": {"franc": acc["balance_franc"], "dollar": acc["balance_dollar"]}, "account_id": acc.get("account_id", "")})
+
+@app.route("/bank/get_username_by_id", methods=["POST"])
+def get_username_by_id():
+    data = request.json
+    account_id = data.get("account_id")
+    if not account_id:
+        return jsonify({"error": "ID requis"}), 400
+    bank = load_bank()
+    acc = next((a for a in bank if a.get("account_id") == account_id), None)
+    if not acc:
+        return jsonify({"error": "ID non trouvé"}), 404
+    return jsonify({"success": True, "username": acc["username"]})
 
 @app.route("/bank/convert", methods=["POST"])
 def bank_convert():
@@ -771,19 +795,24 @@ def bank_convert():
 @app.route("/deposit", methods=["POST"])
 def deposit():
     data = request.json
-    un = data.get("username")
+    account_id = data.get("account_id")
     franc = data.get("franc", 0)
     dollar = data.get("dollar", 0)
-    if not un or (franc == 0 and dollar == 0):
+    if not account_id or (franc == 0 and dollar == 0):
         return jsonify({"error": "Données invalides"}), 400
     bank = load_bank()
-    acc = next((a for a in bank if a["username"] == un), None)
+    acc = next((a for a in bank if a.get("account_id") == account_id), None)
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
     acc["balance_franc"] += franc
     acc["balance_dollar"] += dollar
     save_bank(bank)
-    return jsonify({"success": True, "message": f"Vous avez déposé {franc} francs et {dollar} dollars pour {un}"})
+    socketio.emit("balance_updated", {
+        "username": acc["username"],
+        "balance_franc": acc["balance_franc"],
+        "balance_dollar": acc["balance_dollar"]
+    }, room=acc["username"])
+    return jsonify({"success": True, "message": f"Vous avez déposé {franc} francs et {dollar} dollars pour l'ID {account_id} ({acc['username']})"})
 
 @app.route("/conversions", methods=["GET"])
 def get_conversions():
