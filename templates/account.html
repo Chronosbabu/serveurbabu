@@ -1,4 +1,4 @@
-<!-- Fichier 4: account.html (compte bancaire, inchangé) -->
+<!-- Fichier 2: account.html (compte bancaire) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -62,10 +62,11 @@
             if (!res.exists) {
                 let pwd = prompt("C'est votre première fois. Définissez un mot de passe pour votre compte bancaire:");
                 if (!pwd) return;
+                let referral_id = prompt("Entrez le numéro d'invitation (optionnel):") || "";
                 let cr = await fetch("/bank/create", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ password: pwd })
+                    body: JSON.stringify({ password: pwd, referral_id: referral_id })
                 }).then(r => r.json());
                 if (cr.success) {
                     alert("Compte créé avec succès. Votre ID de compte est: " + cr.account_id);
