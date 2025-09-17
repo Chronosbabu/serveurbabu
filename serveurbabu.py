@@ -2,7 +2,7 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import requests
 import random
@@ -32,6 +32,9 @@ socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 connected_users = set()
 user_notifications = {}
+
+FEE = 100  # Montant du droit mensuel
+TEST_MODE = True  # Pour tests, 1 minute = 30 jours
 
 @app.template_filter('timestamp')
 def timestamp_filter(s):
@@ -106,7 +109,11 @@ def save_messages(messages):
 
 def load_bank():
     with open(BANK_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        bank = json.load(f)
+    if not any(acc["username"] == "platform" for acc in bank):
+        bank.append({"username": "platform", "balance_franc": 0, "balance_dollar": 0, "account_id": "00000000", "password": "", "subscription_end": None, "referrer_id": None})
+        save_bank(bank)
+    return bank
 
 def save_bank(bank):
     with open(BANK_FILE, "w", encoding="utf-8") as f:
@@ -723,14 +730,19 @@ def bank_create():
         return jsonify({"error": "Non connecté"}), 401
     data = request.json
     pwd = data.get("password")
+    referral_id = data.get("referral_id", "")
     if not pwd:
         return jsonify({"error": "Mot de passe requis"}), 400
     un = session["username"]
     bank = load_bank()
     if next((a for a in bank if a["username"] == un), None):
         return jsonify({"error": "Compte existe déjà"}), 400
+    if referral_id:
+        referrer = next((a for a in bank if a.get("account_id") == referral_id), None)
+        if not referrer:
+            referral_id = ""  # Ignorer si invalide
     account_id = generate_account_id()
-    bank.append({"username": un, "password": hash_password(pwd), "balance_franc": 0, "balance_dollar": 0, "account_id": account_id})
+    bank.append({"username": un, "password": hash_password(pwd), "balance_franc": 0, "balance_dollar": 0, "account_id": account_id, "referrer_id": referral_id, "subscription_end": None})
     save_bank(bank)
     return jsonify({"success": True, "account_id": account_id})
 
@@ -778,6 +790,8 @@ def bank_convert():
     acc = next((a for a in bank if a["username"] == un), None)
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
+    if not acc.get("subscription_end") or datetime.now() > datetime.fromisoformat(acc["subscription_end"]):
+        return jsonify({"error": "Payez le droit mensuel"}), 400
     key = f"balance_{currency}"
     if key not in acc or acc[key] < amount:
         return jsonify({"error": f"Solde insuffisant en {currency}"}), 400
@@ -791,6 +805,40 @@ def bank_convert():
         json.dump(convs, f, ensure_ascii=False, indent=2)
     currency_name = "francs" if currency == "franc" else "dollars"
     return jsonify({"success": True, "message": f"Vous avez converti {amount} {currency_name} à {phone}. Attendez votre réponse dans 5 heures du temps."})
+
+@app.route("/pay_subscription", methods=["POST"])
+def pay_subscription():
+    data = request.json
+    account_id = data.get("account_id")
+    currency = data.get("currency")
+    if not account_id or not currency:
+        return jsonify({"error": "Données invalides"}), 400
+    bank = load_bank()
+    acc = next((a for a in bank if a.get("account_id") == account_id), None)
+    if not acc:
+        return jsonify({"error": "Compte non trouvé"}), 404
+    platform = next((a for a in bank if a["username"] == "platform"), None)
+    if not platform:
+        return jsonify({"error": "Plateforme non trouvée"}), 500
+    key = "balance_franc" if currency == "franc" else "balance_dollar"
+    platform[key] += FEE * 0.7
+    referrer_id = acc.get("referrer_id")
+    if referrer_id:
+        referrer = next((a for a in bank if a.get("account_id") == referrer_id), None)
+        if referrer:
+            referrer[key] += FEE * 0.3
+    delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
+    acc["subscription_end"] = (datetime.now() + delta).isoformat()
+    save_bank(bank)
+    return jsonify({"success": True})
+
+@app.route("/bank/platform_balance", methods=["GET"])
+def platform_balance():
+    bank = load_bank()
+    platform = next((a for a in bank if a["username"] == "platform"), None)
+    if not platform:
+        return jsonify({"error": "Plateforme non trouvée"}), 500
+    return jsonify({"franc": platform["balance_franc"], "dollar": platform["balance_dollar"]})
 
 @app.route("/deposit", methods=["POST"])
 def deposit():
@@ -863,6 +911,7 @@ def publish_result():
     # Distribuer les gains
     bets = load_bets()
     bank = load_bank()
+    platform = next((a for a in bank if a["username"] == "platform"), None)
     for bet in bets:
         if bet["match_id"] == match_id:
             odd = 0
@@ -876,7 +925,9 @@ def publish_result():
                 acc = next((a for a in bank if a["username"] == bet["username"]), None)
                 if acc:
                     key = "balance_franc" if bet["currency"] == "franc" else "balance_dollar"
-                    acc[key] += bet["amount"] * odd
+                    gain = bet["amount"] * odd
+                    acc[key] += gain
+                    platform[key] -= gain - bet["amount"]  # Net payment from platform
                     socketio.emit("balance_updated", {
                         "username": bet["username"],
                         "balance_franc": acc["balance_franc"],
@@ -919,7 +970,9 @@ def place_bet():
     if acc[key] < amount:
         return jsonify({"error": "Solde insuffisant"}), 400
 
+    platform = next((a for a in bank if a["username"] == "platform"), None)
     acc[key] -= amount
+    platform[key] += amount
     save_bank(bank)
 
     bets.append({
