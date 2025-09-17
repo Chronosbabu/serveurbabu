@@ -822,19 +822,13 @@ def pay_subscription():
         return jsonify({"error": "Plateforme non trouvée"}), 500
     fee = FEE_FRANC if currency == "franc" else FEE_DOLLAR
     key = "balance_franc" if currency == "franc" else "balance_dollar"
-    # Vérifier si l'utilisateur a assez de fonds
-    if acc[key] < fee:
-        return jsonify({"error": f"Solde insuffisant en {currency}"}), 400
-    # Déduire le montant du compte de l'utilisateur
-    acc[key] -= fee
-    # Distribuer 70% à la plateforme
-    platform[key] += fee * 0.7
-    # Distribuer 30% à l'inviteur, si existant
+    # Pas de vérification de solde, paiement en argent liquide
+    platform[key] += fee * 0.7  # 70% à la plateforme
     referrer_id = acc.get("referrer_id")
     if referrer_id:
         referrer = next((a for a in bank if a.get("account_id") == referrer_id), None)
         if referrer:
-            referrer[key] += fee * 0.3
+            referrer[key] += fee * 0.3  # 30% à l'inviteur
     delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
     acc["subscription_end"] = (datetime.now() + delta).isoformat()
     save_bank(bank)
