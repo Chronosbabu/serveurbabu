@@ -1,4 +1,3 @@
-# Fichier 1: app.py (serveur)
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
@@ -33,7 +32,8 @@ socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 connected_users = set()
 user_notifications = {}
 
-FEE = 100  # Montant du droit mensuel
+FEE_DOLLAR = 2  # Droit mensuel en dollars
+FEE_FRANC = 6000  # Droit mensuel en francs
 TEST_MODE = True  # Pour tests, 1 minute = 30 jours
 
 @app.template_filter('timestamp')
@@ -820,13 +820,21 @@ def pay_subscription():
     platform = next((a for a in bank if a["username"] == "platform"), None)
     if not platform:
         return jsonify({"error": "Plateforme non trouvée"}), 500
+    fee = FEE_FRANC if currency == "franc" else FEE_DOLLAR
     key = "balance_franc" if currency == "franc" else "balance_dollar"
-    platform[key] += FEE * 0.7
+    # Vérifier si l'utilisateur a assez de fonds
+    if acc[key] < fee:
+        return jsonify({"error": f"Solde insuffisant en {currency}"}), 400
+    # Déduire le montant du compte de l'utilisateur
+    acc[key] -= fee
+    # Distribuer 70% à la plateforme
+    platform[key] += fee * 0.7
+    # Distribuer 30% à l'inviteur, si existant
     referrer_id = acc.get("referrer_id")
     if referrer_id:
         referrer = next((a for a in bank if a.get("account_id") == referrer_id), None)
         if referrer:
-            referrer[key] += FEE * 0.3
+            referrer[key] += fee * 0.3
     delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
     acc["subscription_end"] = (datetime.now() + delta).isoformat()
     save_bank(bank)
