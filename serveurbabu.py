@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from werkzeug.utils import secure_filename
 import requests
 import random
@@ -38,7 +38,7 @@ TEST_MODE = True  # Pour tests, 1 minute = 30 jours
 
 @app.template_filter('timestamp')
 def timestamp_filter(s):
-    return int(datetime.now().timestamp())
+    return int(datetime.now(timezone.utc).timestamp())
 
 def toggle_follow(current_user, target_user):
     users = load_users()
@@ -154,7 +154,7 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     messages = load_messages()
     key1 = f"{sender}_{receiver}"
     key2 = f"{receiver}_{sender}"
-    now_iso = datetime.now().isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
     entry = {"sender": sender, "text": text, "type": msg_type, "url": url, "date": now_iso, "read_by": [sender]}
 
     if key1 in messages:
@@ -182,7 +182,7 @@ def register():
 
         avatar_filename = None
         if avatar_file and avatar_file.filename:
-            avatar_filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
+            avatar_filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
             avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_filename))
 
         users.append({
@@ -190,7 +190,7 @@ def register():
             "password": hash_password(password),
             "avatar": avatar_filename,
             "bio": "",
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "following": []
         })
         save_users(users)
@@ -268,7 +268,7 @@ def add_post():
 
         for media_file in media_files:
             if media_file and media_file.filename:
-                filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
+                filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
                 media_file.save(os.path.join(UPLOAD_FOLDER, filename))
                 ext = os.path.splitext(filename)[1].lower()
 
@@ -290,7 +290,7 @@ def add_post():
             "likes": 0,
             "liked_by": [],
             "comments": [],
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         }
         posts.insert(0, new_post)
         save_posts(posts)
@@ -351,7 +351,7 @@ def comments(post_id):
                 "id": next_id,
                 "username": session["username"],
                 "content": content,
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             }
             post["comments"].append(comment_data)
             save_posts(posts)
@@ -442,7 +442,7 @@ def send_file_route():
     if not receiver or not file:
         return jsonify({"success": False, "error": "Champs manquants"}), 400
 
-    filename = datetime.now().strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
+    filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
     file.save(os.path.join(UPLOAD_FOLDER, filename))
 
     ext = os.path.splitext(filename)[1].lower()
@@ -476,7 +476,7 @@ def update_avatar():
     if ext not in [".jpg", ".jpeg", ".png", ".gif"]:
         return jsonify({"success": False, "error": "Format d'image non supporté"}), 400
 
-    filename = f"{username}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
+    filename = f"{username}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}{ext}"
     file.save(os.path.join(AVATAR_FOLDER, filename))
 
     users = load_users()
@@ -488,7 +488,7 @@ def update_avatar():
         session["avatar"] = filename
         if old_avatar and os.path.exists(os.path.join(AVATAR_FOLDER, old_avatar)):
             os.remove(os.path.join(AVATAR_FOLDER, old_avatar))
-        new_avatar_url = url_for("avatar_file", filename=filename, _external=True) + f"?t={int(datetime.now().timestamp())}"
+        new_avatar_url = url_for("avatar_file", filename=filename, _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}"
         socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url})
         return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
@@ -641,7 +641,7 @@ def handle_send_comment(data):
     if post_owner != data['username']:
         notify_comment(target_user_id=post_owner, commenter_username=data['username'], post_id=post_id)
     avatar = data.get('avatar') or get_user(data['username'])['avatar'] if get_user(data['username']) else None
-    date = data.get('date') or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    date = data.get('date') or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     comment_id = data.get('comment_id') or None
     emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date})
 
@@ -733,7 +733,7 @@ def check_subscription():
     acc = next((a for a in bank if a["username"] == un), None)
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
-    if not acc.get("subscription_end") or datetime.now() > datetime.fromisoformat(acc["subscription_end"]):
+    if not acc.get("subscription_end") or datetime.now(timezone.utc) > datetime.fromisoformat(acc["subscription_end"]):
         return jsonify({"success": False, "error": "Abonnement non valide ou expiré"})
     return jsonify({"success": True})
 
@@ -820,7 +820,7 @@ def bank_convert():
     acc = next((a for a in bank if a["username"] == un), None)
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
-    if not acc.get("subscription_end") or datetime.now() > datetime.fromisoformat(acc["subscription_end"]):
+    if not acc.get("subscription_end") or datetime.now(timezone.utc) > datetime.fromisoformat(acc["subscription_end"]):
         return jsonify({"error": "Payez le droit mensuel"}), 400
     key = f"balance_{currency}"
     if key not in acc or float(acc[key]) < float(amount):
@@ -830,7 +830,7 @@ def bank_convert():
     convs = []
     with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
         convs = json.load(f)
-    convs.append({"username": un, "phone": phone, "amount": float(amount), "currency": currency, "timestamp": datetime.now().isoformat()})
+    convs.append({"username": un, "phone": phone, "amount": float(amount), "currency": currency, "timestamp": datetime.now(timezone.utc).isoformat()})
     with open(CONVERSIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(convs, f, ensure_ascii=False, indent=2)
     currency_name = "francs" if currency == "franc" else "dollars"
@@ -864,7 +864,7 @@ def bank_transfer():
         return jsonify({"error": "Compte émetteur non trouvé"}), 404
     if sender["password"] != hash_password(password):
         return jsonify({"error": "Mot de passe incorrect"}), 401
-    if not sender.get("subscription_end") or datetime.now() > datetime.fromisoformat(sender["subscription_end"]):
+    if not sender.get("subscription_end") or datetime.now(timezone.utc) > datetime.fromisoformat(sender["subscription_end"]):
         return jsonify({"error": "Abonnement non valide ou expiré"}), 400
     recipient = next((a for a in bank if a["account_id"] == recipient_account_id), None)
     if not recipient:
@@ -919,7 +919,7 @@ def pay_subscription():
         if referrer:
             referrer[key] += fee * 0.3  # 30% à l'inviteur
     delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
-    acc["subscription_end"] = (datetime.now() + delta).isoformat()
+    acc["subscription_end"] = (datetime.now(timezone.utc) + delta).isoformat()
     save_bank(bank)
     socketio.emit("balance_updated", {
         "username": acc["username"],
@@ -967,11 +967,15 @@ def get_conversions():
         convs = json.load(f)
     return jsonify(convs)
 
+@app.route("/get_server_time", methods=["GET"])
+def get_server_time():
+    return jsonify({"time": datetime.now(timezone.utc).isoformat()})
+
 @app.route("/pari")
 def pari():
     if "username" not in session:
         return redirect(url_for("login"))
-    matches = [m for m in load_matches() if not m.get("result")]
+    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]) > datetime.now(timezone.utc)]
     return render_template("pari.html", matches=matches, username=session["username"])
 
 @app.route("/publish_match", methods=["POST"])
@@ -1070,7 +1074,7 @@ def place_bet():
         return jsonify({"error": "Match non disponible"}), 404
 
     bet_end_time = datetime.fromisoformat(match.get("bet_end_time"))
-    if datetime.now() > bet_end_time:
+    if datetime.now(timezone.utc) > bet_end_time:
         return jsonify({"error": "Pari indisponible, le match a déjà commencé"}), 400
 
     bets = load_bets()
@@ -1104,7 +1108,8 @@ def place_bet():
 
 @app.route("/get_matches", methods=["GET"])
 def get_matches():
-    matches = [m for m in load_matches() if not m.get("result")]
+    now_utc = datetime.now(timezone.utc)
+    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]) > now_utc]
     return jsonify(matches)
 
 @app.route("/get_balances", methods=["GET"])

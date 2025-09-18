@@ -55,7 +55,7 @@
     <h2>Matches Disponibles</h2>
     <div class="matches-list" id="matches">
       {% for match in matches %}
-      <div class="match" data-match-id="{{ match.id }}">
+      <div class="match" data-match-id="{{ match.id }}" data-bet-end-time="{{ match.bet_end_time }}">
         <span class="match-name">
           <span class="odd">cote: {{ match.odd_team1 }}</span>
           {{ match.team1 }} vs 
@@ -80,6 +80,7 @@
         const div = document.createElement('div');
         div.className = 'match';
         div.dataset.matchId = match.id;
+        div.dataset.betEndTime = match.bet_end_time;
         div.innerHTML = `
           <span class="match-name">
             <span class="odd">cote: ${match.odd_team1}</span>
@@ -99,6 +100,7 @@
       const div = document.createElement('div');
       div.className = 'match';
       div.dataset.matchId = match.id;
+      div.dataset.betEndTime = match.bet_end_time;
       div.innerHTML = `
         <span class="match-name">
           <span class="odd">cote: ${match.odd_team1}</span>
@@ -122,6 +124,10 @@
     function bindBetButton(matchEl) {
       const btn = matchEl.querySelector('.bet-btn');
       btn.addEventListener('click', async () => {
+        if (new Date() > new Date(matchEl.dataset.betEndTime)) {
+          alert('Pari indisponible, le match a déjà commencé');
+          return;
+        }
         const matchId = parseInt(matchEl.dataset.matchId);
         let pwd = prompt("Entrez le mot de passe de votre compte bancaire:");
         if (!pwd) return;
@@ -160,6 +166,16 @@
         }
       });
     }
+
+    function checkExpiredMatches() {
+      document.querySelectorAll('.match').forEach(matchEl => {
+        if (new Date() > new Date(matchEl.dataset.betEndTime)) {
+          matchEl.remove();
+        }
+      });
+    }
+
+    setInterval(checkExpiredMatches, 60000);  // Check every 60 seconds
 
     document.querySelectorAll('.match').forEach(bindBetButton);
     loadMatches();
