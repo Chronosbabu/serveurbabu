@@ -6,6 +6,8 @@ from werkzeug.utils import secure_filename
 import requests
 import random
 import string
+import threading
+import time
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -166,6 +168,23 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
 
     save_messages(messages)
     return entry
+
+def cleanup_expired_matches():
+    while True:
+        matches = load_matches()
+        now = datetime.now(timezone.utc)
+        updated = False
+        for match in matches:
+            if not match.get("result") and datetime.fromisoformat(match["bet_end_time"]) <= now:
+                match["result"] = "expired"  # Mark as expired to prevent betting
+                updated = True
+                socketio.emit("match_result", {"match_id": match["id"], "result": "expired"})
+        if updated:
+            save_matches(matches)
+        time.sleep(60)  # Check every 60 seconds
+
+# Start cleanup thread
+threading.Thread(target=cleanup_expired_matches, daemon=True).start()
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -975,7 +994,7 @@ def get_server_time():
 def pari():
     if "username" not in session:
         return redirect(url_for("login"))
-    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]) > datetime.now(timezone.utc)]
+    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]).replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)]
     return render_template("pari.html", matches=matches, username=session["username"])
 
 @app.route("/publish_match", methods=["POST"])
@@ -990,9 +1009,11 @@ def publish_match():
     if not team1 or not team2 or not odd1 or not odd2 or not bet_end_time_str:
         return jsonify({"error": "Équipes, cotes et heure de fin des paris requises"}), 400
     try:
-        bet_end_time = datetime.fromisoformat(bet_end_time_str)
+        bet_end_time = datetime.fromisoformat(bet_end_time_str).replace(tzinfo=timezone.utc)
     except ValueError:
         return jsonify({"error": "Format d'heure invalide"}), 400
+    if bet_end_time <= datetime.now(timezone.utc):
+        return jsonify({"error": "L'heure de fin des paris doit être dans le futur"}), 400
     matches = load_matches()
     match_id = len(matches) + 1
     new_match = {
@@ -1073,7 +1094,7 @@ def place_bet():
     if not match:
         return jsonify({"error": "Match non disponible"}), 404
 
-    bet_end_time = datetime.fromisoformat(match.get("bet_end_time"))
+    bet_end_time = datetime.fromisoformat(match.get("bet_end_time")).replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > bet_end_time:
         return jsonify({"error": "Pari indisponible, le match a déjà commencé"}), 400
 
@@ -1109,7 +1130,7 @@ def place_bet():
 @app.route("/get_matches", methods=["GET"])
 def get_matches():
     now_utc = datetime.now(timezone.utc)
-    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]) > now_utc]
+    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]).replace(tzinfo=timezone.utc) > now_utc]
     return jsonify(matches)
 
 @app.route("/get_balances", methods=["GET"])

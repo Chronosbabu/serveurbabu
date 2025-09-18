@@ -1,4 +1,3 @@
-<!-- Fichier 3: pari.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -48,6 +47,12 @@
       color: #8e8e8e;
       display: block;
     }
+    .bet-end-time {
+      font-size: 0.8em;
+      color: #555;
+      display: block;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -62,6 +67,7 @@
           <span class="odd">cote: {{ match.odd_team2 }}</span>
           {{ match.team2 }}
           <span class="odd">nul: cote {{ match.odd_draw }}</span>
+          <span class="bet-end-time">Fin des paris: {{ match.bet_end_time }}</span>
         </span>
         <button class="bet-btn">Parier</button>
       </div>
@@ -88,6 +94,7 @@
             <span class="odd">cote: ${match.odd_team2}</span>
             ${match.team2}
             <span class="odd">nul: cote ${match.odd_draw}</span>
+            <span class="bet-end-time">Fin des paris: ${new Date(match.bet_end_time).toLocaleString()}</span>
           </span>
           <button class="bet-btn">Parier</button>
         `;
@@ -108,6 +115,7 @@
           <span class="odd">cote: ${match.odd_team2}</span>
           ${match.team2}
           <span class="odd">nul: cote ${match.odd_draw}</span>
+          <span class="bet-end-time">Fin des paris: ${new Date(match.bet_end_time).toLocaleString()}</span>
         </span>
         <button class="bet-btn">Parier</button>
       `;
@@ -118,14 +126,17 @@
     socket.on('match_result', data => {
       const matchEl = document.querySelector(`.match[data-match-id="${data.match_id}"]`);
       if (matchEl) matchEl.remove();
-      alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result}. Vérifiez votre solde !`);
+      alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result === 'expired' ? 'Expiré' : data.result}. Vérifiez votre solde !`);
     });
 
     function bindBetButton(matchEl) {
       const btn = matchEl.querySelector('.bet-btn');
       btn.addEventListener('click', async () => {
-        if (new Date() > new Date(matchEl.dataset.betEndTime)) {
+        const now = new Date();
+        const betEndTime = new Date(matchEl.dataset.betEndTime);
+        if (now > betEndTime) {
           alert('Pari indisponible, le match a déjà commencé');
+          matchEl.remove();
           return;
         }
         const matchId = parseInt(matchEl.dataset.matchId);
