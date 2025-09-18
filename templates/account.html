@@ -96,7 +96,7 @@
                         if (!currency) return alert("Choix invalide");
                         let am_str = prompt("Entrez le solde à convertir:");
                         let amount = parseFloat(am_str);
-                        if (isNaN(amount) || amount <= 0) return alert("Montant invalide");
+                        if (isNaN(amount) or amount <= 0) return alert("Montant invalide");
                         if (balances[currency] < amount) return alert(`Solde insuffisant en ${currency}`);
                         let phone = prompt("Entrez le numéro de téléphone où envoyer l'argent converti (Airtel ou Orange):");
                         if (!phone || !/^(08|09)\d{8}$/.test(phone)) return alert("Numéro invalide");

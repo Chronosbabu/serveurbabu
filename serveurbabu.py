@@ -1,3 +1,4 @@
+# Fichier 1: app.py (serveur)
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
@@ -822,7 +823,7 @@ def pay_subscription():
         return jsonify({"error": "Plateforme non trouvée"}), 500
     fee = FEE_FRANC if currency == "franc" else FEE_DOLLAR
     key = "balance_franc" if currency == "franc" else "balance_dollar"
-    # Pas de vérification de solde, paiement en argent liquide
+    # Ajouter directement sans vérifier le solde (paiement en liquide)
     platform[key] += fee * 0.7  # 70% à la plateforme
     referrer_id = acc.get("referrer_id")
     if referrer_id:
@@ -1007,3 +1008,6 @@ def get_balances():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+</xaiArtifact>
+
+
