@@ -982,11 +982,25 @@ def publish_match():
     team2 = data.get("team2")
     odd2 = data.get("odd2")
     odd_draw = data.get("odd_draw", 0)
-    if not team1 or not team2 or not odd1 or not odd2:
-        return jsonify({"error": "Équipes et cotes requises"}), 400
+    bet_end_time_str = data.get("bet_end_time")
+    if not team1 or not team2 or not odd1 or not odd2 or not bet_end_time_str:
+        return jsonify({"error": "Équipes, cotes et heure de fin des paris requises"}), 400
+    try:
+        bet_end_time = datetime.fromisoformat(bet_end_time_str)
+    except ValueError:
+        return jsonify({"error": "Format d'heure invalide"}), 400
     matches = load_matches()
     match_id = len(matches) + 1
-    new_match = {"id": match_id, "team1": team1, "odd_team1": float(odd1), "team2": team2, "odd_team2": float(odd2), "odd_draw": float(odd_draw), "result": None}
+    new_match = {
+        "id": match_id,
+        "team1": team1,
+        "odd_team1": float(odd1),
+        "team2": team2,
+        "odd_team2": float(odd2),
+        "odd_draw": float(odd_draw),
+        "bet_end_time": bet_end_time.isoformat(),
+        "result": None
+    }
     matches.append(new_match)
     save_matches(matches)
     socketio.emit("new_match", new_match)
@@ -1054,6 +1068,10 @@ def place_bet():
     match = next((m for m in matches if m["id"] == match_id and not m.get("result")), None)
     if not match:
         return jsonify({"error": "Match non disponible"}), 404
+
+    bet_end_time = datetime.fromisoformat(match.get("bet_end_time"))
+    if datetime.now() > bet_end_time:
+        return jsonify({"error": "Pari indisponible, le match a déjà commencé"}), 400
 
     bets = load_bets()
     if any(b["username"] == session["username"] and b["match_id"] == match_id for b in bets):
