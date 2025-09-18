@@ -78,6 +78,11 @@
     const socket = io();
     const matchesContainer = document.getElementById('matches');
 
+    function formatUTCDate(isoString) {
+      const date = new Date(isoString);
+      return date.toUTCString().replace(' GMT', ' UTC');
+    }
+
     async function loadMatches() {
       const res = await fetch('/get_matches');
       const matches = await res.json();
@@ -94,7 +99,7 @@
             <span class="odd">cote: ${match.odd_team2}</span>
             ${match.team2}
             <span class="odd">nul: cote ${match.odd_draw}</span>
-            <span class="bet-end-time">Fin des paris: ${new Date(match.bet_end_time).toLocaleString()}</span>
+            <span class="bet-end-time">Fin des paris: ${formatUTCDate(match.bet_end_time)}</span>
           </span>
           <button class="bet-btn">Parier</button>
         `;
@@ -115,7 +120,7 @@
           <span class="odd">cote: ${match.odd_team2}</span>
           ${match.team2}
           <span class="odd">nul: cote ${match.odd_draw}</span>
-          <span class="bet-end-time">Fin des paris: ${new Date(match.bet_end_time).toLocaleString()}</span>
+          <span class="bet-end-time">Fin des paris: ${formatUTCDate(match.bet_end_time)}</span>
         </span>
         <button class="bet-btn">Parier</button>
       `;
