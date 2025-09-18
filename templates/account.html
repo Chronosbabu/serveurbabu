@@ -21,14 +21,19 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            width: 300px;
+            width: 350px;
             text-align: center;
         }
         #balances {
             margin-bottom: 20px;
             font-size: 1.2em;
         }
-        #convert {
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        #convert, #transfer {
             display: none;
             background: #0095f6;
             color: white;
@@ -38,7 +43,7 @@
             cursor: pointer;
             font-size: 1em;
         }
-        #convert:hover {
+        #convert:hover, #transfer:hover {
             background: #00376b;
         }
     </style>
@@ -47,7 +52,10 @@
     <div class="container">
         <h2>Votre Compte Bancaire</h2>
         <div id="balances"></div>
-        <button id="convert">Convertir</button>
+        <div class="button-container">
+            <button id="convert">Convertir</button>
+            <button id="transfer">Transfert</button>
+        </div>
     </div>
     <script>
         const socket = io();
@@ -75,6 +83,7 @@
                 }
             }
             let logged = false;
+            let balances, account_id;
             while (!logged) {
                 let pwd = prompt("Entrez le mot de passe de votre compte bancaire:");
                 if (!pwd) return;
@@ -85,38 +94,83 @@
                 }).then(r => r.json());
                 if (lr.success) {
                     logged = true;
-                    let balances = lr.balances;
-                    let account_id = lr.account_id;
+                    balances = lr.balances;
+                    account_id = lr.account_id;
                     document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
-                    let btn = document.getElementById("convert");
-                    btn.style.display = "block";
-                    btn.onclick = async () => {
-                        let choice = prompt("1. Franc \n2. Dollar");
-                        let currency = choice === "1" ? "franc" : choice === "2" ? "dollar" : null;
-                        if (!currency) return alert("Choix invalide");
-                        let am_str = prompt("Entrez le solde à convertir:");
-                        let amount = parseFloat(am_str);
-                        if (isNaN(amount) || amount <= 0) return alert("Montant invalide");
-                        if (balances[currency] < amount) return alert(`Solde insuffisant en ${currency}`);
-                        let phone = prompt("Entrez le numéro de téléphone où envoyer l'argent converti (Airtel ou Orange):");
-                        if (!phone || !/^(08|09)\d{8}$/.test(phone)) return alert("Numéro invalide");
-                        let cv = await fetch("/bank/convert", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ currency, amount, phone })
-                        }).then(r => r.json());
-                        if (cv.success) {
-                            alert(cv.message);
-                            balances[currency] -= amount;
-                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
-                        } else {
-                            alert(cv.error);
-                        }
-                    };
+                    document.getElementById("convert").style.display = "block";
+                    document.getElementById("transfer").style.display = "block";
                 } else {
                     alert("Mot de passe incorrect");
                 }
             }
+
+            // Convertir
+            document.getElementById("convert").onclick = async () => {
+                let choice = prompt("1. Franc \n2. Dollar");
+                let currency = choice === "1" ? "franc" : choice === "2" ? "dollar" : null;
+                if (!currency) return alert("Choix invalide");
+                let am_str = prompt("Entrez le solde à convertir:");
+                let amount = parseFloat(am_str);
+                if (isNaN(amount) || amount <= 0) return alert("Montant invalide");
+                if (balances[currency] < amount) return alert(`Solde insuffisant en ${currency}`);
+                let phone = prompt("Entrez le numéro de téléphone où envoyer l'argent converti (Airtel ou Orange):");
+                if (!phone || !/^(08|09)\d{8}$/.test(phone)) return alert("Numéro invalide");
+                let cv = await fetch("/bank/convert", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ currency, amount, phone })
+                }).then(r => r.json());
+                if (cv.success) {
+                    alert(cv.message);
+                    balances[currency] -= amount;
+                    document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                } else {
+                    alert(cv.error);
+                }
+            };
+
+            // Transfert
+            document.getElementById("transfer").onclick = async () => {
+                let subCheck = await fetch("/bank/check_subscription").then(r => r.json());
+                if (!subCheck.success) {
+                    alert(subCheck.error);
+                    return;
+                }
+                let recipient = prompt("Entrez le numéro de compte du bénéficiaire (01 suivi de 6 chiffres):");
+                if (!recipient || !/^01\d{6}$/.test(recipient)) return alert("Numéro de compte invalide");
+                let res = await fetch("/bank/get_username_by_id", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ account_id: recipient })
+                }).then(r => r.json());
+                if (!res.success) {
+                    alert(res.error);
+                    return;
+                }
+                let confirm = confirm(`Confirmez le transfert vers ${res.username} ?`);
+                if (!confirm) return;
+                let choice = prompt("1. Franc \n2. Dollar");
+                let currency = choice === "1" ? "franc" : choice === "2" ? "dollar" : null;
+                if (!currency) return alert("Choix invalide");
+                let am_str = prompt("Entrez le montant à transférer:");
+                let amount = parseFloat(am_str);
+                if (isNaN(amount) || amount <= 0) return alert("Montant invalide");
+                if (balances[currency] < amount) return alert(`Solde insuffisant en ${currency}`);
+                let pwd = prompt("Entrez votre mot de passe bancaire:");
+                if (!pwd) return;
+                let tr = await fetch("/bank/transfer", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ recipient_account_id: recipient, currency, amount, password: pwd })
+                }).then(r => r.json());
+                if (tr.success) {
+                    alert(tr.message);
+                    balances[currency] -= amount;
+                    document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                } else {
+                    alert(tr.error);
+                }
+            };
         }
 
         socket.on('balance_updated', data => {
