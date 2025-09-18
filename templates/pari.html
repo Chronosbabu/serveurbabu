@@ -41,7 +41,11 @@
       cursor: pointer;
       font-weight: 600;
     }
-    .bet-btn:hover { background: #00376b; }
+    .bet-btn:disabled {
+      background: #b2dffc;
+      cursor: not-allowed;
+    }
+    .bet-btn:hover:not(:disabled) { background: #00376b; }
     .odd {
       font-size: 0.8em;
       color: #8e8e8e;
@@ -58,21 +62,7 @@
 <body>
   <div class="main-container">
     <h2>Matches Disponibles</h2>
-    <div class="matches-list" id="matches">
-      {% for match in matches %}
-      <div class="match" data-match-id="{{ match.id }}" data-bet-end-time="{{ match.bet_end_time }}">
-        <span class="match-name">
-          <span class="odd">cote: {{ match.odd_team1 }}</span>
-          {{ match.team1 }} vs 
-          <span class="odd">cote: {{ match.odd_team2 }}</span>
-          {{ match.team2 }}
-          <span class="odd">nul: cote {{ match.odd_draw }}</span>
-          <span class="bet-end-time">Fin des paris: {{ match.bet_end_time }}</span>
-        </span>
-        <button class="bet-btn">Parier</button>
-      </div>
-      {% endfor %}
-    </div>
+    <div class="matches-list" id="matches"></div>
   </div>
   <script>
     const socket = io();
@@ -80,7 +70,7 @@
 
     function formatUTCDate(isoString) {
       const date = new Date(isoString);
-      return date.toUTCString().replace(' GMT', ' UTC');
+      return `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')} UTC`;
     }
 
     async function loadMatches() {
@@ -88,27 +78,14 @@
       const matches = await res.json();
       matchesContainer.innerHTML = '';
       matches.forEach(match => {
-        const div = document.createElement('div');
-        div.className = 'match';
-        div.dataset.matchId = match.id;
-        div.dataset.betEndTime = match.bet_end_time;
-        div.innerHTML = `
-          <span class="match-name">
-            <span class="odd">cote: ${match.odd_team1}</span>
-            ${match.team1} vs 
-            <span class="odd">cote: ${match.odd_team2}</span>
-            ${match.team2}
-            <span class="odd">nul: cote ${match.odd_draw}</span>
-            <span class="bet-end-time">Fin des paris: ${formatUTCDate(match.bet_end_time)}</span>
-          </span>
-          <button class="bet-btn">Parier</button>
-        `;
-        matchesContainer.appendChild(div);
-        bindBetButton(div);
+        renderMatch(match);
       });
     }
 
-    socket.on('new_match', match => {
+    function renderMatch(match) {
+      const now = new Date();
+      const betEndTime = new Date(match.bet_end_time);
+      const isExpired = now > betEndTime;
       const div = document.createElement('div');
       div.className = 'match';
       div.dataset.matchId = match.id;
@@ -122,10 +99,20 @@
           <span class="odd">nul: cote ${match.odd_draw}</span>
           <span class="bet-end-time">Fin des paris: ${formatUTCDate(match.bet_end_time)}</span>
         </span>
-        <button class="bet-btn">Parier</button>
+        <button class="bet-btn" ${isExpired ? 'disabled' : ''}>Parier</button>
       `;
-      matchesContainer.insertBefore(div, matchesContainer.firstChild);
-      bindBetButton(div);
+      if (!isExpired) {
+        matchesContainer.appendChild(div);
+        bindBetButton(div);
+      }
+    }
+
+    socket.on('new_match', match => {
+      const now = new Date();
+      const betEndTime = new Date(match.bet_end_time);
+      if (now <= betEndTime) {
+        renderMatch(match);
+      }
     });
 
     socket.on('match_result', data => {
@@ -185,15 +172,15 @@
 
     function checkExpiredMatches() {
       document.querySelectorAll('.match').forEach(matchEl => {
-        if (new Date() > new Date(matchEl.dataset.betEndTime)) {
+        const betEndTime = new Date(matchEl.dataset.betEndTime);
+        if (new Date() > betEndTime) {
           matchEl.remove();
         }
       });
     }
 
-    setInterval(checkExpiredMatches, 60000);  // Check every 60 seconds
+    setInterval(checkExpiredMatches, 10000); // Check every 10 seconds
 
-    document.querySelectorAll('.match').forEach(bindBetButton);
     loadMatches();
 
     // Reset new matches count on load of pari page
