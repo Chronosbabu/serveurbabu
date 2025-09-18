@@ -109,7 +109,7 @@
                         logged = true;
                         balances = lr.balances;
                         account_id = lr.account_id;
-                        document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                        document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc.toFixed(2)} <br> Dollar: ${balances.dollar.toFixed(2)}`;
                         document.getElementById("convert").style.display = "block";
                         document.getElementById("transfer").style.display = "block";
                         console.log("Login successful, balances:", balances, "account_id:", account_id);
@@ -137,8 +137,9 @@
                             console.error("Invalid amount:", am_str);
                             return;
                         }
+                        // Client-side balance check
                         if (balances[currency] < amount) {
-                            alert(`Solde insuffisant en ${currency}`);
+                            alert(`Solde insuffisant en ${currency}. Solde disponible: ${balances[currency].toFixed(2)}`);
                             console.error("Insufficient balance:", currency, balances[currency], "<", amount);
                             return;
                         }
@@ -156,8 +157,8 @@
                         }).then(r => r.json());
                         if (cv.success) {
                             alert(cv.message);
-                            balances[currency] -= amount;
-                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                            balances[currency] = (balances[currency] - amount).toFixed(2);
+                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc.toFixed(2)} <br> Dollar: ${balances.dollar.toFixed(2)}`;
                             console.log("Conversion successful:", cv.message);
                         } else {
                             alert(cv.error);
@@ -222,8 +223,9 @@
                             console.error("Invalid amount:", am_str);
                             return;
                         }
+                        // Client-side balance check
                         if (balances[currency] < amount) {
-                            alert(`Solde insuffisant en ${currency}`);
+                            alert(`Solde insuffisant en ${currency}. Solde disponible: ${balances[currency].toFixed(2)}`);
                             console.error("Insufficient balance:", currency, balances[currency], "<", amount);
                             return;
                         }
@@ -244,8 +246,8 @@
                         let trData = await tr.json();
                         if (trData.success) {
                             alert(trData.message);
-                            balances[currency] -= amount;
-                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc} <br> Dollar: ${balances.dollar}`;
+                            balances[currency] = (balances[currency] - amount).toFixed(2);
+                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc.toFixed(2)} <br> Dollar: ${balances.dollar.toFixed(2)}`;
                             console.log("Transfer successful:", trData.message);
                         } else {
                             alert(trData.error);
@@ -264,7 +266,7 @@
 
         socket.on('balance_updated', data => {
             console.log("Balance updated:", data);
-            document.getElementById("balances").innerHTML = `ID: ${data.account_id || ''} <br> Franc: ${data.balance_franc} <br> Dollar: ${data.balance_dollar}`;
+            document.getElementById("balances").innerHTML = `ID: ${data.account_id || ''} <br> Franc: ${parseFloat(data.balance_franc).toFixed(2)} <br> Dollar: ${parseFloat(data.balance_dollar).toFixed(2)}`;
         });
 
         document.addEventListener("DOMContentLoaded", init);

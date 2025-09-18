@@ -755,7 +755,15 @@ def bank_create():
         if not referrer:
             referral_id = ""  # Ignorer si invalide
     account_id = generate_account_id()
-    bank.append({"username": un, "password": hash_password(pwd), "balance_franc": 0, "balance_dollar": 0, "account_id": account_id, "referrer_id": referral_id, "subscription_end": None})
+    bank.append({
+        "username": un,
+        "password": hash_password(pwd),
+        "balance_franc": 0.0,
+        "balance_dollar": 0.0,
+        "account_id": account_id,
+        "referrer_id": referral_id,
+        "subscription_end": None
+    })
     save_bank(bank)
     return jsonify({"success": True, "account_id": account_id})
 
@@ -774,7 +782,14 @@ def bank_login():
         return jsonify({"error": "Compte non trouvé"}), 404
     if acc["password"] != hash_password(pwd):
         return jsonify({"error": "Mot de passe incorrect"}), 401
-    return jsonify({"success": True, "balances": {"franc": acc["balance_franc"], "dollar": acc["balance_dollar"]}, "account_id": acc.get("account_id", "")})
+    return jsonify({
+        "success": True,
+        "balances": {
+            "franc": float(acc["balance_franc"]),
+            "dollar": float(acc["balance_dollar"])
+        },
+        "account_id": acc.get("account_id", "")
+    })
 
 @app.route("/bank/get_username_by_id", methods=["POST"])
 def get_username_by_id():
@@ -796,8 +811,10 @@ def bank_convert():
     currency = data.get("currency")
     amount = data.get("amount")
     phone = data.get("phone")
-    if not all([currency, amount is not None, phone]) or amount <= 0:
-        return jsonify({"error": "Données invalides"}), 400
+    if not all([currency, amount is not None, phone]) or not isinstance(amount, (int, float)) or amount <= 0:
+        return jsonify({"error": "Données invalides ou montant non valide"}), 400
+    if currency not in ["franc", "dollar"]:
+        return jsonify({"error": "Devise invalide"}), 400
     bank = load_bank()
     un = session["username"]
     acc = next((a for a in bank if a["username"] == un), None)
@@ -806,18 +823,27 @@ def bank_convert():
     if not acc.get("subscription_end") or datetime.now() > datetime.fromisoformat(acc["subscription_end"]):
         return jsonify({"error": "Payez le droit mensuel"}), 400
     key = f"balance_{currency}"
-    if key not in acc or acc[key] < amount:
-        return jsonify({"error": f"Solde insuffisant en {currency}"}), 400
-    acc[key] -= amount
+    if key not in acc or float(acc[key]) < float(amount):
+        return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {acc[key]}"}), 400
+    acc[key] = float(acc[key]) - float(amount)
     save_bank(bank)
     convs = []
     with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
         convs = json.load(f)
-    convs.append({"username": un, "phone": phone, "amount": amount, "currency": currency})
+    convs.append({"username": un, "phone": phone, "amount": float(amount), "currency": currency, "timestamp": datetime.now().isoformat()})
     with open(CONVERSIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(convs, f, ensure_ascii=False, indent=2)
     currency_name = "francs" if currency == "franc" else "dollars"
-    return jsonify({"success": True, "message": f"Vous avez converti {amount} {currency_name} à {phone}. Attendez votre réponse dans 5 heures du temps."})
+    socketio.emit("balance_updated", {
+        "username": acc["username"],
+        "balance_franc": float(acc["balance_franc"]),
+        "balance_dollar": float(acc["balance_dollar"]),
+        "account_id": acc["account_id"]
+    }, room=acc["username"])
+    return jsonify({
+        "success": True,
+        "message": f"Vous avez converti {amount:.2f} {currency_name} à {phone}. Attendez votre réponse dans 5 heures du temps."
+    })
 
 @app.route("/bank/transfer", methods=["POST"])
 def bank_transfer():
@@ -828,8 +854,10 @@ def bank_transfer():
     currency = data.get("currency")
     amount = data.get("amount")
     password = data.get("password")
-    if not all([recipient_account_id, currency, amount is not None, password]) or amount <= 0:
-        return jsonify({"error": "Données invalides"}), 400
+    if not all([recipient_account_id, currency, amount is not None, password]) or not isinstance(amount, (int, float)) or amount <= 0:
+        return jsonify({"error": "Données invalides ou montant non valide"}), 400
+    if currency not in ["franc", "dollar"]:
+        return jsonify({"error": "Devise invalide"}), 400
     bank = load_bank()
     sender = next((a for a in bank if a["username"] == session["username"]), None)
     if not sender:
@@ -842,26 +870,28 @@ def bank_transfer():
     if not recipient:
         return jsonify({"error": "Compte destinataire non trouvé"}), 404
     key = f"balance_{currency}"
-    if key not in sender or sender[key] < amount:
-        return jsonify({"error": f"Solde insuffisant en {currency}"}), 400
-    sender[key] -= amount
-    recipient[key] += amount
+    if key not in sender or float(sender[key]) < float(amount):
+        return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {sender[key]}"}), 400
+    sender[key] = float(sender[key]) - float(amount)
+    recipient[key] = float(recipient[key]) + float(amount)
     save_bank(bank)
     currency_name = "francs" if currency == "franc" else "dollars"
-    # Notifier les deux utilisateurs
     socketio.emit("balance_updated", {
         "username": sender["username"],
-        "balance_franc": sender["balance_franc"],
-        "balance_dollar": sender["balance_dollar"],
+        "balance_franc": float(sender["balance_franc"]),
+        "balance_dollar": float(sender["balance_dollar"]),
         "account_id": sender["account_id"]
     }, room=sender["username"])
     socketio.emit("balance_updated", {
         "username": recipient["username"],
-        "balance_franc": recipient["balance_franc"],
-        "balance_dollar": recipient["balance_dollar"],
+        "balance_franc": float(recipient["balance_franc"]),
+        "balance_dollar": float(recipient["balance_dollar"]),
         "account_id": recipient["account_id"]
     }, room=recipient["username"])
-    return jsonify({"success": True, "message": f"Vous avez transféré {amount} {currency_name} à {recipient['username']}."})
+    return jsonify({
+        "success": True,
+        "message": f"Vous avez transféré {amount:.2f} {currency_name} à {recipient['username']}."
+    })
 
 @app.route("/pay_subscription", methods=["POST"])
 def pay_subscription():
@@ -879,6 +909,9 @@ def pay_subscription():
         return jsonify({"error": "Plateforme non trouvée"}), 500
     fee = FEE_FRANC if currency == "franc" else FEE_DOLLAR
     key = "balance_franc" if currency == "franc" else "balance_dollar"
+    if acc[key] < fee:
+        return jsonify({"error": f"Solde insuffisant pour payer les frais ({fee} {currency})"}), 400
+    acc[key] -= fee
     platform[key] += fee * 0.7  # 70% à la plateforme
     referrer_id = acc.get("referrer_id")
     if referrer_id:
@@ -888,6 +921,12 @@ def pay_subscription():
     delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
     acc["subscription_end"] = (datetime.now() + delta).isoformat()
     save_bank(bank)
+    socketio.emit("balance_updated", {
+        "username": acc["username"],
+        "balance_franc": float(acc["balance_franc"]),
+        "balance_dollar": float(acc["balance_dollar"]),
+        "account_id": acc["account_id"]
+    }, room=acc["username"])
     return jsonify({"success": True})
 
 @app.route("/bank/platform_balance", methods=["GET"])
@@ -896,7 +935,7 @@ def platform_balance():
     platform = next((a for a in bank if a["username"] == "platform"), None)
     if not platform:
         return jsonify({"error": "Plateforme non trouvée"}), 500
-    return jsonify({"franc": platform["balance_franc"], "dollar": platform["balance_dollar"]})
+    return jsonify({"franc": float(platform["balance_franc"]), "dollar": float(platform["balance_dollar"])})
 
 @app.route("/deposit", methods=["POST"])
 def deposit():
@@ -910,16 +949,16 @@ def deposit():
     acc = next((a for a in bank if a.get("account_id") == account_id), None)
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
-    acc["balance_franc"] += franc
-    acc["balance_dollar"] += dollar
+    acc["balance_franc"] = float(acc["balance_franc"]) + float(franc)
+    acc["balance_dollar"] = float(acc["balance_dollar"]) + float(dollar)
     save_bank(bank)
     socketio.emit("balance_updated", {
         "username": acc["username"],
-        "balance_franc": acc["balance_franc"],
-        "balance_dollar": acc["balance_dollar"],
+        "balance_franc": float(acc["balance_franc"]),
+        "balance_dollar": float(acc["balance_dollar"]),
         "account_id": acc["account_id"]
     }, room=acc["username"])
-    return jsonify({"success": True, "message": f"Vous avez déposé {franc} francs et {dollar} dollars pour l'ID {account_id} ({acc['username']})"})
+    return jsonify({"success": True, "message": f"Vous avez déposé {franc:.2f} francs et {dollar:.2f} dollars pour l'ID {account_id} ({acc['username']})"})
 
 @app.route("/conversions", methods=["GET"])
 def get_conversions():
@@ -985,12 +1024,12 @@ def publish_result():
                 if acc:
                     key = "balance_franc" if bet["currency"] == "franc" else "balance_dollar"
                     gain = bet["amount"] * odd
-                    acc[key] += gain
-                    platform[key] -= gain - bet["amount"]  # Net payment from platform
+                    acc[key] = float(acc[key]) + float(gain)
+                    platform[key] = float(platform[key]) - (float(gain) - float(bet["amount"]))  # Net payment from platform
                     socketio.emit("balance_updated", {
                         "username": bet["username"],
-                        "balance_franc": acc["balance_franc"],
-                        "balance_dollar": acc["balance_dollar"],
+                        "balance_franc": float(acc["balance_franc"]),
+                        "balance_dollar": float(acc["balance_dollar"]),
                         "account_id": acc["account_id"]
                     }, room=bet["username"])
     save_bets(bets)
@@ -1026,19 +1065,19 @@ def place_bet():
         return jsonify({"error": "Mot de passe incorrect ou compte non trouvé"}), 401
 
     key = "balance_franc" if currency == "franc" else "balance_dollar"
-    if acc[key] < amount:
-        return jsonify({"error": "Solde insuffisant"}), 400
+    if float(acc[key]) < float(amount):
+        return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {acc[key]}"}, 400)
 
     platform = next((a for a in bank if a["username"] == "platform"), None)
-    acc[key] -= amount
-    platform[key] += amount
+    acc[key] = float(acc[key]) - float(amount)
+    platform[key] = float(platform[key]) + float(amount)
     save_bank(bank)
 
     bets.append({
         "username": session["username"],
         "match_id": match_id,
         "choice": choice,
-        "amount": amount,
+        "amount": float(amount),
         "currency": currency
     })
     save_bets(bets)
@@ -1059,7 +1098,13 @@ def get_balances():
     acc = next((a for a in bank if a["username"] == un), None)
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
-    return jsonify({"balances": {"franc": acc["balance_franc"], "dollar": acc["balance_dollar"]}, "account_id": acc["account_id"]})
+    return jsonify({
+        "balances": {
+            "franc": float(acc["balance_franc"]),
+            "dollar": float(acc["balance_dollar"])
+        },
+        "account_id": acc["account_id"]
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
