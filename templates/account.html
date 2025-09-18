@@ -131,7 +131,7 @@
                             return;
                         }
                         let am_str = prompt("Entrez le solde à convertir:");
-                        let amount = parseFloat(am_str);
+                        let amount = parseFloat(am_str.replace(',', '.'));
                         if (isNaN(amount) || amount <= 0) {
                             alert("Montant invalide");
                             console.error("Invalid amount:", am_str);
@@ -216,7 +216,7 @@
                             return;
                         }
                         let am_str = prompt("Entrez le montant à transférer:");
-                        let amount = parseFloat(am_str);
+                        let amount = parseFloat(am_str.replace(',', '.'));
                         if (isNaN(amount) || amount <= 0) {
                             alert("Montant invalide");
                             console.error("Invalid amount:", am_str);
