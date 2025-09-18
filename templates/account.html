@@ -202,8 +202,8 @@
                             return;
                         }
                         console.log("Recipient username:", resData.username);
-                        let confirm = confirm(`Confirmez le transfert vers ${resData.username} ?`);
-                        if (!confirm) {
+                        let confirmed = confirm(`Confirmez le transfert vers ${resData.username} ?`);
+                        if (!confirmed) {
                             console.log("Transfer confirmation cancelled");
                             return;
                         }
