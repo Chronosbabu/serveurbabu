@@ -1144,6 +1144,52 @@ def get_balances():
         "account_id": acc["account_id"]
     })
 
+
+
+# Retourne l'heure du serveur
+@app.route("/get_server_time")
+def get_server_time():
+    now = datetime.now(timezone.utc)
+    return jsonify({"time": now.isoformat()})
+
+# Retourne la liste des matches
+@app.route("/get_matches")
+def get_matches():
+    matches = load_matches()  # Charge depuis matches.json
+    return jsonify(matches)
+
+# Placer un pari
+@app.route("/place_bet", methods=["POST"])
+def place_bet():
+    data = request.get_json()
+    match_id = data.get("match_id")
+    choice = data.get("choice")
+    currency = data.get("currency")
+    amount = data.get("amount")
+    password = data.get("password")
+
+    # Vérifier utilisateur et mot de passe bancaire
+    bank = load_bank()
+    account = next((a for a in bank if a["username"] == session.get("username")), None)
+    if not account or hash_password(password) != account.get("password"):
+        return jsonify({"success": False, "error": "Mot de passe incorrect"})
+
+    # Ajouter le pari
+    bets = load_bets()
+    bets.append({
+        "username": session.get("username"),
+        "match_id": match_id,
+        "choice": choice,
+        "currency": currency,
+        "amount": amount,
+        "date": datetime.now(timezone.utc).isoformat()
+    })
+    save_bets(bets)
+    return jsonify({"success": True, "message": "Pari placé avec succès"})
+
+
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
