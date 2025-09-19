@@ -175,13 +175,13 @@ def cleanup_expired_matches():
         now = datetime.now(timezone.utc)
         updated = False
         for match in matches:
-            if not match.get("result") and datetime.fromisoformat(match["bet_end_time"]) <= now:
+            if not match.get("result") and datetime.fromisoformat(match["bet_end_time"]).replace(tzinfo=timezone.utc) <= now:
                 match["result"] = "expired"  # Mark as expired to prevent betting
                 updated = True
                 socketio.emit("match_result", {"match_id": match["id"], "result": "expired"})
         if updated:
             save_matches(matches)
-        time.sleep(60)  # Check every 60 seconds
+        time.sleep(30)  # Check every 30 seconds for more responsiveness
 
 # Start cleanup thread
 threading.Thread(target=cleanup_expired_matches, daemon=True).start()
@@ -1090,13 +1090,14 @@ def place_bet():
         return jsonify({"error": "Données manquantes"}), 400
 
     matches = load_matches()
-    match = next((m for m in matches if m["id"] == match_id and not m.get("result")), None)
+    match = next((m for m in matches if m["id"] == match_id), None)
     if not match:
-        return jsonify({"error": "Match non disponible"}), 404
+        return jsonify({"error": "Match non trouvé"}), 404
 
     bet_end_time = datetime.fromisoformat(match.get("bet_end_time")).replace(tzinfo=timezone.utc)
-    if datetime.now(timezone.utc) > bet_end_time:
-        return jsonify({"error": "Pari indisponible, le match a déjà commencé"}), 400
+    now_utc = datetime.now(timezone.utc)
+    if match.get("result") or now_utc > bet_end_time:
+        return jsonify({"error": "Pari indisponible, le match a déjà commencé ou est terminé"}), 400
 
     bets = load_bets()
     if any(b["username"] == session["username"] and b["match_id"] == match_id for b in bets):
@@ -1121,9 +1122,18 @@ def place_bet():
         "match_id": match_id,
         "choice": choice,
         "amount": float(amount),
-        "currency": currency
+        "currency": currency,
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
     save_bets(bets)
+
+    socketio.emit("bet_placed", {
+        "username": session["username"],
+        "match_id": match_id,
+        "choice": choice,
+        "amount": float(amount),
+        "currency": currency
+    }, room=session["username"])
 
     return jsonify({"success": True, "message": "Pari placé avec succès"})
 

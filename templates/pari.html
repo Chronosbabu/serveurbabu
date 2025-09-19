@@ -68,51 +68,52 @@
     const socket = io();
     const matchesContainer = document.getElementById('matches');
 
+    async function getServerTime() {
+      const res = await fetch('/get_server_time');
+      const data = await res.json();
+      return new Date(data.time);
+    }
+
     function formatUTCDate(isoString) {
       const date = new Date(isoString);
       return `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')} UTC`;
     }
 
     async function loadMatches() {
+      const now = await getServerTime();
       const res = await fetch('/get_matches');
       const matches = await res.json();
       matchesContainer.innerHTML = '';
       matches.forEach(match => {
-        renderMatch(match);
+        const betEndTime = new Date(match.bet_end_time);
+        if (now <= betEndTime) {
+          renderMatch(match);
+        }
       });
     }
 
     function renderMatch(match) {
-      const now = new Date();
-      const betEndTime = new Date(match.bet_end_time);
-      const isExpired = now > betEndTime;
       const div = document.createElement('div');
       div.className = 'match';
       div.dataset.matchId = match.id;
       div.dataset.betEndTime = match.bet_end_time;
       div.innerHTML = `
         <span class="match-name">
-          <span class="odd">cote: ${match.odd_team1}</span>
+          <span class="odd">Cote: ${match.odd_team1}</span>
           ${match.team1} vs 
-          <span class="odd">cote: ${match.odd_team2}</span>
+          <span class="odd">Cote: ${match.odd_team2}</span>
           ${match.team2}
-          <span class="odd">nul: cote ${match.odd_draw}</span>
+          <span class="odd">Nul: ${match.odd_draw}</span>
           <span class="bet-end-time">Fin des paris: ${formatUTCDate(match.bet_end_time)}</span>
         </span>
-        <button class="bet-btn" ${isExpired ? 'disabled' : ''}>Parier</button>
+        <button class="bet-btn">Parier</button>
       `;
-      if (!isExpired) {
-        matchesContainer.appendChild(div);
-        bindBetButton(div);
-      }
+      matchesContainer.appendChild(div);
+      bindBetButton(div);
     }
 
     socket.on('new_match', match => {
-      const now = new Date();
-      const betEndTime = new Date(match.bet_end_time);
-      if (now <= betEndTime) {
-        renderMatch(match);
-      }
+      renderMatch(match);
     });
 
     socket.on('match_result', data => {
@@ -121,13 +122,13 @@
       alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result === 'expired' ? 'Expiré' : data.result}. Vérifiez votre solde !`);
     });
 
-    function bindBetButton(matchEl) {
+    async function bindBetButton(matchEl) {
       const btn = matchEl.querySelector('.bet-btn');
       btn.addEventListener('click', async () => {
-        const now = new Date();
+        const now = await getServerTime();
         const betEndTime = new Date(matchEl.dataset.betEndTime);
         if (now > betEndTime) {
-          alert('Pari indisponible, le match a déjà commencé');
+          alert('Pari indisponible, le match a déjà commencé ou est terminé');
           matchEl.remove();
           return;
         }
@@ -147,7 +148,8 @@
         choice = choice === '3' ? '2' : choice === '2' ? '0' : choice;
 
         let currencyChoice = prompt("1. Franc\n2. Dollar");
-        let currency = currencyChoice === '1' ? 'franc' : 'dollar';
+        let currency = currencyChoice === '1' ? 'franc' : currencyChoice === '2' ? 'dollar' : null;
+        if (!currency) return alert('Devise invalide');
 
         let amountStr = prompt("Entrez le montant à parier:");
         let amount = parseFloat(amountStr);
@@ -164,6 +166,8 @@
 
         if (res.success) {
           alert(res.message);
+          btn.disabled = true;
+          btn.textContent = 'Pari placé';
         } else {
           alert(res.error);
         }
@@ -171,15 +175,16 @@
     }
 
     function checkExpiredMatches() {
-      document.querySelectorAll('.match').forEach(matchEl => {
+      document.querySelectorAll('.match').forEach(async matchEl => {
         const betEndTime = new Date(matchEl.dataset.betEndTime);
-        if (new Date() > betEndTime) {
+        const now = await getServerTime();
+        if (now > betEndTime) {
           matchEl.remove();
         }
       });
     }
 
-    setInterval(checkExpiredMatches, 10000); // Check every 10 seconds
+    setInterval(checkExpiredMatches, 5000); // Check every 5 seconds for responsiveness
 
     loadMatches();
 
