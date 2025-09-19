@@ -169,22 +169,7 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
-def cleanup_expired_matches():
-    while True:
-        matches = load_matches()
-        now = datetime.now(timezone.utc)
-        updated = False
-        for match in matches:
-            if not match.get("result") and datetime.fromisoformat(match["bet_end_time"]).replace(tzinfo=timezone.utc) <= now:
-                match["result"] = "expired"  # Mark as expired to prevent betting
-                updated = True
-                socketio.emit("match_result", {"match_id": match["id"], "result": "expired"})
-        if updated:
-            save_matches(matches)
-        time.sleep(30)  # Check every 30 seconds for more responsiveness
-
-# Start cleanup thread
-threading.Thread(target=cleanup_expired_matches, daemon=True).start()
+# Plus de thread cleanup, car les vérifications sont faites en temps réel
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -994,7 +979,7 @@ def get_server_time():
 def pari():
     if "username" not in session:
         return redirect(url_for("login"))
-    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]).replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)]
+    matches = [m for m in load_matches() if not m.get("result")]
     return render_template("pari.html", matches=matches, username=session["username"])
 
 @app.route("/publish_match", methods=["POST"])
@@ -1097,7 +1082,7 @@ def place_bet():
     bet_end_time = datetime.fromisoformat(match.get("bet_end_time")).replace(tzinfo=timezone.utc)
     now_utc = datetime.now(timezone.utc)
     if match.get("result") or now_utc > bet_end_time:
-        return jsonify({"error": "Pari indisponible, le match a déjà commencé ou est terminé"}), 400
+        return jsonify({"error": "Pari indisponible pour ce match"}), 400
 
     bets = load_bets()
     if any(b["username"] == session["username"] and b["match_id"] == match_id for b in bets):
@@ -1139,8 +1124,7 @@ def place_bet():
 
 @app.route("/get_matches", methods=["GET"])
 def get_matches():
-    now_utc = datetime.now(timezone.utc)
-    matches = [m for m in load_matches() if not m.get("result") and datetime.fromisoformat(m["bet_end_time"]).replace(tzinfo=timezone.utc) > now_utc]
+    matches = [m for m in load_matches() if not m.get("result")]
     return jsonify(matches)
 
 @app.route("/get_balances", methods=["GET"])

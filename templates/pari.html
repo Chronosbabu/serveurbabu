@@ -80,15 +80,11 @@
     }
 
     async function loadMatches() {
-      const now = await getServerTime();
       const res = await fetch('/get_matches');
       const matches = await res.json();
       matchesContainer.innerHTML = '';
       matches.forEach(match => {
-        const betEndTime = new Date(match.bet_end_time);
-        if (now <= betEndTime) {
-          renderMatch(match);
-        }
+        renderMatch(match);
       });
     }
 
@@ -119,7 +115,7 @@
     socket.on('match_result', data => {
       const matchEl = document.querySelector(`.match[data-match-id="${data.match_id}"]`);
       if (matchEl) matchEl.remove();
-      alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result === 'expired' ? 'Expiré' : data.result}. Vérifiez votre solde !`);
+      alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result}. Vérifiez votre solde !`);
     });
 
     async function bindBetButton(matchEl) {
@@ -128,8 +124,7 @@
         const now = await getServerTime();
         const betEndTime = new Date(matchEl.dataset.betEndTime);
         if (now > betEndTime) {
-          alert('Pari indisponible, le match a déjà commencé ou est terminé');
-          matchEl.remove();
+          alert('Pari indisponible pour ce match');
           return;
         }
         const matchId = parseInt(matchEl.dataset.matchId);
@@ -173,18 +168,6 @@
         }
       });
     }
-
-    function checkExpiredMatches() {
-      document.querySelectorAll('.match').forEach(async matchEl => {
-        const betEndTime = new Date(matchEl.dataset.betEndTime);
-        const now = await getServerTime();
-        if (now > betEndTime) {
-          matchEl.remove();
-        }
-      });
-    }
-
-    setInterval(checkExpiredMatches, 5000); // Check every 5 seconds for responsiveness
 
     loadMatches();
 
