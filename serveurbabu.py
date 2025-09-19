@@ -169,8 +169,6 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
-# Plus de thread cleanup, car les vérifications sont faites en temps réel
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -1064,7 +1062,7 @@ def publish_result():
 @app.route("/place_bet", methods=["POST"])
 def place_bet():
     if "username" not in session:
-        return jsonify({"error": "Non connecté"}), 401
+        return jsonify({"error": "Pari indisponible pour ce match"}), 400
     data = request.json
     match_id = data.get("match_id")
     choice = data.get("choice")
@@ -1072,12 +1070,12 @@ def place_bet():
     amount = data.get("amount")
     pwd = data.get("password")
     if not all([match_id, choice, currency, amount, pwd]):
-        return jsonify({"error": "Données manquantes"}), 400
+        return jsonify({"error": "Pari indisponible pour ce match"}), 400
 
     matches = load_matches()
     match = next((m for m in matches if m["id"] == match_id), None)
     if not match:
-        return jsonify({"error": "Match non trouvé"}), 404
+        return jsonify({"error": "Pari indisponible pour ce match"}), 400
 
     bet_end_time = datetime.fromisoformat(match.get("bet_end_time")).replace(tzinfo=timezone.utc)
     now_utc = datetime.now(timezone.utc)
@@ -1091,11 +1089,11 @@ def place_bet():
     bank = load_bank()
     acc = next((a for a in bank if a["username"] == session["username"]), None)
     if not acc or acc["password"] != hash_password(pwd):
-        return jsonify({"error": "Mot de passe incorrect ou compte non trouvé"}), 401
+        return jsonify({"error": "Pari indisponible pour ce match"}), 400
 
     key = "balance_franc" if currency == "franc" else "balance_dollar"
     if float(acc[key]) < float(amount):
-        return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {acc[key]}"}, 400)
+        return jsonify({"error": "Pari indisponible pour ce match"}), 400
 
     platform = next((a for a in bank if a["username"] == "platform"), None)
     acc[key] = float(acc[key]) - float(amount)
@@ -1143,52 +1141,6 @@ def get_balances():
         },
         "account_id": acc["account_id"]
     })
-
-
-
-# Retourne l'heure du serveur
-@app.route("/get_server_time")
-def get_server_time():
-    now = datetime.now(timezone.utc)
-    return jsonify({"time": now.isoformat()})
-
-# Retourne la liste des matches
-@app.route("/get_matches")
-def get_matches():
-    matches = load_matches()  # Charge depuis matches.json
-    return jsonify(matches)
-
-# Placer un pari
-@app.route("/place_bet", methods=["POST"])
-def place_bet():
-    data = request.get_json()
-    match_id = data.get("match_id")
-    choice = data.get("choice")
-    currency = data.get("currency")
-    amount = data.get("amount")
-    password = data.get("password")
-
-    # Vérifier utilisateur et mot de passe bancaire
-    bank = load_bank()
-    account = next((a for a in bank if a["username"] == session.get("username")), None)
-    if not account or hash_password(password) != account.get("password"):
-        return jsonify({"success": False, "error": "Mot de passe incorrect"})
-
-    # Ajouter le pari
-    bets = load_bets()
-    bets.append({
-        "username": session.get("username"),
-        "match_id": match_id,
-        "choice": choice,
-        "currency": currency,
-        "amount": amount,
-        "date": datetime.now(timezone.utc).isoformat()
-    })
-    save_bets(bets)
-    return jsonify({"success": True, "message": "Pari placé avec succès"})
-
-
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
