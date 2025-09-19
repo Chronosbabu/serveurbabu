@@ -173,6 +173,20 @@
 
     // Reset new matches count on load of pari page
     localStorage.setItem("newMatches", 0);
+
+    // 🔹 Désactive automatiquement les paris expirés
+    setInterval(async () => {
+      const now = await getServerTime();
+      document.querySelectorAll('.match').forEach(matchEl => {
+        const betEndTime = new Date(matchEl.dataset.betEndTime);
+        const btn = matchEl.querySelector('.bet-btn');
+        if (now > betEndTime) {
+          btn.disabled = true;
+          btn.textContent = 'Pari expiré';
+        }
+      });
+    }, 5000); // vérifie toutes les 5 secondes
   </script>
 </body>
 </html>
+
