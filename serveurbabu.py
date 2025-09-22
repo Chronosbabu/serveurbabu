@@ -154,6 +154,58 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry
 
+def calculate_recommendation_score(posts, current_user, interacted_post_ids, following_list):
+    """
+    Calculate a recommendation score for each post based on user interactions and following status.
+    - Liked posts: High weight (3.0)
+    - Viewed posts: Medium weight (1.0)
+    - Posts from followed users: High weight (2.0)
+    - Text similarity (TF-IDF): Medium weight (1.0)
+    """
+    scores = []
+    all_descriptions = [p["description"] for p in posts]
+    
+    # Initialize TF-IDF vectorizer
+    try:
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(all_descriptions)
+    except Exception as e:
+        print(f"TF-IDF error: {e}")
+        tfidf_matrix = None
+    
+    for i, post in enumerate(posts):
+        score = 0.0
+        
+        # Interaction-based scoring
+        if post["id"] in interacted_post_ids:
+            if post["id"] in current_user.get("liked_posts", []):
+                score += 3.0  # High weight for liked posts
+            if post["id"] in current_user.get("viewed_posts", []):
+                score += 1.0  # Medium weight for viewed posts
+        
+        # Following-based scoring
+        if post["username"] in following_list:
+            score += 2.0  # High weight for posts from followed users
+        
+        # Content similarity-based scoring
+        if tfidf_matrix is not None and interacted_post_ids:
+            interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
+            if interacted_posts:
+                interacted_descriptions = [p["description"] for p in interacted_posts]
+                try:
+                    interacted_tfidf = vectorizer.transform(interacted_descriptions)
+                    post_tfidf = tfidf_matrix[i]
+                    similarity = cosine_similarity(post_tfidf, interacted_tfidf).mean()
+                    score += similarity * 1.0  # Medium weight for content similarity
+                except Exception as e:
+                    print(f"Similarity calculation error: {e}")
+        
+        scores.append((i, score))
+    
+    # Sort posts by score in descending order
+    sorted_indices = [i for i, _ in sorted(scores, key=lambda x: x[1], reverse=True)]
+    return [posts[i] for i in sorted_indices]
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -219,24 +271,11 @@ def index():
     current_user = next((u for u in users_list if u["username"] == session["username"]), None)
     interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
     interacted_post_ids = list(set(interacted_post_ids))  # Remove duplicates
+    following_list = current_user.get("following", [])
 
-    if interacted_post_ids:
-        interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
-        if interacted_posts:
-            all_descriptions = [p["description"] for p in posts]
-            interacted_descriptions = [p["description"] for p in interacted_posts]
-            if any(d.strip() for d in interacted_descriptions):  # Check if any non-empty
-                try:
-                    vectorizer = TfidfVectorizer()
-                    tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
-                    tfidf_posts = tfidf_matrix[:len(posts)]
-                    tfidf_interacted = tfidf_matrix[len(posts):]
-                    similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
-                    sorted_indices = np.argsort(similarities)[::-1]
-                    posts = [posts[i] for i in sorted_indices]
-                except Exception as e:
-                    print(f"Recommendation error: {e}")
-                    # Fallback to original order
+    # Apply recommendation scoring
+    if interacted_post_ids or following_list:
+        posts = calculate_recommendation_score(posts, current_user, interacted_post_ids, following_list)
 
     users = {u["username"]: u for u in users_list}
     for p in posts:
@@ -246,6 +285,7 @@ def index():
         p['avatar'] = users.get(p["username"], {}).get("avatar")
         for comment in p.get("comments", []):
             comment['avatar'] = users.get(comment["username"], {}).get("avatar")
+    
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/follow/<username>", methods=["POST"])
@@ -266,6 +306,8 @@ def follow_user(username):
         user_notifications.setdefault(username, []).append(msg)
         socketio.emit("new_notification", {"message": msg}, room=username)
 
+    # Trigger recommendation update after following
+    socketio.emit("update_recommendations", room=current_user)
     return jsonify({"following": following})
 
 @app.route("/add_post", methods=["GET", "POST"])
@@ -313,6 +355,8 @@ def add_post():
             "description": new_post["description"]
         })
 
+        # Trigger recommendation update for all connected users
+        socketio.emit("update_recommendations")
         return redirect(url_for("index"))
 
     return render_template("new_post.html")
@@ -356,6 +400,8 @@ def like_post(post_id):
         save_users(users)
 
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
+    # Trigger recommendation update after liking
+    socketio.emit("update_recommendations", room=username)
     return jsonify({"likes": post["likes"], "liked": liked})
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
@@ -384,6 +430,7 @@ def comments(post_id):
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
+            socketio.emit("update_recommendations")  # Trigger recommendation update
             return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
 
     post['avatar'] = users.get(post["username"], {}).get("avatar")
@@ -541,7 +588,7 @@ def delete_post(post_id):
     save_posts(posts)
 
     socketio.emit("post_deleted", {"post_id": post_id})
-
+    socketio.emit("update_recommendations")  # Trigger recommendation update
     return jsonify({"success": True})
 
 @app.route("/conversations")
@@ -670,6 +717,7 @@ def handle_send_comment(data):
     date = data.get('date') or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     comment_id = data.get('comment_id') or None
     emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date})
+    emit('update_recommendations')  # Trigger recommendation update
 
 @socketio.on('view_post')
 def handle_view_post(data):
@@ -685,6 +733,33 @@ def handle_view_post(data):
         if post_id not in viewed_posts:
             viewed_posts.append(post_id)
             save_users(users)
+        emit('update_recommendations', room=session["username"])  # Trigger recommendation update
+
+@socketio.on('update_recommendations')
+def handle_update_recommendations():
+    if "username" not in session:
+        return
+    posts = load_posts()
+    users_list = load_users()
+    current_user = next((u for u in users_list if u["username"] == session["username"]), None)
+    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
+    interacted_post_ids = list(set(interacted_post_ids))
+    following_list = current_user.get("following", [])
+
+    # Apply recommendation scoring
+    if interacted_post_ids or following_list:
+        posts = calculate_recommendation_score(posts, current_user, interacted_post_ids, following_list)
+
+    users = {u["username"]: u for u in users_list}
+    for p in posts:
+        p['liked_by_user'] = session["username"] in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))
+        p['following'] = is_following(session["username"], p["username"])
+        p['avatar'] = users.get(p["username"], {}).get("avatar")
+        for comment in p.get("comments", []):
+            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
+    
+    emit('receive_recommendations', {'posts': posts}, room=session["username"])
 
 @app.route("/notifications")
 def notifications():
@@ -718,7 +793,11 @@ def videos():
         return redirect(url_for("login"))
 
     posts = load_posts()
-    users = {u["username"]: u for u in load_users()}
+    users_list = load_users()
+    current_user = next((u for u in users_list if u["username"] == session["username"]), None)
+    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
+    interacted_post_ids = list(set(interacted_post_ids))
+    following_list = current_user.get("following", [])
 
     video_posts = []
     for p in posts:
@@ -731,13 +810,20 @@ def videos():
                     has_video = True
                     break
         if has_video:
-            p['liked_by_user'] = session["username"] in p.get("liked_by", [])
-            p['comments_count'] = len(p.get("comments", []))
-            p['following'] = is_following(session["username"], p["username"])
-            p['avatar'] = users.get(p["username"], {}).get("avatar")
-            for comment in p.get("comments", []):
-                comment['avatar'] = users.get(comment["username"], {}).get("avatar")
             video_posts.append(p)
+
+    # Apply recommendation scoring for video posts
+    if interacted_post_ids or following_list:
+        video_posts = calculate_recommendation_score(video_posts, current_user, interacted_post_ids, following_list)
+
+    users = {u["username"]: u for u in users_list}
+    for p in video_posts:
+        p['liked_by_user'] = session["username"] in p.get("liked_by", [])
+        p['comments_count'] = len(p.get("comments", []))
+        p['following'] = is_following(session["username"], p["username"])
+        p['avatar'] = users.get(p["username"], {}).get("avatar")
+        for comment in p.get("comments", []):
+            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
 
     return render_template(
         "videos.html",
