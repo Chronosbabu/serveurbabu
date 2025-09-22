@@ -1,7 +1,10 @@
 flask
 flask-socketio
-eventlet
-python-magic
+werkzeug
 requests
-scikit-learn
+sklearn
 numpy
+scipy
+eventlet
+gevent
+gevent-websocket

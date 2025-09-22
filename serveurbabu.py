@@ -725,8 +725,8 @@ def videos():
 
     posts = load_posts()
     users = {u["username"]: u for u in load_users()}
-    current_user = next((u for u in users if u["username"] == session["username"]), None)
-    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
+    current_user = users.get(session["username"])
+    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", []) if current_user else []
     interacted_post_ids = list(set(interacted_post_ids))  # Remove duplicates
 
     video_posts = []
