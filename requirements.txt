@@ -2,7 +2,7 @@ flask
 flask-socketio
 werkzeug
 requests
-sklearn
+scikit-learn
 numpy
 scipy
 eventlet
