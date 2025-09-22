@@ -655,6 +655,7 @@
     const videos = new Set();
     let currentVideo = null;
     const socket = io();
+    let viewedPosts = new Set();
 
     // --- Badge Management ---
     const msgBadge = document.getElementById("unread-count");
@@ -813,4 +814,307 @@
         const usernameEl = post.querySelector('.username');
         if (!usernameEl) return;
         const postUsername = usernameEl.textContent.trim();
-        const follow
+        const followBtn = post.querySelector('.follow-btn');
+        if (!followBtn) return;
+        if (window.followingUsers && window.followingUsers.has(postUsername)) {
+          followBtn.dataset.following = "true";
+          followBtn.classList.add('following');
+          followBtn.innerHTML = 'Abonné ✔';
+          followBtn.disabled = true;
+        } else {
+          followBtn.dataset.following = "false";
+          followBtn.classList.remove('following');
+          followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+          followBtn.disabled = false;
+        }
+        bindFollowButtons(post);
+      });
+    }
+
+    /* ---------- Video autoplay and loop ---------- */
+    const ioObserver = new IntersectionObserver((entries) => {
+      let best = null;
+      entries.forEach(entry => {
+        const vid = entry.target;
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+        if (visible && !best) best = vid;
+        if (!visible && !vid.paused) vid.pause();
+      });
+      if (best && currentVideo !== best) {
+        if (currentVideo) currentVideo.pause();
+        currentVideo = best;
+        currentVideo.play().catch(() => {});
+      }
+    }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+    function observeVideo(vid) {
+      if (!videos.has(vid)) {
+        videos.add(vid);
+        ioObserver.observe(vid);
+        vid.pause();
+        vid.addEventListener('ended', () => {
+          vid.currentTime = 0;
+          vid.play().catch(() => {});
+        });
+        vid.addEventListener('click', (e) => {
+          if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
+          if (vid.paused) {
+            vid.play().catch(() => {});
+          } else {
+            vid.pause();
+          }
+        });
+      }
+    }
+
+    /* ---------- Mute button functionality ---------- */
+    function bindMuteButton(video, muteBtn) {
+      if (!muteBtn) return;
+      muteBtn.addEventListener('click', () => {
+        video.muted = !video.muted;
+        const icon = muteBtn.querySelector('i');
+        icon.classList.toggle('fa-volume-xmark', video.muted);
+        icon.classList.toggle('fa-volume-high', !video.muted);
+      });
+    }
+
+    /* ---------- Comment Form Submission --- */
+    function bindCommentForm(post) {
+      const form = post.querySelector('.comment-form form');
+      if (!form) return;
+      const textarea = form.querySelector('textarea');
+      const submitButton = form.querySelector('button');
+      const postId = form.dataset.postId;
+      const commentsBox = post.querySelector('#commentsBox-' + postId);
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        let content = textarea.value.trim();
+        if (!content) return;
+        textarea.value = '';
+        submitButton.disabled = true; // Disable button to prevent multiple submissions
+        fetch(`/comments/${postId}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `comment=${encodeURIComponent(content)}`
+        }).then(res => {
+          if (res.ok) {
+            return res.json().then(data => {
+              const commentId = data.comment_id; // Assume server returns comment_id
+              const commentDiv = document.createElement('div');
+              commentDiv.className = 'comment';
+              commentDiv.dataset.commentId = commentId;
+              const avatarHtml = data.avatar
+                ? `<a href="/profile/${encodeURIComponent(currentUsername)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+                : `<a href="/profile/${encodeURIComponent(currentUsername)}"><div class="avatar-fallback">${currentUsername[0].toUpperCase()}</div></a>`;
+              commentDiv.innerHTML = `
+                ${avatarHtml}
+                <div class="comment-content">
+                  <p><strong><a href="/profile/${encodeURIComponent(currentUsername)}">${currentUsername}</a></strong></p>
+                  <p>${content}</p>
+                  <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+                </div>
+              `;
+              const noComments = commentsBox.querySelector('.no-comments');
+              if (noComments) noComments.remove();
+              commentsBox.appendChild(commentDiv);
+              commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comment
+              textarea.focus();
+              const countEl = post.querySelector('.comment-count');
+              countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+              socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: data.avatar });
+            });
+          } else {
+            textarea.value = content;
+          }
+        }).catch(err => {
+          console.error(err);
+          textarea.value = content;
+        }).finally(() => {
+          submitButton.disabled = false; // Re-enable button
+        });
+      });
+
+      textarea.addEventListener('input', () => {
+        submitButton.disabled = !textarea.value.trim();
+      });
+    }
+
+    /* ---------- Comments Toggle --- */
+    function bindCommentToggle(post) {
+      const btn = post.querySelector('.comment-btn');
+      const commentsSection = post.querySelector('.comments-section');
+      if (!btn || !commentsSection) return;
+      btn.addEventListener('click', () => {
+        const isOpen = commentsSection.classList.contains('open');
+        if (!isOpen) {
+          commentsSection.classList.add('open');
+          const commentsBox = commentsSection.querySelector('.comments-box');
+          commentsBox.scrollTop = 0; // Scroll to top to show oldest comments
+          history.pushState({ commentsOpen: true, postId: post.dataset.postId }, '', window.location.href);
+        } else {
+          commentsSection.classList.remove('open');
+          history.back();
+        }
+        if (currentVideo) currentVideo.pause();
+      });
+    }
+
+    /* ---------- Post View Observer --- */
+    const postObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          const postId = entry.target.dataset.postId;
+          if (!viewedPosts.has(postId)) {
+            socket.emit('view_post', { post_id: parseInt(postId) });
+            viewedPosts.add(postId);
+          }
+        }
+      });
+    }, { threshold: 0.5 });
+
+    /* ---------- Init posts existants ---------- */
+    document.querySelectorAll('.post').forEach(post => {
+      bindLikes(post);
+      bindFollowButtons(post);
+      bindCommentForm(post);
+      bindCommentToggle(post);
+      postObserver.observe(post);
+      post.querySelectorAll('video').forEach(video => {
+        observeVideo(video);
+        const muteBtn = video.parentElement.querySelector('.mute-btn');
+        bindMuteButton(video, muteBtn);
+      });
+      const description = post.querySelector('.description');
+      const toggleButton = post.querySelector('.toggle-description');
+      if (description && toggleButton) {
+        if (description.scrollHeight > description.clientHeight) {
+          description.classList.add('long');
+        }
+        toggleButton.addEventListener('click', () => {
+          if (description.classList.contains('expanded')) {
+            description.classList.remove('expanded');
+            toggleButton.textContent = 'Afficher plus';
+          } else {
+            description.classList.add('expanded');
+            toggleButton.textContent = 'Afficher moins';
+          }
+        });
+      }
+    });
+    document.querySelectorAll('.post img').forEach(img => {
+      img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+    });
+
+    /* ---------- Socket.IO ---------- */
+    socket.on('like_updated', data => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (post) {
+        const countEl = post.querySelector('.like-count');
+        if (countEl) countEl.textContent = data.likes;
+        const btn = post.querySelector('.like-btn');
+        if (btn) btn.classList.toggle('liked', data.liked);
+        const icon = btn.querySelector('i');
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
+      }
+    });
+
+    socket.on('new_comment', data => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (!post) return;
+      const commentsBox = post.querySelector('#commentsBox-' + data.post_id);
+      if (!commentsBox) return;
+
+      // Check if comment already exists to prevent duplicates
+      const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
+      if (!existingComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment';
+        commentDiv.dataset.commentId = data.comment_id;
+        const avatarHtml = data.avatar
+          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+          : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
+        commentDiv.innerHTML = `
+          ${avatarHtml}
+          <div class="comment-content">
+            <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
+            <p>${data.content}</p>
+            <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+          </div>
+        `;
+        const noComments = commentsBox.querySelector('.no-comments');
+        if (noComments) noComments.remove();
+        commentsBox.appendChild(commentDiv);
+        if (commentsBox.parentElement.classList.contains('open')) {
+          commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comments when section is open
+        }
+        const countEl = post.querySelector('.comment-count');
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+      }
+    });
+
+    /* ---------- Nouveau post badge Accueil ---------- */
+    socket.on('new_post', postHtml => {
+      newPostsCount++;
+      homeBadge.style.display = 'inline';
+      homeBadge.textContent = newPostsCount;
+    });
+
+    /* ---------- Socket.IO Badge Handlers ---------- */
+    socket.on('new_message', (message) => {
+      const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+      if (!currentChatUser || currentChatUser !== message.sender) {
+        let count = parseInt(localStorage.getItem("unreadMsgs") || "0") + 1;
+        localStorage.setItem("unreadMsgs", count);
+        msgBadge.textContent = count;
+        msgBadge.style.display = "inline-block";
+      }
+    });
+
+    socket.on('new_notification', (notification) => {
+      if (!window.location.pathname.includes('/notifications')) {
+        let count = parseInt(localStorage.getItem("unreadNotifs") || "0") + 1;
+        localStorage.setItem("unreadNotifs", count);
+        notifBadge.textContent = count;
+        notifBadge.style.display = "inline-block";
+      }
+    });
+
+    /* ---------- Carousel Initialization ---------- */
+    function initCarousel(post) {
+      const track = post.querySelector('.carousel-track');
+      const dots = post.querySelectorAll('.carousel-indicators .dot');
+      if (!track || dots.length === 0) return;
+
+      Array.from(track.children).forEach(child => {
+        child.style.width = '100%';
+        child.style.flex = '0 0 100%';
+      });
+
+      track.style.overflowX = 'auto';
+      track.style.scrollSnapType = 'x mandatory';
+
+      track.addEventListener('scroll', () => {
+        const index = Math.round(track.scrollLeft / track.offsetWidth);
+        dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+      });
+
+      dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+          track.scrollTo({
+            left: index * track.offsetWidth,
+            behavior: 'smooth'
+          });
+        });
+      });
+    }
+
+    document.querySelectorAll('.post').forEach(post => initCarousel(post));
+  });
+</script>
+</body>
+</html>

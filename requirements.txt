@@ -3,3 +3,5 @@ flask-socketio
 eventlet
 python-magic
 requests
+scikit-learn
+numpy

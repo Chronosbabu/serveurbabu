@@ -8,6 +8,9 @@ import random
 import string
 import threading
 import time
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 app = Flask(__name__)
 app.secret_key = "secret_key_here"
@@ -175,7 +178,9 @@ def register():
             "avatar": avatar_filename,
             "bio": "",
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "following": []
+            "following": [],
+            "liked_posts": [],
+            "viewed_posts": []
         })
         save_users(users)
         return redirect(url_for("login"))
@@ -210,7 +215,30 @@ def index():
         return redirect(url_for("login"))
 
     posts = load_posts()
-    users = {u["username"]: u for u in load_users()}
+    users_list = load_users()
+    current_user = next((u for u in users_list if u["username"] == session["username"]), None)
+    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
+    interacted_post_ids = list(set(interacted_post_ids))  # Remove duplicates
+
+    if interacted_post_ids:
+        interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
+        if interacted_posts:
+            all_descriptions = [p["description"] for p in posts]
+            interacted_descriptions = [p["description"] for p in interacted_posts]
+            if any(d.strip() for d in interacted_descriptions):  # Check if any non-empty
+                try:
+                    vectorizer = TfidfVectorizer()
+                    tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
+                    tfidf_posts = tfidf_matrix[:len(posts)]
+                    tfidf_interacted = tfidf_matrix[len(posts):]
+                    similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
+                    sorted_indices = np.argsort(similarities)[::-1]
+                    posts = [posts[i] for i in sorted_indices]
+                except Exception as e:
+                    print(f"Recommendation error: {e}")
+                    # Fallback to original order
+
+    users = {u["username"]: u for u in users_list}
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
@@ -313,6 +341,20 @@ def like_post(post_id):
 
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
+
+    # Update user's liked_posts
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user:
+        liked_posts = user.setdefault("liked_posts", [])
+        if liked:
+            if post_id not in liked_posts:
+                liked_posts.append(post_id)
+        else:
+            if post_id in liked_posts:
+                liked_posts.remove(post_id)
+        save_users(users)
+
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username})
     return jsonify({"likes": post["likes"], "liked": liked})
 
@@ -628,6 +670,21 @@ def handle_send_comment(data):
     date = data.get('date') or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     comment_id = data.get('comment_id') or None
     emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date})
+
+@socketio.on('view_post')
+def handle_view_post(data):
+    if "username" not in session:
+        return
+    post_id = data.get('post_id')
+    if not post_id:
+        return
+    users = load_users()
+    user = next((u for u in users if u["username"] == session["username"]), None)
+    if user:
+        viewed_posts = user.setdefault("viewed_posts", [])
+        if post_id not in viewed_posts:
+            viewed_posts.append(post_id)
+            save_users(users)
 
 @app.route("/notifications")
 def notifications():
