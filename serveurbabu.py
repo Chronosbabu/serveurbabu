@@ -217,6 +217,14 @@ def index():
     posts = load_posts()
     users_list = load_users()
     current_user = next((u for u in users_list if u["username"] == session["username"]), None)
+    
+    # Handle case where current_user is None
+    if not current_user:
+        session.pop("username", None)
+        session.pop("avatar", None)
+        session.pop("user_id", None)
+        return redirect(url_for("login"))
+
     interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
     interacted_post_ids = list(set(interacted_post_ids))  # Remove duplicates
 
@@ -232,8 +240,6 @@ def index():
                     tfidf_posts = tfidf_matrix[:len(posts)]
                     tfidf_interacted = tfidf_matrix[len(posts):]
                     similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
-                    # Amélioration AI : Pondération plus forte pour les likes (comme FB/TikTok)
-                    # Ajout d'une pondération : likes comptent double par rapport aux vues
                     like_ids = set(current_user.get("liked_posts", []))
                     for i, p in enumerate(posts):
                         if p["id"] in like_ids:
@@ -348,7 +354,6 @@ def like_post(post_id):
     post["likes"] = len(post["liked_by"])
     save_posts(posts)
 
-    # Update user's liked_posts
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
     if user:
@@ -409,7 +414,7 @@ def profile(username):
     current_username = session.get("username")
     current_user = get_user(current_username) if current_username else None
     for p in user_posts:
-        p['liked_by_user'] = current_username in p.get("liked_by", [])
+        p['liked_by_user'] = current_username in p.get("liked_by", []) if current_username else False
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = username in current_user.get("following", []) if current_user else False
         p['avatar'] = users.get(p["username"], {}).get("avatar")
@@ -726,7 +731,15 @@ def videos():
     posts = load_posts()
     users = {u["username"]: u for u in load_users()}
     current_user = users.get(session["username"])
-    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", []) if current_user else []
+    
+    # Handle case where current_user is None
+    if not current_user:
+        session.pop("username", None)
+        session.pop("avatar", None)
+        session.pop("user_id", None)
+        return redirect(url_for("login"))
+
+    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
     interacted_post_ids = list(set(interacted_post_ids))  # Remove duplicates
 
     video_posts = []
@@ -754,7 +767,6 @@ def videos():
                     tfidf_posts = tfidf_matrix[:len(video_posts)]
                     tfidf_interacted = tfidf_matrix[len(video_posts):]
                     similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
-                    # Amélioration AI : Pondération plus forte pour les likes (comme FB/TikTok)
                     like_ids = set(current_user.get("liked_posts", []))
                     for i, p in enumerate(video_posts):
                         if p["id"] in like_ids:
