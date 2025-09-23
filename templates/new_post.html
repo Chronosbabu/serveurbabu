@@ -1,114 +1,195 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Nouveau Post</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- IMPORTANT pour mobile -->
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f0f2f5;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-        }
+  <meta charset="UTF-8">
+  <title>Nouveau Post</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+      margin: 0 auto;
+    }
+    h2 {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 12px;
+      resize: none;
+      background: #fafafa;
+    }
+    textarea:focus {
+      border-color: #007BFF;
+      outline: none;
+      background: #fff;
+    }
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #007BFF;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+    button:hover { background: #0056b3; }
 
-        .container {
-            width: 100%;
-            max-width: 500px;
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-            margin: 0 auto;
-        }
-
-        h2 {
-            text-align: center;
-            font-size: 1.4rem;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        textarea {
-            width: 100%;
-            height: 120px;
-            padding: 12px;
-            font-size: 1rem;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            margin-bottom: 12px;
-            resize: none;
-            background: #fafafa;
-        }
-
-        textarea:focus {
-            border-color: #007BFF;
-            outline: none;
-            background: #fff;
-        }
-
-        input[type="file"] {
-            display: block;
-            width: 100%;
-            margin-bottom: 12px;
-            padding: 6px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            background: #fafafa;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #007BFF;
-            border: none;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #0056b3;
-        }
-
-        /* ✅ Mode mobile : la page occupe tout l’écran */
-        @media (max-width: 600px) {
-            body {
-                align-items: stretch;
-            }
-            .container {
-                max-width: 100%;
-                height: 100vh;
-                border-radius: 0;
-                box-shadow: none;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }
-            textarea {
-                height: 150px;
-            }
-        }
-    </style>
+    /* ✅ Fenêtre d’édition */
+    .editor {
+      position: fixed;
+      top:0;left:0;right:0;bottom:0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 1000;
+    }
+    .editor-content {
+      position: relative;
+      background: #000;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    canvas {
+      max-width: 90vw;
+      max-height: 70vh;
+      background: #000;
+    }
+    .editor-buttons {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    .draggable-text {
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      font-weight: bold;
+      font-size: 20px;
+      color: white;
+      cursor: move;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Créer un nouveau post</h2>
-        <form method="POST" action="/add_post" enctype="multipart/form-data">
-            <textarea name="content" placeholder="Écris ton post ici..." required></textarea>
-            
-            <!-- ✅ Autorise plusieurs fichiers -->
-            <input type="file" name="media" accept="image/*,video/*" multiple>
-            
-            <button type="submit">Publier</button>
-        </form>
+  <div class="container">
+    <h2>Créer un nouveau post</h2>
+    <form method="POST" action="/add_post" enctype="multipart/form-data">
+      <textarea name="content" placeholder="Ajoute une description..." required></textarea>
+      <input type="file" id="mediaInput" accept="image/*,video/*">
+      <button type="submit">Publier</button>
+    </form>
+  </div>
+
+  <!-- ✅ Fenêtre d’édition -->
+  <div class="editor" id="editor">
+    <div class="editor-content">
+      <canvas id="previewCanvas"></canvas>
+      <div id="textOverlay" class="draggable-text" contenteditable="true">Écris ici</div>
+      <div class="editor-buttons">
+        <button type="button" onclick="addText()">Texte</button>
+        <button type="button" onclick="saveImage()">Enregistrer</button>
+        <button type="button" onclick="closeEditor()">Fermer</button>
+      </div>
     </div>
+  </div>
+
+<script>
+  const mediaInput = document.getElementById("mediaInput");
+  const editor = document.getElementById("editor");
+  const canvas = document.getElementById("previewCanvas");
+  const ctx = canvas.getContext("2d");
+  const textOverlay = document.getElementById("textOverlay");
+  let currentImage = null;
+
+  mediaInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        currentImage = img;
+        editor.style.display = "flex";
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Déplacer le texte
+  let dragging = false, offsetX=0, offsetY=0;
+  textOverlay.addEventListener("mousedown", (e)=>{
+    dragging=true;
+    offsetX=e.offsetX;offsetY=e.offsetY;
+  });
+  window.addEventListener("mousemove",(e)=>{
+    if(dragging){
+      textOverlay.style.left = (e.pageX-offsetX)+"px";
+      textOverlay.style.top = (e.pageY-offsetY)+"px";
+    }
+  });
+  window.addEventListener("mouseup",()=>dragging=false);
+
+  function addText(){
+    textOverlay.style.display="block";
+    textOverlay.focus();
+  }
+
+  function saveImage(){
+    ctx.drawImage(currentImage,0,0,canvas.width,canvas.height);
+    ctx.font = "bold 30px Arial";
+    ctx.fillStyle = "white";
+    const x = parseInt(textOverlay.style.left) - canvas.getBoundingClientRect().left;
+    const y = parseInt(textOverlay.style.top) - canvas.getBoundingClientRect().top;
+    ctx.fillText(textOverlay.innerText,x,y);
+    editor.style.display="none";
+    alert("✅ Texte ajouté à l’image !");
+  }
+
+  function closeEditor(){
+    editor.style.display="none";
+  }
+</script>
 </body>
 </html>
 
