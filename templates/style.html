@@ -1098,6 +1098,41 @@
       track.style.overflowX = 'auto';
       track.style.scrollSnapType = 'x mandatory';
 
+      let startX = 0;
+      let isScrolling = false;
+
+      track.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+        isScrolling = false;
+      });
+
+      track.addEventListener('touchmove', e => {
+        isScrolling = true;
+      });
+
+      track.addEventListener('touchend', e => {
+        if (!isScrolling) return;
+        const endX = e.changedTouches[0].clientX;
+        const delta = startX - endX;
+        const threshold = 50; // Minimum swipe distance
+        if (Math.abs(delta) > threshold) {
+          const direction = delta > 0 ? 1 : -1;
+          const currentScroll = track.scrollLeft;
+          const itemWidth = track.offsetWidth;
+          let currentIndex = Math.round(currentScroll / itemWidth);
+          let targetIndex = currentIndex + direction;
+          targetIndex = Math.max(0, Math.min(targetIndex, track.children.length - 1));
+          track.scrollTo({
+            left: targetIndex * itemWidth,
+            behavior: 'smooth'
+          });
+          // Update dots after snap
+          setTimeout(() => {
+            dots.forEach((dot, i) => dot.classList.toggle('active', i === targetIndex));
+          }, 300); // Adjust based on smooth duration
+        }
+      });
+
       track.addEventListener('scroll', () => {
         const index = Math.round(track.scrollLeft / track.offsetWidth);
         dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
