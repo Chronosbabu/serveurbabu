@@ -112,7 +112,7 @@
     <h2>Créer un nouveau post</h2>
     <form method="POST" action="/add_post" enctype="multipart/form-data">
       <textarea name="content" placeholder="Ajoute une description..." required></textarea>
-      <input type="file" id="mediaInput" accept="image/*,video/*">
+      <input type="file" id="mediaInput" name="media" accept="image/*,video/*">
       <button type="submit">Publier</button>
     </form>
   </div>
@@ -137,10 +137,19 @@
   const ctx = canvas.getContext("2d");
   const textOverlay = document.getElementById("textOverlay");
   let currentImage = null;
+  let currentFile = null;
 
   mediaInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if(!file) return;
+    currentFile = file;
+    if (file.type.startsWith('video/')) {
+      // Pour les vidéos, pas d'édition, soumettre tel quel
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -179,17 +188,28 @@
     ctx.drawImage(currentImage,0,0,canvas.width,canvas.height);
     ctx.font = "bold 30px Arial";
     ctx.fillStyle = "white";
-    const x = parseInt(textOverlay.style.left) - canvas.getBoundingClientRect().left;
-    const y = parseInt(textOverlay.style.top) - canvas.getBoundingClientRect().top;
-    ctx.fillText(textOverlay.innerText,x,y);
-    editor.style.display="none";
-    alert("✅ Texte ajouté à l’image !");
+    const rect = canvas.getBoundingClientRect();
+    const x = parseInt(textOverlay.style.left) - rect.left;
+    const y = parseInt(textOverlay.style.top) - rect.top + 30; // Ajuster pour la baseline du texte
+    ctx.fillText(textOverlay.innerText, x, y);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const editedFile = new File([blob], currentFile.name.replace(/\.\w+$/, '.png'), { type: 'image/png' });
+        const dt = new DataTransfer();
+        dt.items.add(editedFile);
+        mediaInput.files = dt.files;
+      }
+      textOverlay.style.display = "none";
+      editor.style.display = "none";
+      alert("✅ Texte ajouté à l’image !");
+    }, 'image/png');
   }
 
   function closeEditor(){
-    editor.style.display="none";
+    textOverlay.style.display = "none";
+    editor.style.display = "none";
   }
 </script>
 </body>
 </html>
-
