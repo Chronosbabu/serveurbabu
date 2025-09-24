@@ -8,11 +8,37 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     /* ---------- GLOBAL ---------- */
+    :root {
+      --bg-color: #fafafa;
+      --text-color: #262626;
+      --border-color: #dbdbdb;
+      --card-bg: #fff;
+      --link-hover: #0095f6;
+      --shadow-color: rgba(0,0,0,0.05);
+      --button-bg: #0095f6;
+      --button-hover: #00376b;
+      --comment-form-bg: #fff;
+      --textarea-bg: #fafafa;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --border-color: #333;
+      --card-bg: #262626;
+      --link-hover: #4dabf7;
+      --shadow-color: rgba(0,0,0,0.3);
+      --button-bg: #4dabf7;
+      --button-hover: #1c6dd0;
+      --comment-form-bg: #262626;
+      --textarea-bg: #333;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #fafafa;
-      color: #262626;
+      background: var(--bg-color);
+      color: var(--text-color);
       line-height: 1.5;
       overflow-x: hidden;
     }
@@ -25,17 +51,17 @@
       justify-content: space-between;
       align-items: center;
       padding: 12px 20px;
-      background: #fff;
-      border-bottom: 1px solid #dbdbdb;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
       position: sticky;
       top: 0;
       z-index: 1000;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      box-shadow: 0 1px 2px var(--shadow-color);
     }
     .logo {
       font-size: 1.8rem;
       font-weight: 700;
-      color: #262626;
+      color: var(--text-color);
       font-family: 'Lobster', cursive;
       letter-spacing: 1px;
       flex-shrink: 0;
@@ -46,17 +72,20 @@
       gap: 24px;
       flex-wrap: nowrap;
     }
-    .header-icons a {
-      color: #262626;
+    .header-icons a, .header-icons button {
+      color: var(--text-color);
       font-size: 1.5rem;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: color 0.2s ease, transform 0.2s ease;
       position: relative;
+      background: none;
+      border: none;
+      cursor: pointer;
     }
-    .header-icons a:hover {
-      color: #0095f6;
+    .header-icons a:hover, .header-icons button:hover {
+      color: var(--link-hover);
       transform: scale(1.1);
     }
 
@@ -66,17 +95,17 @@
       bottom: 0;
       left: 0;
       width: 100%;
-      background: #fff;
-      border-top: 1px solid #dbdbdb;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border-color);
       display: flex;
       justify-content: space-around;
       align-items: center;
       padding: 12px 0;
       z-index: 1000;
-      box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
+      box-shadow: 0 -1px 2px var(--shadow-color);
     }
     .bottom-nav a {
-      color: #262626;
+      color: var(--text-color);
       font-size: 1.5rem;
       display: flex;
       align-items: center;
@@ -85,11 +114,11 @@
       position: relative;
     }
     .bottom-nav a:hover {
-      color: #0095f6;
+      color: var(--link-hover);
       transform: scale(1.1);
     }
     .bottom-nav a.active {
-      color: #0095f6;
+      color: var(--link-hover);
     }
     .message-badge {
       position: absolute;
@@ -102,7 +131,7 @@
       padding: 3px 6px;
       border-radius: 50%;
       line-height: 1;
-      border: 2px solid #fff;
+      border: 2px solid var(--card-bg);
     }
 
     /* ---------- POSTS ---------- */
@@ -110,23 +139,23 @@
       padding: 20px 0;
     }
     .post {
-      background: #fff;
+      background: var(--card-bg);
       margin-bottom: 24px;
-      border: 1px solid #dbdbdb;
+      border: 1px solid var(--border-color);
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 8px var(--shadow-color);
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     .post:hover {
       transform: translateY(-4px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px var(--shadow-color);
     }
     .user-info {
       display: flex;
       align-items: center;
       padding: 12px 16px;
-      border-bottom: 1px solid #dbdbdb;
+      border-bottom: 1px solid var(--border-color);
     }
     .avatar-post, .avatar-fallback {
       width: 44px;
@@ -140,8 +169,8 @@
       font-weight: 600;
       font-size: 1.1rem;
       color: #fff;
-      border: 2px solid #fff;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+      border: 2px solid var(--card-bg);
+      box-shadow: 0 0 0 1px var(--shadow-color);
       transition: transform 0.2s ease;
     }
     .avatar-post:hover, .avatar-fallback:hover {
@@ -151,11 +180,11 @@
       margin-left: 12px;
       font-weight: 600;
       font-size: 0.95rem;
-      color: #262626;
+      color: var(--text-color);
       transition: color 0.2s ease;
     }
     .username-link:hover {
-      color: #0095f6;
+      color: var(--link-hover);
     }
     .description {
       padding: 12px 16px;
@@ -163,8 +192,8 @@
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      white-space: normal; /* Ensure natural line breaks */
-      max-width: 100%; /* Prevent overflow */
+      white-space: normal;
+      max-width: 100%;
       overflow: hidden;
       display: -webkit-box;
       -webkit-box-orient: vertical;
@@ -176,7 +205,7 @@
     }
     .toggle-description {
       display: none;
-      color: #0095f6;
+      color: var(--link-hover);
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 600;
@@ -184,7 +213,7 @@
       transition: color 0.2s ease;
     }
     .toggle-description:hover {
-      color: #00376b;
+      color: var(--button-hover);
     }
     .description.long + .toggle-description {
       display: block;
@@ -273,14 +302,14 @@
       display: flex;
       align-items: center;
       padding: 8px 16px;
-      border-top: 1px solid #dbdbdb;
+      border-top: 1px solid var(--border-color);
     }
     .like-btn {
       border: none;
       background: none;
       font-size: 1.5rem;
       cursor: pointer;
-      color: #262626;
+      color: var(--text-color);
       transition: transform 0.2s ease, color 0.2s ease;
     }
     .like-btn:hover {
@@ -301,22 +330,22 @@
       align-items: center;
       margin-left: 16px;
       font-size: 1.5rem;
-      color: #262626;
+      color: var(--text-color);
       transition: transform 0.2s ease, color 0.2s ease;
     }
     .comment-btn:hover {
       transform: scale(1.15);
-      color: #0095f6;
+      color: var(--link-hover);
     }
     .like-count, .comment-count {
       margin-left: 8px;
       font-size: 0.85rem;
       font-weight: 600;
-      color: #262626;
+      color: var(--text-color);
     }
     .follow-btn {
       margin-left: auto;
-      background: #0095f6;
+      background: var(--button-bg);
       color: #fff;
       border: none;
       border-radius: 8px;
@@ -333,16 +362,16 @@
       font-size: 0.9rem;
     }
     .follow-btn:hover {
-      background: #00376b;
+      background: var(--button-hover);
       transform: scale(1.05);
     }
     .follow-btn.following {
-      background: #efefef;
-      color: #262626;
-      border: 1px solid #dbdbdb;
+      background: var(--textarea-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
     }
     .follow-btn.following:hover {
-      background: #dbdbdb;
+      background: var(--border-color);
     }
 
     /* ---------- DATE ---------- */
@@ -358,9 +387,9 @@
     .comments-section {
       display: none;
       flex-direction: column;
-      height: 300px; /* Fixed height for comments section */
+      height: 300px;
       position: relative;
-      border-top: 1px solid #dbdbdb;
+      border-top: 1px solid var(--border-color);
     }
     .comments-section.open {
       display: flex;
@@ -391,8 +420,8 @@
       font-weight: 600;
       font-size: 1rem;
       color: #fff;
-      border: 2px solid #fff;
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+      border: 2px solid var(--card-bg);
+      box-shadow: 0 0 0 1px var(--shadow-color);
       margin-right: 10px;
       transition: transform 0.2s ease;
     }
@@ -401,24 +430,24 @@
     }
     .comment-content {
       flex: 1;
-      max-width: calc(100% - 46px); /* Ensure comment content doesn't overflow */
+      max-width: calc(100% - 46px);
     }
     .comment-content p:first-child {
       font-weight: 600;
       font-size: 0.9rem;
-      color: #262626;
+      color: var(--text-color);
     }
     .comment-content p:first-child a:hover {
-      color: #0095f6;
+      color: var(--link-hover);
     }
     .comment-content p:nth-child(2) {
       font-size: 0.85rem;
-      color: #262626;
+      color: var(--text-color);
       word-wrap: break-word;
       overflow-wrap: break-word;
-      white-space: normal; /* Ensure natural line breaks */
-      max-width: 100%; /* Prevent overflow */
-      line-height: 1.4; /* Improve readability */
+      white-space: normal;
+      max-width: 100%;
+      line-height: 1.4;
     }
     .comment-content small {
       font-size: 0.75rem;
@@ -436,8 +465,8 @@
     /* ---------- COMMENT FORM ---------- */
     .comment-form {
       padding: 12px 16px;
-      border-top: 1px solid #dbdbdb;
-      background: #fff;
+      border-top: 1px solid var(--border-color);
+      background: var(--comment-form-bg);
       position: sticky;
       bottom: 0;
       width: 100%;
@@ -452,24 +481,24 @@
       flex: 1;
       padding: 8px 12px;
       font-size: 0.85rem;
-      border: 1px solid #dbdbdb;
+      border: 1px solid var(--border-color);
       border-radius: 8px;
       resize: none;
       height: 40px;
-      background: #fafafa;
-      color: #262626;
+      background: var(--textarea-bg);
+      color: var(--text-color);
       font-family: inherit;
       word-wrap: break-word;
       overflow-wrap: break-word;
-      white-space: pre-wrap; /* Allow line breaks in textarea */
+      white-space: pre-wrap;
     }
     .comment-form textarea:focus {
       outline: none;
-      border-color: #0095f6;
-      box-shadow: 0 0 0 1px #0095f6;
+      border-color: var(--link-hover);
+      box-shadow: 0 0 0 1px var(--link-hover);
     }
     .comment-form button {
-      background: #0095f6;
+      background: var(--button-bg);
       color: #fff;
       border: none;
       border-radius: 8px;
@@ -480,7 +509,7 @@
       transition: background 0.2s ease, transform 0.2s ease;
     }
     .comment-form button:hover {
-      background: #00376b;
+      background: var(--button-hover);
       transform: scale(1.05);
     }
     .comment-form button:disabled {
@@ -494,7 +523,7 @@
       .avatar-post, .avatar-fallback, .avatar-comment { width: 36px; height: 36px; font-size: 0.9rem; }
       .post-image, video { max-height: 70vh; }
       .header-icons { gap: 16px; }
-      .header-icons a { font-size: 1.3rem; }
+      .header-icons a, .header-icons button { font-size: 1.3rem; }
       .bottom-nav { padding: 10px 0; }
       .bottom-nav a { font-size: 1.3rem; }
       .mute-btn { width: 28px; height: 28px; font-size: 0.9rem; }
@@ -513,12 +542,12 @@
     }
   </style>
 </head>
-<body data-username="{{ username }}">
+<body data-username="{{ username }}" data-theme="light">
   <div class="main-container">
     <header class="main-header">
       <h2 class="logo">CHRONOS</h2>
       <nav class="header-icons">
-        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i></a>
+        <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i><span class="message-badge" style="display:none;"></span></a>
         <a href="/account" title="Compte"><i class="fa-solid fa-cash-register"></i></a>
         <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
         <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
@@ -526,6 +555,7 @@
           <i class="fa-regular fa-message"></i>
           <span class="message-badge" id="unread-count" style="display:none;">0</span>
         </a>
+        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
       </nav>
     </header>
     <main class="scroll-box" id="posts">
@@ -657,6 +687,29 @@
     const socket = io();
     let viewedPosts = new Set();
 
+    // Theme toggle functionality
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const body = document.body;
+
+    function setTheme(theme) {
+      body.dataset.theme = theme;
+      localStorage.setItem('theme', theme);
+      const icon = themeToggleBtn.querySelector('i');
+      icon.classList.toggle('fa-moon', theme === 'light');
+      icon.classList.toggle('fa-sun', theme === 'dark');
+    }
+
+    // Load saved theme or default to light
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+      });
+    }
+
     // --- Badge Management ---
     const msgBadge = document.getElementById("unread-count");
     const notifBadge = document.getElementById("notifications-count");
@@ -707,10 +760,7 @@
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
     const homeBtn = document.getElementById('home-btn');
-    const homeBadge = document.createElement('span');
-    homeBadge.className = 'message-badge';
-    homeBadge.style.display = 'none';
-    homeBtn.appendChild(homeBadge);
+    const homeBadge = homeBtn.querySelector('.message-badge');
     let newPostsCount = 0;
 
     window.addEventListener('load', () => window.scrollTo(0, 0));
@@ -892,7 +942,7 @@
         let content = textarea.value.trim();
         if (!content) return;
         textarea.value = '';
-        submitButton.disabled = true; // Disable button to prevent multiple submissions
+        submitButton.disabled = true;
         fetch(`/comments/${postId}`, {
           method: 'POST',
           credentials: 'same-origin',
@@ -903,7 +953,7 @@
         }).then(res => {
           if (res.ok) {
             return res.json().then(data => {
-              const commentId = data.comment_id; // Assume server returns comment_id
+              const commentId = data.comment_id;
               const commentDiv = document.createElement('div');
               commentDiv.className = 'comment';
               commentDiv.dataset.commentId = commentId;
@@ -921,7 +971,7 @@
               const noComments = commentsBox.querySelector('.no-comments');
               if (noComments) noComments.remove();
               commentsBox.appendChild(commentDiv);
-              commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comment
+              commentsBox.scrollTop = commentsBox.scrollHeight;
               textarea.focus();
               const countEl = post.querySelector('.comment-count');
               countEl.textContent = parseInt(countEl.textContent || "0") + 1;
@@ -934,7 +984,7 @@
           console.error(err);
           textarea.value = content;
         }).finally(() => {
-          submitButton.disabled = false; // Re-enable button
+          submitButton.disabled = false;
         });
       });
 
@@ -953,7 +1003,7 @@
         if (!isOpen) {
           commentsSection.classList.add('open');
           const commentsBox = commentsSection.querySelector('.comments-box');
-          commentsBox.scrollTop = 0; // Scroll to top to show oldest comments
+          commentsBox.scrollTop = 0;
           history.pushState({ commentsOpen: true, postId: post.dataset.postId }, '', window.location.href);
         } else {
           commentsSection.classList.remove('open');
@@ -1029,7 +1079,6 @@
       const commentsBox = post.querySelector('#commentsBox-' + data.post_id);
       if (!commentsBox) return;
 
-      // Check if comment already exists to prevent duplicates
       const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
       if (!existingComment) {
         const commentDiv = document.createElement('div');
@@ -1050,7 +1099,7 @@
         if (noComments) noComments.remove();
         commentsBox.appendChild(commentDiv);
         if (commentsBox.parentElement.classList.contains('open')) {
-          commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comments when section is open
+          commentsBox.scrollTop = commentsBox.scrollHeight;
         }
         const countEl = post.querySelector('.comment-count');
         countEl.textContent = parseInt(countEl.textContent || "0") + 1;
