@@ -4,31 +4,56 @@
   <meta charset="UTF-8">
   <title>Nouveau Post</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
+    :root {
+      --bg-color: #f0f2f5;
+      --container-bg: #fff;
+      --text-color: #333;
+      --border-color: #ccc;
+      --button-bg: #007BFF;
+      --button-hover: #0056b3;
+      --textarea-bg: #fafafa;
+      --shadow-color: rgba(0,0,0,0.1);
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --container-bg: #262626;
+      --text-color: #e0e0e0;
+      --border-color: #333;
+      --button-bg: #4dabf7;
+      --button-hover: #1c6dd0;
+      --textarea-bg: #333;
+      --shadow-color: rgba(0,0,0,0.3);
+    }
+
     body {
       font-family: Arial, sans-serif;
-      background: #f0f2f5;
+      background: var(--bg-color);
       margin: 0;
       padding: 0;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       min-height: 100vh;
+      color: var(--text-color);
     }
     .container {
       width: 100%;
       max-width: 500px;
-      background: #fff;
+      background: var(--container-bg);
       padding: 20px;
       border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+      box-shadow: 0 6px 18px var(--shadow-color);
       margin: 0 auto;
+      position: relative;
     }
     h2 {
       text-align: center;
       font-size: 1.4rem;
       margin-bottom: 20px;
-      color: #333;
+      color: var(--text-color);
     }
     textarea {
       width: 100%;
@@ -36,15 +61,16 @@
       padding: 12px;
       font-size: 1rem;
       border-radius: 8px;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-color);
       margin-bottom: 12px;
       resize: none;
-      background: #fafafa;
+      background: var(--textarea-bg);
+      color: var(--text-color);
     }
     textarea:focus {
-      border-color: #007BFF;
+      border-color: var(--button-bg);
       outline: none;
-      background: #fff;
+      background: var(--container-bg);
     }
     input[type="file"] {
       display: block;
@@ -52,13 +78,14 @@
       margin-bottom: 12px;
       padding: 6px;
       border-radius: 6px;
-      border: 1px solid #ccc;
-      background: #fafafa;
+      border: 1px solid var(--border-color);
+      background: var(--textarea-bg);
+      color: var(--text-color);
     }
     button {
       width: 100%;
       padding: 12px;
-      background: #007BFF;
+      background: var(--button-bg);
       border: none;
       border-radius: 8px;
       color: #fff;
@@ -66,8 +93,9 @@
       font-weight: bold;
       cursor: pointer;
       margin-top: 5px;
+      transition: background 0.2s ease, transform 0.2s ease;
     }
-    button:hover { background: #0056b3; }
+    button:hover { background: var(--button-hover); transform: scale(1.02); }
 
     /* ✅ Fenêtre d’édition */
     .editor {
@@ -105,16 +133,32 @@
       color: white;
       cursor: move;
     }
+    #theme-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+    #theme-toggle:hover {
+      color: var(--button-bg);
+      transform: scale(1.1);
+    }
   </style>
 </head>
-<body>
+<body data-theme="light">
   <div class="container">
     <h2>Créer un nouveau post</h2>
     <form method="POST" action="/add_post" enctype="multipart/form-data">
       <textarea name="content" placeholder="Ajoute une description..." required></textarea>
-      <input type="file" id="mediaInput" name="media" accept="image/*,video/*">
+      <input type="file" id="mediaInput" name="media" accept="image/*,video/*" multiple>
       <button type="submit">Publier</button>
     </form>
+    <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
   </div>
 
   <!-- ✅ Fenêtre d’édition -->
@@ -131,6 +175,29 @@
   </div>
 
 <script>
+  // Theme toggle functionality
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  const body = document.body;
+
+  function setTheme(theme) {
+    body.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+    const icon = themeToggleBtn.querySelector('i');
+    icon.classList.toggle('fa-moon', theme === 'light');
+    icon.classList.toggle('fa-sun', theme === 'dark');
+  }
+
+  // Load saved theme or default to light
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  setTheme(savedTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+      setTheme(newTheme);
+    });
+  }
+
   const mediaInput = document.getElementById("mediaInput");
   const editor = document.getElementById("editor");
   const canvas = document.getElementById("previewCanvas");
@@ -140,14 +207,20 @@
   let currentFile = null;
 
   mediaInput.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    currentFile = file;
-    if (file.type.startsWith('video/')) {
+    const files = e.target.files;
+    if(!files.length) return;
+    // Handle multiple files, but for editing, perhaps edit one by one or skip editing for multiple
+    // For simplicity, assuming single file for editing; multiple files can be uploaded without editing
+    if (files.length > 1) {
+      // Skip editing for multiple files
+      return;
+    }
+    currentFile = files[0];
+    if (currentFile.type.startsWith('video/')) {
       // Pour les vidéos, pas d'édition, soumettre tel quel
       return;
     }
-    if (!file.type.startsWith('image/')) {
+    if (!currentFile.type.startsWith('image/')) {
       return;
     }
     const reader = new FileReader();
@@ -162,7 +235,7 @@
       };
       img.src = ev.target.result;
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(currentFile);
   });
 
   // Déplacer le texte
