@@ -62,11 +62,20 @@ h2 {
   background: var(--border-color);
 }
 .notification-item:last-child { border-bottom:none; }
-.notification-avatar {
+.notification-avatar, .avatar-fallback {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
+}
+.avatar-fallback {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #fff;
 }
 .notification-message {
   flex: 1;
@@ -102,7 +111,21 @@ h2 {
     <h2>Notifications<button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button></h2>
     <div class="scroll-box" id="notifications-list">
         {% for notif in notifications %}
-        <div class="notification-item">{{ notif }}</div>
+        <div class="notification-item">
+          {% if notif.avatar %}
+          <img src="{{ notif.avatar }}" alt="{{ notif.sender }}" class="notification-avatar">
+          {% else %}
+          <div class="avatar-fallback">{{ notif.sender[0]|upper }}</div>
+          {% endif %}
+          <span class="notification-message">
+            <a href="{{ url_for('profile', username=notif.sender) }}">{{ notif.sender }}</a> 
+            {% if notif.type == 'like' or notif.type == 'comment' %}
+              a {{ 'aimé' if notif.type == 'like' else 'commenté' }} votre publication.
+            {% else %}
+              {{ notif.message }}
+            {% endif %}
+          </span>
+        </div>
         {% endfor %}
     </div>
 </div>
@@ -141,10 +164,11 @@ socket.on("new_notification", data => {
     if(list){
         const div = document.createElement("div");
         div.className = "notification-item";
-        const avatarImg = data.avatar ? `<img src="${data.avatar}" alt="${data.sender}" class="notification-avatar">` : '';
-        const message = data.type === 'like' ? `${data.sender} a aimé votre publication.` : 
-                        data.type === 'follow' ? `${data.sender} a commencé à vous suivre.` : data.message;
-        div.innerHTML = `${avatarImg}<span class="notification-message">${message}</span>`;
+        const avatarImg = data.avatar ? `<img src="${data.avatar}" alt="${data.sender}" class="notification-avatar">` : `<div class="avatar-fallback">${data.sender[0].toUpperCase()}</div>`;
+        const message = data.type === 'like' ? `a aimé votre publication.` : 
+                        data.type === 'comment' ? `a commenté votre publication.` : 
+                        data.type === 'follow' ? `a commencé à vous suivre.` : data.message;
+        div.innerHTML = `${avatarImg}<span class="notification-message"><a href="/profile/${data.sender}">${data.sender}</a> ${message}</span>`;
         list.prepend(div);
     }
 });
