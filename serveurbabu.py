@@ -66,14 +66,18 @@ def is_following(current_user, target_user):
     return target_user in cu.get("following", [])
 
 def notify_like(target_user_id, liker_username, post_id):
-    msg = f"{liker_username} a aimé votre publication"
-    user_notifications.setdefault(target_user_id, []).append(msg)
-    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
+    users = load_users()
+    liker = next((u for u in users if u["username"] == liker_username), None)
+    avatar_url = url_for('avatar_file', filename=liker["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if liker and liker.get("avatar") else None
+    user_notifications.setdefault(target_user_id, []).append({"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url})
+    socketio.emit("new_notification", {"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id))
 
 def notify_comment(target_user_id, commenter_username, post_id):
-    msg = f"{commenter_username} a commenté votre publication"
-    user_notifications.setdefault(target_user_id, []).append(msg)
-    socketio.emit("new_notification", {"message": msg, "post_id": post_id}, room=str(target_user_id))
+    users = load_users()
+    commenter = next((u for u in users if u["username"] == commenter_username), None)
+    avatar_url = url_for('avatar_file', filename=commenter["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if commenter and commenter.get("avatar") else None
+    user_notifications.setdefault(target_user_id, []).append({"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url})
+    socketio.emit("new_notification", {"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id))
 
 @socketio.on("join")
 def handle_join(data):
@@ -274,9 +278,12 @@ def follow_user(username):
     )
 
     if following:
+        users = load_users()
+        follower = next((u for u in users if u["username"] == current_user), None)
+        avatar_url = url_for('avatar_file', filename=follower["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if follower and follower.get("avatar") else None
         msg = f"{current_user} a commencé à vous suivre"
-        user_notifications.setdefault(username, []).append(msg)
-        socketio.emit("new_notification", {"message": msg}, room=username)
+        user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
+        socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username)
 
     return jsonify({"following": following})
 
