@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChonosMoney</title>
+    <title>ChronosMoney</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
@@ -85,7 +85,7 @@
 </head>
 <body data-theme="light">
     <div class="container">
-        <h2>Votre ChonosMoney</h2>
+        <h2>Votre ChronosMoney</h2>
         <div id="balances"></div>
         <div class="button-container">
             <button id="convert">Convertir</button>
@@ -129,7 +129,7 @@
                     return;
                 }
                 if (!res.exists) {
-                    let pwd = prompt("C'est votre première fois. Définissez un mot de passe pour votre ChonosMoney:");
+                    let pwd = prompt("C'est votre première fois. Définissez un mot de passe pour votre ChronosMoney:");
                     if (!pwd) {
                         console.log("Password prompt cancelled");
                         return;
@@ -153,7 +153,7 @@
                 let logged = false;
                 let balances, account_id;
                 while (!logged) {
-                    let pwd = prompt("Entrez le mot de passe de votre ChonosMoney:");
+                    let pwd = prompt("Entrez le mot de passe de votre ChronosMoney:");
                     if (!pwd) {
                         console.log("Login password prompt cancelled");
                         return;
@@ -288,7 +288,7 @@
                             console.error("Insufficient balance:", currency, balances[currency], "<", amount);
                             return;
                         }
-                        let pwd = prompt("Entrez votre mot de passe ChonosMoney:");
+                        let pwd = prompt("Entrez votre mot de passe ChronosMoney:");
                         if (!pwd) {
                             console.log("Password prompt cancelled");
                             return;
