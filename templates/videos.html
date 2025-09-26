@@ -275,6 +275,147 @@
       transform: scale(1.4);
     }
 
+    /* ---------- COMMENTS ---------- */
+    .comments-section {
+      display: none;
+      flex-direction: column;
+      height: 80vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 20;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .comments-section.open {
+      display: flex;
+    }
+    .comments-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      scrollbar-width: none;
+    }
+    .comments-box::-webkit-scrollbar { display: none; }
+    .comment {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 0;
+      opacity: 1;
+      z-index: 1;
+    }
+    .avatar-comment, .avatar-fallback {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1rem;
+      color: #fff;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+      margin-right: 10px;
+      transition: transform 0.2s ease;
+    }
+    .avatar-comment:hover, .avatar-fallback:hover {
+      transform: scale(1.05);
+    }
+    .comment-content {
+      flex: 1;
+      max-width: calc(100% - 46px);
+    }
+    .comment-content p:first-child {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #fff;
+    }
+    .comment-content p:first-child a:hover {
+      color: #0095f6;
+    }
+    .comment-content p:nth-child(2) {
+      font-size: 0.85rem;
+      color: #fff;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+      max-width: 100%;
+      line-height: 1.4;
+    }
+    .comment-content small {
+      font-size: 0.75rem;
+      color: #8e8e8e;
+      display: block;
+      margin-top: 4px;
+    }
+    .no-comments {
+      font-size: 0.9rem;
+      color: #6b7280;
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    /* ---------- COMMENT FORM ---------- */
+    .comment-form {
+      padding: 12px 16px;
+      border-top: 1px solid #333;
+      background: #000;
+      position: sticky;
+      bottom: 0;
+      width: 100%;
+      z-index: 20;
+    }
+    .comment-form form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .comment-form textarea {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      border: 1px solid #333;
+      border-radius: 8px;
+      resize: none;
+      height: 40px;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: inherit;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .comment-form textarea:focus {
+      outline: none;
+      border-color: #0095f6;
+      box-shadow: 0 0 0 1px #0095f6;
+    }
+    .comment-form button {
+      background: #0095f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .comment-form button:hover {
+      background: #00376b;
+      transform: scale(1.05);
+    }
+    .comment-form button:disabled {
+      background: #b2dffc;
+      cursor: not-allowed;
+    }
+
     /* ---------- RESPONSIVE ---------- */
     @media (max-width: 600px) {
       .avatar-post, .avatar-fallback { width: 36px; height: 36px; font-size: 0.9rem; }
@@ -286,6 +427,10 @@
       .like-btn, .comment-btn { font-size: 1.8rem; }
       .follow-btn { padding: 5px 12px; font-size: 0.8rem; }
       .video-actions { bottom: 100px; }
+      .comments-section { height: 70vh; }
+      .comment-form { padding: 10px 12px; }
+      .comment-form textarea { font-size: 0.8rem; height: 36px; }
+      .comment-form button { padding: 6px 12px; font-size: 0.8rem; }
     }
   </style>
 </head>
@@ -349,10 +494,10 @@
           <i class="{% if post.liked_by_user %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
           <span class="like-count">{{ post.likes if post.likes else 0 }}</span>
         </button>
-        <a href="{{ url_for('comments', post_id=post.id) }}" class="comment-btn">
+        <button class="comment-btn">
           <i class="fa-regular fa-comment"></i>
           <span class="comment-count">{{ post.comments_count if post.comments_count else 0 }}</span>
-        </a>
+        </button>
         <button
           class="follow-btn{% if post.following %} following{% endif %}"
           data-following="{{ 'true' if post.following else 'false' }}"
@@ -364,6 +509,38 @@
           {% endif %}
         </button>
       </div>
+      <section class="comments-section" id="comments-{{ post.id }}">
+        <div class="comments-box" id="commentsBox-{{ post.id }}">
+          {% if post.comments|length == 0 %}
+            <p class="no-comments">Aucun commentaire pour l’instant.</p>
+          {% else %}
+            {% for comment in post.comments %}
+            <div class="comment">
+              {% if comment.avatar %}
+              <a href="{{ url_for('profile', username=comment.username) }}">
+                <img src="{{ url_for('avatar_file', filename=comment.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-comment" />
+              </a>
+              {% else %}
+              <a href="{{ url_for('profile', username=comment.username) }}">
+                <div class="avatar-fallback">{{ comment.username[:1]|upper }}</div>
+              </a>
+              {% endif %}
+              <div class="comment-content">
+                <p><strong><a href="{{ url_for('profile', username=comment.username) }}">{{ comment.username }}</a></strong></p>
+                <p>{{ comment.content }}</p>
+                <small>{{ comment.date }}</small>
+              </div>
+            </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <div class="comment-form">
+          <form data-post-id="{{ post.id }}">
+            <textarea name="comment" placeholder="Écrire un commentaire..." required></textarea>
+            <button type="submit">Commenter</button>
+          </form>
+        </div>
+      </section>
     </div>
     {% endfor %}
   </main>
@@ -533,10 +710,97 @@
       });
     }
 
+    /* ---------- Comment Form Submission --- */
+    function bindCommentForm(post) {
+      const form = post.querySelector('.comment-form form');
+      if (!form) return;
+      const textarea = form.querySelector('textarea');
+      const submitButton = form.querySelector('button');
+      const postId = form.dataset.postId;
+      const commentsBox = post.querySelector('#commentsBox-' + postId);
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        let content = textarea.value.trim();
+        if (!content) return;
+        textarea.value = '';
+        submitButton.disabled = true;
+        fetch(`/comments/${postId}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `comment=${encodeURIComponent(content)}`
+        }).then(res => {
+          if (res.ok) {
+            return res.json().then(data => {
+              const commentId = data.comment_id;
+              const commentDiv = document.createElement('div');
+              commentDiv.className = 'comment';
+              commentDiv.dataset.commentId = commentId;
+              const avatarHtml = data.avatar
+                ? `<a href="/profile/${encodeURIComponent(currentUsername)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+                : `<a href="/profile/${encodeURIComponent(currentUsername)}"><div class="avatar-fallback">${currentUsername[0].toUpperCase()}</div></a>`;
+              commentDiv.innerHTML = `
+                ${avatarHtml}
+                <div class="comment-content">
+                  <p><strong><a href="/profile/${encodeURIComponent(currentUsername)}">${currentUsername}</a></strong></p>
+                  <p>${content}</p>
+                  <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+                </div>
+              `;
+              const noComments = commentsBox.querySelector('.no-comments');
+              if (noComments) noComments.remove();
+              commentsBox.appendChild(commentDiv);
+              commentsBox.scrollTop = commentsBox.scrollHeight;
+              textarea.focus();
+              const countEl = post.querySelector('.comment-count');
+              countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+              socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: data.avatar });
+            });
+          } else {
+            textarea.value = content;
+          }
+        }).catch(err => {
+          console.error(err);
+          textarea.value = content;
+        }).finally(() => {
+          submitButton.disabled = false;
+        });
+      });
+
+      textarea.addEventListener('input', () => {
+        submitButton.disabled = !textarea.value.trim();
+      });
+    }
+
+    /* ---------- Comments Toggle --- */
+    function bindCommentToggle(post) {
+      const btn = post.querySelector('.comment-btn');
+      const commentsSection = post.querySelector('.comments-section');
+      if (!btn || !commentsSection) return;
+      btn.addEventListener('click', () => {
+        const isOpen = commentsSection.classList.contains('open');
+        if (!isOpen) {
+          commentsSection.classList.add('open');
+          const commentsBox = commentsSection.querySelector('.comments-box');
+          commentsBox.scrollTop = 0;
+          history.pushState({ commentsOpen: true, postId: post.dataset.postId }, '', window.location.href);
+          if (currentVideo) currentVideo.pause();
+        } else {
+          commentsSection.classList.remove('open');
+          history.back();
+        }
+      });
+    }
+
     /* ---------- Init posts existants ---------- */
     document.querySelectorAll('.video-post').forEach(post => {
       bindLikes(post);
       bindFollowButtons(post);
+      bindCommentForm(post);
+      bindCommentToggle(post);
       post.querySelectorAll('video').forEach(video => {
         observeVideo(video);
         const muteBtn = video.parentElement.querySelector('.mute-btn');
@@ -560,6 +824,13 @@
       }
     });
 
+    // --- Handle Back Button ---
+    window.addEventListener('popstate', () => {
+      document.querySelectorAll('.comments-section.open').forEach(section => {
+        section.classList.remove('open');
+      });
+    });
+
     /* ---------- Socket.IO ---------- */
     socket.on('like_updated', data => {
       const post = document.querySelector(`.video-post[data-post-id="${data.post_id}"]`);
@@ -576,9 +847,34 @@
 
     socket.on('new_comment', data => {
       const post = document.querySelector(`.video-post[data-post-id="${data.post_id}"]`);
-      if (post) {
+      if (!post) return;
+      const commentsBox = post.querySelector('#commentsBox-' + data.post_id);
+      if (!commentsBox) return;
+
+      const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
+      if (!existingComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment';
+        commentDiv.dataset.commentId = data.comment_id;
+        const avatarHtml = data.avatar
+          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+          : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
+        commentDiv.innerHTML = `
+          ${avatarHtml}
+          <div class="comment-content">
+            <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
+            <p>${data.content}</p>
+            <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+          </div>
+        `;
+        const noComments = commentsBox.querySelector('.no-comments');
+        if (noComments) noComments.remove();
+        commentsBox.appendChild(commentDiv);
+        if (commentsBox.parentElement.classList.contains('open')) {
+          commentsBox.scrollTop = commentsBox.scrollHeight;
+        }
         const countEl = post.querySelector('.comment-count');
-        if (countEl) countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
       }
     });
 
