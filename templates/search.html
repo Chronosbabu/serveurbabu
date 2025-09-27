@@ -915,7 +915,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const icon = button.querySelector('i');
             icon.classList.toggle('fa-solid', data.liked);
             icon.classList.toggle('fa-regular', !data.liked);
-            socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
         } catch (err) { console.error(err); }
     }
 
@@ -1125,16 +1124,11 @@ document.addEventListener('DOMContentLoaded', () => {
       img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
     });
 
-    socket.on('like_updated', data => {
+    socket.on('update_like', data => {
       const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
       if (post) {
         const countEl = post.querySelector('.like-count');
         if (countEl) countEl.textContent = data.likes;
-        const btn = post.querySelector('.like-btn');
-        if (btn) btn.classList.toggle('liked', data.liked);
-        const icon = btn.querySelector('i');
-        icon.classList.toggle('fa-solid', data.liked);
-        icon.classList.toggle('fa-regular', !data.liked);
       }
     });
 
