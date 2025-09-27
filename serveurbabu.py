@@ -43,20 +43,28 @@ TEST_MODE = True  # Pour tests, 1 minute = 30 jours
 def timestamp_filter(s):
     return int(datetime.now(timezone.utc).timestamp())
 
-def toggle_follow(current_user, target_user):
+def follow_user(current_user, target_user):
     users = load_users()
     cu = next((u for u in users if u["username"] == current_user), None)
     if not cu:
         return False
     following_list = cu.setdefault("following", [])
-    if target_user in following_list:
-        following_list.remove(target_user)
-        following = False
-    else:
+    if target_user not in following_list:
         following_list.append(target_user)
-        following = True
+        # Notify only on new follow
+        socketio.emit(
+            "update_follow",
+            {"target_user": target_user, "follower": current_user, "following": True},
+            room=target_user
+        )
+        users_list = load_users()
+        follower = next((u for u in users_list if u["username"] == current_user), None)
+        avatar_url = url_for('avatar_file', filename=follower["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if follower and follower.get("avatar") else None
+        msg = f"{current_user} a commencé à vous suivre"
+        user_notifications.setdefault(target_user, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
+        socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=target_user)
     save_users(users)
-    return following
+    return True  # Always following after call
 
 def is_following(current_user, target_user):
     users = load_users()
@@ -265,27 +273,12 @@ def index():
     return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"))
 
 @app.route("/follow/<username>", methods=["POST"])
-def follow_user(username):
+def follow_route(username):
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
     current_user = session["username"]
-    following = toggle_follow(current_user, username)
-
-    socketio.emit(
-        "update_follow",
-        {"target_user": username, "follower": current_user, "following": following},
-        room=username
-    )
-
-    if following:
-        users = load_users()
-        follower = next((u for u in users if u["username"] == current_user), None)
-        avatar_url = url_for('avatar_file', filename=follower["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if follower and follower.get("avatar") else None
-        msg = f"{current_user} a commencé à vous suivre"
-        user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
-        socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username)
-
-    return jsonify({"following": following})
+    success = follow_user(current_user, username)
+    return jsonify({"following": success})
 
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
@@ -441,7 +434,7 @@ def profile(username):
     )
 
 @app.route("/search", methods=["GET"])
-def search_users():
+def search():
     if "username" not in session:
         return redirect(url_for("login"))
 
@@ -455,7 +448,12 @@ def search_users():
     if query:
         users_results = [u for u in users if query in u["username"].lower()]
         posts_results = [p for p in posts if query in p["description"].lower()]
+
+        current_username = session["username"]
         for p in posts_results:
+            p['liked_by_user'] = current_username in p.get("liked_by", [])
+            p['comments_count'] = len(p.get("comments", []))
+            p['following'] = is_following(current_username, p["username"])
             p['avatar'] = users_dict.get(p["username"], {}).get("avatar")
             for comment in p.get("comments", []):
                 comment['avatar'] = users_dict.get(comment["username"], {}).get("avatar")
