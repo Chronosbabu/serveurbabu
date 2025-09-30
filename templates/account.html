@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronosMoney</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --container-bg: #fff;
+            --text-color: #000;
+            --shadow-color: rgba(0,0,0,0.1);
+            --button-bg: #0095f6;
+            --button-hover: #00376b;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --container-bg: #262626;
+            --text-color: #e0e0e0;
+            --shadow-color: rgba(0,0,0,0.3);
+            --button-bg: #4dabf7;
+            --button-hover: #1c6dd0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--text-color);
+        }
+        .container {
+            background: var(--container-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px var(--shadow-color);
+            width: 350px;
+            text-align: center;
+        }
+        #balances {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        #convert, #transfer {
+            display: none;
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        #convert:hover, #transfer:hover {
+            background: var(--button-hover);
+            transform: scale(1.05);
+        }
+        #theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        #theme-toggle:hover {
+            color: var(--button-bg);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="container">
+        <h2>Votre ChronosMoney</h2>
+        <div id="balances"></div>
+        <div class="button-container">
+            <button id="convert">Convertir</button>
+            <button id="transfer">Transfert</button>
+        </div>
+        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
+    </div>
+    <script>
+        const socket = io();
+
+        // Theme toggle functionality
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        function setTheme(theme) {
+            body.dataset.theme = theme;
+            localStorage.setItem('theme', theme);
+            const icon = themeToggleBtn.querySelector('i');
+            icon.classList.toggle('fa-moon', theme === 'light');
+            icon.classList.toggle('fa-sun', theme === 'dark');
+        }
+
+        // Load saved theme or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+                setTheme(newTheme);
+            });
+        }
+
+        async function init() {
+            try {
+                console.log("Initializing bank status check...");
+                let res = await fetch("/bank/status").then(r => r.json());
+                if (res.error) {
+                    alert(res.error);
+                    console.error("Bank status error:", res.error);
+                    return;
+                }
+                if (!res.exists) {
+                    let pwd = prompt("C'est votre première fois. Définissez un mot de passe pour votre ChronosMoney:");
+                    if (!pwd) {
+                        console.log("Password prompt cancelled");
+                        return;
+                    }
+                    let referral_id = prompt("Entrez le numéro d'invitation (optionnel):") || "";
+                    console.log("Creating account with referral ID:", referral_id);
+                    let cr = await fetch("/bank/create", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ password: pwd, referral_id: referral_id })
+                    }).then(r => r.json());
+                    if (cr.success) {
+                        alert("Compte créé avec succès. Votre ID de compte est: " + cr.account_id);
+                        console.log("Account created, ID:", cr.account_id);
+                    } else {
+                        alert(cr.error);
+                        console.error("Account creation error:", cr.error);
+                        return;
+                    }
+                }
+                let logged = false;
+                let balances, account_id;
+                while (!logged) {
+                    let pwd = prompt("Entrez le mot de passe de votre ChronosMoney:");
+                    if (!pwd) {
+                        console.log("Login password prompt cancelled");
+                        return;
+                    }
+                    console.log("Attempting login...");
+                    let lr = await fetch("/bank/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ password: pwd })
+                    }).then(r => r.json());
+                    if (lr.success) {
+                        logged = true;
+                        balances = lr.balances;
+                        account_id = lr.account_id;
+                        document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc.toFixed(2)} <br> Dollar: ${balances.dollar.toFixed(2)}`;
+                        document.getElementById("convert").style.display = "block";
+                        document.getElementById("transfer").style.display = "block";
+                        console.log("Login successful, balances:", balances, "account_id:", account_id);
+                    } else {
+                        alert("Mot de passe incorrect");
+                        console.error("Login failed: Incorrect password");
+                    }
+                }
+
+                // Convertir
+                document.getElementById("convert").onclick = async () => {
+                    try {
+                        console.log("Convert button clicked");
+                        let choice = prompt("1. Franc \n2. Dollar");
+                        let currency = choice === "1" ? "franc" : choice === "2" ? "dollar" : null;
+                        if (!currency) {
+                            alert("Choix invalide");
+                            console.error("Invalid currency choice:", choice);
+                            return;
+                        }
+                        let am_str = prompt("Entrez le solde à convertir:");
+                        let amount = parseFloat(am_str.replace(',', '.'));
+                        if (isNaN(amount) || amount <= 0) {
+                            alert("Montant invalide");
+                            console.error("Invalid amount:", am_str);
+                            return;
+                        }
+                        // Client-side balance check
+                        if (balances[currency] < amount) {
+                            alert(`Solde insuffisant en ${currency}. Solde disponible: ${balances[currency].toFixed(2)}`);
+                            console.error("Insufficient balance:", currency, balances[currency], "<", amount);
+                            return;
+                        }
+                        let phone = prompt("Entrez le numéro de téléphone où envoyer l'argent converti (Airtel ou Orange):");
+                        if (!phone || !/^(08|09)\d{8}$/.test(phone)) {
+                            alert("Numéro invalide");
+                            console.error("Invalid phone number:", phone);
+                            return;
+                        }
+                        console.log("Sending conversion request:", { currency, amount, phone });
+                        let cv = await fetch("/bank/convert", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ currency, amount, phone })
+                        }).then(r => r.json());
+                        if (cv.success) {
+                            alert(cv.message);
+                            balances[currency] = (balances[currency] - amount).toFixed(2);
+                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc.toFixed(2)} <br> Dollar: ${balances.dollar.toFixed(2)}`;
+                            console.log("Conversion successful:", cv.message);
+                        } else {
+                            alert(cv.error);
+                            console.error("Conversion error:", cv.error);
+                        }
+                    } catch (err) {
+                        alert("Erreur lors de la conversion: " + err.message);
+                        console.error("Conversion fetch error:", err);
+                    }
+                };
+
+                // Transfert
+                document.getElementById("transfer").onclick = async () => {
+                    try {
+                        console.log("Transfer button clicked");
+                        let subCheck = await fetch("/bank/check_subscription").then(r => r.json());
+                        if (!subCheck.success) {
+                            alert(subCheck.error);
+                            console.error("Subscription check failed:", subCheck.error);
+                            return;
+                        }
+                        console.log("Subscription valid");
+                        let recipient = prompt("Entrez le numéro de compte du bénéficiaire (01 suivi de 6 chiffres):");
+                        if (!recipient || !/^01\d{6}$/.test(recipient)) {
+                            alert("Numéro de compte invalide");
+                            console.error("Invalid recipient account ID:", recipient);
+                            return;
+                        }
+                        console.log("Fetching username for recipient ID:", recipient);
+                        let res = await fetch("/bank/get_username_by_id", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ account_id: recipient })
+                        });
+                        if (!res.ok) {
+                            throw new Error(`HTTP error! Status: ${res.status}`);
+                        }
+                        let resData = await res.json();
+                        if (!resData.success) {
+                            alert(resData.error);
+                            console.error("Get username error:", resData.error);
+                            return;
+                        }
+                        console.log("Recipient username:", resData.username);
+                        let confirmed = confirm(`Confirmez le transfert vers ${resData.username} ?`);
+                        if (!confirmed) {
+                            console.log("Transfer confirmation cancelled");
+                            return;
+                        }
+                        console.log("Transfer confirmed for:", resData.username);
+                        let choice = prompt("1. Franc \n2. Dollar");
+                        let currency = choice === "1" ? "franc" : choice === "2" ? "dollar" : null;
+                        if (!currency) {
+                            alert("Choix invalide");
+                            console.error("Invalid currency choice:", choice);
+                            return;
+                        }
+                        let am_str = prompt("Entrez le montant à transférer:");
+                        let amount = parseFloat(am_str.replace(',', '.'));
+                        if (isNaN(amount) || amount <= 0) {
+                            alert("Montant invalide");
+                            console.error("Invalid amount:", am_str);
+                            return;
+                        }
+                        // Client-side balance check
+                        if (balances[currency] < amount) {
+                            alert(`Solde insuffisant en ${currency}. Solde disponible: ${balances[currency].toFixed(2)}`);
+                            console.error("Insufficient balance:", currency, balances[currency], "<", amount);
+                            return;
+                        }
+                        let pwd = prompt("Entrez votre mot de passe ChronosMoney:");
+                        if (!pwd) {
+                            console.log("Password prompt cancelled");
+                            return;
+                        }
+                        console.log("Sending transfer request:", { recipient_account_id: recipient, currency, amount });
+                        let tr = await fetch("/bank/transfer", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ recipient_account_id: recipient, currency, amount, password: pwd })
+                        });
+                        if (!tr.ok) {
+                            throw new Error(`HTTP error! Status: ${tr.status}`);
+                        }
+                        let trData = await tr.json();
+                        if (trData.success) {
+                            alert(trData.message);
+                            balances[currency] = (balances[currency] - amount).toFixed(2);
+                            document.getElementById("balances").innerHTML = `ID: ${account_id} <br> Franc: ${balances.franc.toFixed(2)} <br> Dollar: ${balances.dollar.toFixed(2)}`;
+                            console.log("Transfer successful:", trData.message);
+                        } else {
+                            alert(trData.error);
+                            console.error("Transfer error:", trData.error);
+                        }
+                    } catch (err) {
+                        alert("Erreur lors du transfert: " + err.message);
+                        console.error("Transfer fetch error:", err);
+                    }
+                };
+            } catch (err) {
+                alert("Erreur lors de l'initialisation: " + err.message);
+                console.error("Initialization error:", err);
+            }
+        }
+
+        socket.on('balance_updated', data => {
+            console.log("Balance updated:", data);
+            document.getElementById("balances").innerHTML = `ID: ${data.account_id || ''} <br> Franc: ${parseFloat(data.balance_franc).toFixed(2)} <br> Dollar: ${parseFloat(data.balance_dollar).toFixed(2)}`;
+        });
+
+        document.addEventListener("DOMContentLoaded", init);
+    </script>
+</body>
+</html>
+
+
+

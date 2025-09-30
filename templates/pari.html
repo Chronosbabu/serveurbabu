@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pari Sportif - CHRONOS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #fafafa;
+      color: #262626;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    .main-container { max-width: 935px; margin: 0 auto; padding: 20px; }
+    .matches-list {
+      overflow-y: auto;
+      max-height: 80vh;
+      padding: 20px 0;
+    }
+    .match {
+      background: #fff;
+      margin-bottom: 16px;
+      padding: 16px;
+      border: 1px solid #dbdbdb;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .match-name { font-weight: 600; }
+    .bet-btn {
+      background: #0095f6;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .bet-btn:disabled {
+      background: #b2dffc;
+      cursor: not-allowed;
+    }
+    .bet-btn:hover:not(:disabled) { background: #00376b; }
+    .odd {
+      font-size: 0.8em;
+      color: #8e8e8e;
+      display: block;
+    }
+    .bet-end-time {
+      font-size: 0.8em;
+      color: #555;
+      display: block;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <h2>Matches Disponibles</h2>
+    <div class="matches-list" id="matches"></div>
+  </div>
+  <script>
+    const socket = io();
+    const matchesContainer = document.getElementById('matches');
+
+    async function getServerTime() {
+      const res = await fetch('/get_server_time');
+      const data = await res.json();
+      return new Date(data.time);
+    }
+
+    function formatUTCDate(isoString) {
+      const date = new Date(isoString);
+      return `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+    }
+
+    async function loadMatches() {
+      const res = await fetch('/get_matches');
+      const matches = await res.json();
+      matchesContainer.innerHTML = '';
+      matches.forEach(match => {
+        renderMatch(match);
+      });
+    }
+
+    function renderMatch(match) {
+      const div = document.createElement('div');
+      div.className = 'match';
+      div.dataset.matchId = match.id;
+      div.dataset.betEndTime = match.bet_end_time;
+      div.innerHTML = `
+        <span class="match-name">
+          <span class="odd">Cote: ${match.odd_team1}</span>
+          ${match.team1} vs 
+          <span class="odd">Cote: ${match.odd_team2}</span>
+          ${match.team2}
+          <span class="odd">Nul: ${match.odd_draw}</span>
+          <span class="bet-end-time">Fin des paris: ${formatUTCDate(match.bet_end_time)}</span>
+        </span>
+        <button class="bet-btn">Parier</button>
+      `;
+      matchesContainer.appendChild(div);
+      bindBetButton(div);
+    }
+
+    socket.on('new_match', match => {
+      renderMatch(match);
+    });
+
+    socket.on('match_result', data => {
+      const matchEl = document.querySelector(`.match[data-match-id="${data.match_id}"]`);
+      if (matchEl) matchEl.remove();
+      alert(`Résultat du match ${data.match_id}: ${data.result === '0' ? 'Nul' : data.result}. Vérifiez votre solde !`);
+    });
+
+    async function bindBetButton(matchEl) {
+      const btn = matchEl.querySelector('.bet-btn');
+      btn.addEventListener('click', async () => {
+        const now = await getServerTime();
+        const betEndTime = new Date(matchEl.dataset.betEndTime);
+        if (now > betEndTime) {
+          alert('Pari indisponible pour ce match');
+          return;
+        }
+        const matchId = parseInt(matchEl.dataset.matchId);
+        let pwd = prompt("Entrez le mot de passe de votre compte bancaire:");
+        if (!pwd) return;
+
+        let loginRes = await fetch('/bank/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        }).then(r => r.json());
+        if (!loginRes.success) return alert('Mot de passe incorrect');
+
+        let choice = prompt("1. Première équipe gagne\n2. Nul\n3. Seconde équipe gagne");
+        if (!['1', '2', '3'].includes(choice)) return alert('Choix invalide');
+        choice = choice === '3' ? '2' : choice === '2' ? '0' : choice;
+
+        let currencyChoice = prompt("1. Franc\n2. Dollar");
+        let currency = currencyChoice === '1' ? 'franc' : currencyChoice === '2' ? 'dollar' : null;
+        if (!currency) return alert('Devise invalide');
+
+        let amountStr = prompt("Entrez le montant à parier:");
+        let amount = parseFloat(amountStr);
+        if (isNaN(amount) || amount <= 0) return alert('Montant invalide');
+
+        let confirmPwd = prompt("Confirmez le mot de passe pour valider:");
+        if (confirmPwd !== pwd) return alert('Mot de passe de confirmation incorrect');
+
+        let res = await fetch('/place_bet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ match_id: matchId, choice, currency, amount, password: pwd })
+        }).then(r => r.json());
+
+        if (res.success) {
+          alert(res.message);
+          btn.disabled = true;
+          btn.textContent = 'Pari placé';
+        } else {
+          alert(res.error);
+        }
+      });
+    }
+
+    loadMatches();
+
+    // Reset new matches count on load of pari page
+    localStorage.setItem("newMatches", 0);
+  </script>
+</body>
+</html>

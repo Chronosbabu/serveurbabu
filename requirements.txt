@@ -1,0 +1,12 @@
+flask
+flask-socketio
+werkzeug
+requests
+scikit-learn
+numpy
+scipy
+eventlet
+gevent
+gevent-websocket
+google-auth==2.23.0
+google-auth-oauthlib==1.2.0

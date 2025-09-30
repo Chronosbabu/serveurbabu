@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+    <title>Inscription</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --bg-color: #fafafa;
+            --text-color: #262626;
+            --card-bg: #fff;
+            --border-color: #dbdbdb;
+            --button-bg: #0095f6;
+            --button-hover: #00376b;
+            --link-color: #0095f6;
+            --google-button-bg: #4285f4;
+            --google-button-hover: #3578e5;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --card-bg: #262626;
+            --border-color: #333;
+            --button-bg: #4dabf7;
+            --button-hover: #1c6dd0;
+            --link-color: #4dabf7;
+            --google-button-bg: #4dabf7;
+            --google-button-hover: #1c6dd0;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100% !important;
+            transform: scale(1) !important;
+        }
+
+        .main-container {
+            max-width: 935px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+        }
+
+        header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        header h2 {
+            color: var(--text-color);
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        header p {
+            margin-top: 10px;
+            color: var(--text-color);
+        }
+
+        header a {
+            color: var(--link-color);
+            font-weight: 600;
+        }
+
+        header a:hover {
+            color: var(--button-hover);
+        }
+
+        .upload-section {
+            max-width: 400px;
+            margin: 80px auto 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .upload-section input,
+        .upload-section label {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        .upload-section label {
+            border: none;
+            padding: 5px 0;
+            font-weight: 500;
+        }
+
+        .upload-section button {
+            width: 100%;
+            padding: 10px;
+            background: var(--button-bg);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .upload-section button:hover {
+            background: var(--button-hover);
+            transform: scale(1.02) !important;
+        }
+
+        #google-signin-button {
+            width: 100%;
+            padding: 10px;
+            background: var(--google-button-bg);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        #google-signin-button:hover {
+            background: var(--google-button-hover);
+            transform: scale(1.02) !important;
+        }
+
+        #theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+
+        #theme-toggle:hover {
+            color: var(--link-color);
+            transform: scale(1.1) !important;
+        }
+
+        .error-message {
+            color: #ed4956;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .main-container { padding: 16px; }
+            .upload-section { 
+                margin: 70px auto 16px; 
+                padding: 16px; 
+            }
+            header { padding: 16px; }
+            header h2 { font-size: 1.5rem; }
+            .upload-section input,
+            .upload-section button,
+            #google-signin-button {
+                padding: 8px;
+                font-size: 0.9rem;
+            }
+            #theme-toggle { 
+                font-size: 1.3rem; 
+                top: 16px; 
+                right: 16px; 
+            }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="main-container">
+        <header>
+            <h2>📝 Inscription</h2>
+            <p>Déjà un compte ? <a href="{{ url_for('login') }}">Connexion</a></p>
+            <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
+        </header>
+
+        <section class="upload-section">
+            <form method="POST" enctype="multipart/form-data" id="auth-form">
+                <input type="text" name="username" placeholder="Nom d'utilisateur" required /><br />
+                <input type="password" name="password" placeholder="Mot de passe" required /><br />
+                <label for="avatar">Choisir un avatar (optionnel) :</label><br />
+                <input type="file" name="avatar" accept="image/*" /><br /><br />
+                <button type="submit">S'inscrire</button>
+            </form>
+            <button id="google-signin-button">
+                <i class="fa-brands fa-google"></i> Continuer avec Google
+            </button>
+            {% if error %}
+                <p class="error-message">{{ error }}</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <script>
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        function setTheme(theme) {
+            body.dataset.theme = theme;
+            localStorage.setItem('theme', theme);
+            const icon = themeToggleBtn.querySelector('i');
+            icon.classList.toggle('fa-moon', theme === 'light');
+            icon.classList.toggle('fa-sun', theme === 'dark');
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+                setTheme(newTheme);
+            });
+        }
+
+        // Google Sign-In
+        window.handleCredentialResponse = (response) => {
+            const idToken = response.credential;
+            fetch('/google_login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: idToken }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.className = 'error-message';
+                    errorMessage.textContent = data.error || 'Erreur lors de la connexion avec Google';
+                    document.querySelector('.upload-section').appendChild(errorMessage);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorMessage = document.createElement('p');
+                errorMessage.className = 'error-message';
+                errorMessage.textContent = 'Erreur réseau lors de la connexion';
+                document.querySelector('.upload-section').appendChild(errorMessage);
+            });
+        };
+
+        document.getElementById('google-signin-button').addEventListener('click', () => {
+            google.accounts.id.initialize({
+                client_id: '587697854709-7kimvj92k1qappbbg92chai69v2o034i.apps.googleusercontent.com',
+                callback: handleCredentialResponse,
+                auto_select: true,
+            });
+            google.accounts.id.prompt();
+        });
+    </script>
+</body>
+</html>

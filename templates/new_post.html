@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Nouveau Post</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg-color: #f0f2f5;
+      --container-bg: #fff;
+      --text-color: #333;
+      --border-color: #ccc;
+      --button-bg: #007BFF;
+      --button-hover: #0056b3;
+      --textarea-bg: #fafafa;
+      --shadow-color: rgba(0,0,0,0.1);
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --container-bg: #262626;
+      --text-color: #e0e0e0;
+      --border-color: #333;
+      --button-bg: #4dabf7;
+      --button-hover: #1c6dd0;
+      --textarea-bg: #333;
+      --shadow-color: rgba(0,0,0,0.3);
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg-color);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      color: var(--text-color);
+    }
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: var(--container-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px var(--shadow-color);
+      margin: 0 auto;
+      position: relative;
+    }
+    h2 {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      color: var(--text-color);
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 12px;
+      resize: none;
+      background: var(--textarea-bg);
+      color: var(--text-color);
+    }
+    textarea:focus {
+      border-color: var(--button-bg);
+      outline: none;
+      background: var(--container-bg);
+    }
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--textarea-bg);
+      color: var(--text-color);
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: var(--button-bg);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 5px;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    button:hover { background: var(--button-hover); transform: scale(1.02); }
+
+    /* ✅ Fenêtre d’édition */
+    .editor {
+      position: fixed;
+      top:0;left:0;right:0;bottom:0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 1000;
+    }
+    .editor-content {
+      position: relative;
+      background: #000;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    canvas {
+      max-width: 90vw;
+      max-height: 70vh;
+      background: #000;
+    }
+    .editor-buttons {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    .draggable-text {
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      font-weight: bold;
+      font-size: 20px;
+      color: white;
+      cursor: move;
+    }
+    #theme-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+    #theme-toggle:hover {
+      color: var(--button-bg);
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="container">
+    <h2>Créer un nouveau post</h2>
+    <form method="POST" action="/add_post" enctype="multipart/form-data">
+      <textarea name="content" placeholder="Ajoute une description..." required></textarea>
+      <input type="file" id="mediaInput" name="media" accept="image/*,video/*" multiple>
+      <button type="submit">Publier</button>
+    </form>
+    <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
+  </div>
+
+  <!-- ✅ Fenêtre d’édition -->
+  <div class="editor" id="editor">
+    <div class="editor-content">
+      <canvas id="previewCanvas"></canvas>
+      <div id="textOverlay" class="draggable-text" contenteditable="true">Écris ici</div>
+      <div class="editor-buttons">
+        <button type="button" onclick="addText()">Texte</button>
+        <button type="button" onclick="saveImage()">Enregistrer</button>
+        <button type="button" onclick="closeEditor()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Theme toggle functionality
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  const body = document.body;
+
+  function setTheme(theme) {
+    body.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+    const icon = themeToggleBtn.querySelector('i');
+    icon.classList.toggle('fa-moon', theme === 'light');
+    icon.classList.toggle('fa-sun', theme === 'dark');
+  }
+
+  // Load saved theme or default to light
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  setTheme(savedTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+      setTheme(newTheme);
+    });
+  }
+
+  const mediaInput = document.getElementById("mediaInput");
+  const editor = document.getElementById("editor");
+  const canvas = document.getElementById("previewCanvas");
+  const ctx = canvas.getContext("2d");
+  const textOverlay = document.getElementById("textOverlay");
+  let currentImage = null;
+  let currentFile = null;
+
+  mediaInput.addEventListener("change", (e) => {
+    const files = e.target.files;
+    if(!files.length) return;
+    // Handle multiple files, but for editing, perhaps edit one by one or skip editing for multiple
+    // For simplicity, assuming single file for editing; multiple files can be uploaded without editing
+    if (files.length > 1) {
+      // Skip editing for multiple files
+      return;
+    }
+    currentFile = files[0];
+    if (currentFile.type.startsWith('video/')) {
+      // Pour les vidéos, pas d'édition, soumettre tel quel
+      return;
+    }
+    if (!currentFile.type.startsWith('image/')) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        currentImage = img;
+        editor.style.display = "flex";
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(currentFile);
+  });
+
+  // Déplacer le texte
+  let dragging = false, offsetX=0, offsetY=0;
+  textOverlay.addEventListener("mousedown", (e)=>{
+    dragging=true;
+    offsetX=e.offsetX;offsetY=e.offsetY;
+  });
+  window.addEventListener("mousemove",(e)=>{
+    if(dragging){
+      textOverlay.style.left = (e.pageX-offsetX)+"px";
+      textOverlay.style.top = (e.pageY-offsetY)+"px";
+    }
+  });
+  window.addEventListener("mouseup",()=>dragging=false);
+
+  function addText(){
+    textOverlay.style.display="block";
+    textOverlay.focus();
+  }
+
+  function saveImage(){
+    ctx.drawImage(currentImage,0,0,canvas.width,canvas.height);
+    ctx.font = "bold 30px Arial";
+    ctx.fillStyle = "white";
+    const rect = canvas.getBoundingClientRect();
+    const x = parseInt(textOverlay.style.left) - rect.left;
+    const y = parseInt(textOverlay.style.top) - rect.top + 30; // Ajuster pour la baseline du texte
+    ctx.fillText(textOverlay.innerText, x, y);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const editedFile = new File([blob], currentFile.name.replace(/\.\w+$/, '.png'), { type: 'image/png' });
+        const dt = new DataTransfer();
+        dt.items.add(editedFile);
+        mediaInput.files = dt.files;
+      }
+      textOverlay.style.display = "none";
+      editor.style.display = "none";
+      alert("✅ Texte ajouté à l’image !");
+    }, 'image/png');
+  }
+
+  function closeEditor(){
+    textOverlay.style.display = "none";
+    editor.style.display = "none";
+  }
+</script>
+</body>
+</html>

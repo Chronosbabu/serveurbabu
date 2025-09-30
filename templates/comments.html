@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHRONOS - Commentaires</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    /* ---------- GLOBAL ---------- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #fff;
+      color: #262626;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    /* ---------- MODAL CONTAINER ---------- */
+    .modal-container {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+    .main-container {
+      max-width: 935px;
+      margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ---------- HEADER ---------- */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #dbdbdb;
+      background: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #262626;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header a {
+      font-size: 0.9rem;
+      color: #0095f6;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+    header a:hover {
+      color: #00376b;
+    }
+
+    /* ---------- COMMENTS ---------- */
+    .scroll-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 100px 16px; /* Further increased bottom padding */
+      scrollbar-width: none;
+    }
+    .scroll-box::-webkit-scrollbar { display: none; }
+    .comments-box {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .comment {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 0;
+      opacity: 1; /* Ensure visibility */
+      z-index: 1; /* Ensure above any background */
+    }
+    .avatar-comment, .avatar-fallback {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1rem;
+      color: #fff;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+      margin-right: 10px;
+      transition: transform 0.2s ease;
+    }
+    .avatar-comment:hover, .avatar-fallback:hover {
+      transform: scale(1.05);
+    }
+    .comment-content {
+      flex: 1;
+      max-width: calc(100% - 46px); /* Ensure comment content doesn't overflow */
+    }
+    .comment-content p:first-child {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #262626;
+    }
+    .comment-content p:first-child a:hover {
+      color: #0095f6;
+    }
+    .comment-content p:nth-child(2) {
+      font-size: 0.85rem;
+      color: #262626;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal; /* Ensure natural line breaks */
+      max-width: 100%; /* Prevent overflow */
+      line-height: 1.4; /* Improve readability */
+    }
+    .comment-content small {
+      font-size: 0.75rem;
+      color: #8e8e8e;
+      display: block;
+      margin-top: 4px;
+    }
+    .no-comments {
+      font-size: 0.9rem;
+      color: #6b7280;
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    /* ---------- COMMENT FORM ---------- */
+    .comment-form {
+      padding: 12px 16px;
+      border-top: 1px solid #dbdbdb;
+      background: #fff;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 20; /* Higher z-index to ensure visibility */
+    }
+    .comment-form form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .comment-form textarea {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      border: 1px solid #dbdbdb;
+      border-radius: 8px;
+      resize: none;
+      height: 40px;
+      background: #fafafa;
+      color: #262626;
+      font-family: inherit;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap; /* Allow line breaks in textarea */
+    }
+    .comment-form textarea:focus {
+      outline: none;
+      border-color: #0095f6;
+      box-shadow: 0 0 0 1px #0095f6;
+    }
+    .comment-form button {
+      background: #0095f6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    .comment-form button:hover {
+      background: #00376b;
+      transform: scale(1.05);
+    }
+    .comment-form button:disabled {
+      background: #b2dffc;
+      cursor: not-allowed;
+    }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 600px) {
+      header { padding: 10px 12px; }
+      header h2 { font-size: 1.1rem; }
+      header a { font-size: 0.85rem; }
+      .scroll-box { padding: 12px 12px 100px 12px; }
+      .avatar-comment, .avatar-fallback { width: 32px; height: 32px; font-size: 0.9rem; }
+      .comment-content { max-width: calc(100% - 42px); }
+      .comment-content p:first-child { font-size: 0.85rem; }
+      .comment-content p:nth-child(2) { font-size: 0.8rem; }
+      .comment-content small { font-size: 0.7rem; }
+      .comment-form { padding: 10px 12px; }
+      .comment-form textarea { font-size: 0.8rem; height: 36px; }
+      .comment-form button { padding: 6px 12px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body data-username="{{ username }}">
+  <div class="modal-container">
+    <div class="main-container">
+      <header>
+        <h2><i class="fa-regular fa-comment"></i> Commentaires</h2>
+        <p><a href="#" id="closeModal">Fermer</a></p>
+      </header>
+      <main class="scroll-box comments-box" id="commentsBox">
+        {% if post.comments|length == 0 %}
+          <p class="no-comments">Aucun commentaire pour l’instant.</p>
+        {% else %}
+          {% for comment in post.comments %}
+          <div class="comment">
+            {% if comment.avatar %}
+            <a href="{{ url_for('profile', username=comment.username) }}">
+              <img src="{{ url_for('avatar_file', filename=comment.avatar) }}" alt="avatar" class="avatar-comment" />
+            </a>
+            {% else %}
+            <a href="{{ url_for('profile', username=comment.username) }}">
+              <div class="avatar-fallback">{{ comment.username[:1]|upper }}</div>
+            </a>
+            {% endif %}
+            <div class="comment-content">
+              <p><strong><a href="{{ url_for('profile', username=comment.username) }}">{{ comment.username }}</a></strong></p>
+              <p>{{ comment.content }}</p>
+              <small>{{ comment.date }}</small>
+            </div>
+          </div>
+          {% endfor %}
+        {% endif %}
+      </main>
+      <section class="comment-form">
+        <form id="commentForm">
+          <textarea name="comment" placeholder="Écrire un commentaire..." required></textarea>
+          <button type="submit">Commenter</button>
+        </form>
+      </section>
+    </div>
+  </div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const currentUsername = document.body.dataset.username;
+    const socket = io();
+
+    // --- Comment Form Submission ---
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+      commentForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const textarea = commentForm.querySelector('textarea[name="comment"]');
+        const content = textarea.value.trim();
+        if (!content) return;
+        const postId = '{{ post.id }}';
+        fetch(`/comments/${postId}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `comment=${encodeURIComponent(content)}`
+        }).then(res => {
+          if (res.ok) {
+            socket.emit('send_comment', { post_id: parseInt(postId), username: currentUsername, content });
+            textarea.value = '';
+            textarea.focus(); // Refocus after submit
+          }
+        }).catch(err => console.error(err));
+      });
+
+      // Enable/disable submit button based on textarea content
+      const textarea = commentForm.querySelector('textarea');
+      const submitButton = commentForm.querySelector('button');
+      textarea.addEventListener('input', () => {
+        submitButton.disabled = !textarea.value.trim();
+      });
+    }
+
+    // --- Socket.IO New Comment Handler ---
+    socket.on('new_comment', data => {
+      const commentsBox = document.getElementById('commentsBox');
+      if (!commentsBox) return;
+      if (data.post_id !== parseInt('{{ post.id }}')) return;
+
+      // Remove "no comments" message if present
+      const noComments = commentsBox.querySelector('.no-comments');
+      if (noComments) noComments.remove();
+
+      // Check if comment already exists to prevent duplicates
+      const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
+      if (!existingComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment';
+        commentDiv.dataset.commentId = data.comment_id;
+        const avatarHtml = data.avatar
+          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+          : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
+        commentDiv.innerHTML = `
+          ${avatarHtml}
+          <div class="comment-content">
+            <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
+            <p>${data.content}</p>
+            <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+          </div>
+        `;
+        commentsBox.appendChild(commentDiv);
+        commentsBox.scrollTop = commentsBox.scrollHeight; // Scroll to bottom for new comments
+      }
+    });
+
+    // --- Close Modal ---
+    document.getElementById('closeModal').addEventListener('click', e => {
+      e.preventDefault();
+      window.parent.document.getElementById('commentsModal').classList.remove('open');
+      window.parent.document.getElementById('modalBackdrop').classList.remove('open');
+      window.parent.document.getElementById('posts').classList.remove('modal-open');
+      window.parent.document.body.classList.remove('modal-open');
+      window.parent.document.getElementById('commentsIframe').src = '';
+    });
+  });
+</script>
+</body>
+</html>

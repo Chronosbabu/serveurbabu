@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root {
+            --bg-color: #fafafa;
+            --text-color: #262626;
+            --card-bg: #fff;
+            --border-color: #dbdbdb;
+            --button-bg: #0095f6;
+            --button-hover: #00376b;
+            --link-color: #0095f6;
+            --google-button-bg: #fff;
+            --google-button-border: #dadce0;
+            --google-button-hover: #f5f5f5;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --card-bg: #262626;
+            --border-color: #333;
+            --button-bg: #4dabf7;
+            --button-hover: #1c6dd0;
+            --link-color: #4dabf7;
+            --google-button-bg: #333;
+            --google-button-border: #444;
+            --google-button-hover: #3c3c3c;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        header h2 {
+            color: var(--text-color);
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        .upload-section {
+            max-width: 400px;
+            margin: 20px auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .upload-section input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        .upload-section button {
+            width: 100%;
+            padding: 10px;
+            background: var(--button-bg);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .upload-section button:hover {
+            background: var(--button-hover);
+            transform: scale(1.02);
+        }
+
+        .google-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 10px;
+            background: var(--google-button-bg);
+            border: 1px solid var(--google-button-border);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px 0;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .google-button img {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+        }
+
+        .google-button:hover {
+            background: var(--google-button-hover);
+            transform: scale(1.02);
+        }
+
+        .upload-section p {
+            margin-top: 15px;
+            text-align: center;
+            color: var(--text-color);
+        }
+
+        .upload-section a {
+            color: var(--link-color);
+            font-weight: 600;
+        }
+
+        .upload-section a:hover {
+            color: var(--button-hover);
+        }
+
+        #theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+
+        #theme-toggle:hover {
+            color: var(--link-color);
+            transform: scale(1.1);
+        }
+
+        .error-message {
+            color: #ed4956;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <header>
+        <h2>🔑 Se connecter</h2>
+        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
+    </header>
+
+    <section class="upload-section">
+        <form method="POST">
+            <input type="text" name="username" placeholder="Nom d'utilisateur" required><br>
+            <input type="password" name="password" placeholder="Mot de passe" required><br>
+            <button type="submit">Connexion</button>
+            {% if error %}
+                <p class="error-message">{{ error }}</p>
+            {% endif %}
+        </form>
+        <div id="g_id_onload"
+             data-client_id="{{ google_client_id }}"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="google-button" onclick="google.accounts.id.prompt();">
+            <img src="https://www.google.com/favicon.ico" alt="Google Icon">
+            Continuer avec Google
+        </div>
+        <p>Pas de compte ? <a href="{{ url_for('register') }}">S'inscrire</a></p>
+    </section>
+
+    <script>
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        function setTheme(theme) {
+            body.dataset.theme = theme;
+            localStorage.setItem('theme', theme);
+            const icon = themeToggleBtn.querySelector('i');
+            icon.classList.toggle('fa-moon', theme === 'light');
+            icon.classList.toggle('fa-sun', theme === 'dark');
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+                setTheme(newTheme);
+            });
+        }
+
+        window.handleCredentialResponse = async function(response) {
+            const res = await fetch('/google_login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id_token: response.credential })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                const errorDiv = document.createElement('p');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = data.error || 'Erreur lors de la connexion avec Google';
+                document.querySelector('.upload-section').appendChild(errorDiv);
+            }
+        };
+    </script>
+</body>
+</html>

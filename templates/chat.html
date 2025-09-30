@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+  <title>Chat avec {{ chat_user }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    /* ---------- GLOBAL ---------- */
+    :root {
+      --bg-color: #fafafa;
+      --text-color: #262626;
+      --border-color: #dbdbdb;
+      --card-bg: #fff;
+      --link-hover: #0095f6;
+      --shadow-color: rgba(0,0,0,0.05);
+      --badge-bg: #ed4956;
+      --badge-border: #fff;
+      --messages-bg: #e5e5e5;
+      --message-me-bg: #dcf8c6;
+      --message-other-bg: #fff;
+      --input-bg: #fafafa;
+      --button-bg: #0095f6;
+      --button-hover: #00376b;
+      --file-btn-bg: #262626;
+      --file-btn-hover: #1a1a1a;
+      --mic-btn-bg: #ed4956;
+      --mic-btn-recording: #d32f2f;
+      --status-color: #8e8e8e;
+      --read-color: #4caf50;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --border-color: #333;
+      --card-bg: #262626;
+      --link-hover: #4dabf7;
+      --shadow-color: rgba(0,0,0,0.3);
+      --badge-bg: #ff6b6b;
+      --badge-border: #262626;
+      --messages-bg: #2d2d2d;
+      --message-me-bg: #2a6041;
+      --message-other-bg: #3a3a3a;
+      --input-bg: #333;
+      --button-bg: #4dabf7;
+      --button-hover: #1c6dd0;
+      --file-btn-bg: #444;
+      --file-btn-hover: #555;
+      --mic-btn-bg: #ff6b6b;
+      --mic-btn-recording: #b71c1c;
+      --status-color: #6b7280;
+      --read-color: #66bb6a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.5;
+      overflow: hidden; /* Prevent body scrolling */
+    }
+    a { text-decoration: none; color: inherit; }
+    .main-container { 
+      max-width: 935px; 
+      margin: 0 auto; 
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------- HEADER ---------- */
+    .main-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      box-shadow: 0 1px 2px var(--shadow-color);
+    }
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-color);
+      font-family: 'Lobster', cursive;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+    .typing-status {
+      font-size: 0.8rem;
+      color: var(--status-color);
+      margin-left: 10px;
+      font-style: italic;
+      display: none;
+    }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: nowrap;
+    }
+    .header-icons a, .header-icons button {
+      color: var(--text-color);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, transform 0.2s ease;
+      position: relative;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .header-icons a:hover, .header-icons button:hover {
+      color: var(--link-hover);
+      transform: scale(1.1);
+    }
+    .header-icons a.active {
+      color: var(--link-hover);
+    }
+    .message-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: var(--badge-bg);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 50%;
+      line-height: 1;
+      border: 2px solid var(--badge-border);
+    }
+
+    /* ---------- BOTTOM NAVIGATION BAR ---------- */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      z-index: 1100; /* Higher than input-box to ensure visibility */
+      box-shadow: 0 -1px 2px var(--shadow-color);
+    }
+    .bottom-nav a {
+      color: var(--text-color);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+    .bottom-nav a:hover {
+      color: var(--link-hover);
+      transform: scale(1.1);
+    }
+    .bottom-nav a.active {
+      color: var(--link-hover);
+    }
+
+    /* ---------- MESSAGES ---------- */
+    .messages {
+      flex: 1;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: var(--messages-bg); /* WhatsApp-like background */
+    }
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--shadow-color); border-radius: 3px; }
+
+    /* ---------- MESSAGE INDIVIDUAL ---------- */
+    .message {
+      padding: 10px 14px !important; /* Forcer le padding pour les messages texte */
+      border-radius: 15px !important;
+      max-width: 75% !important;
+      min-width: 100px !important; /* Prevent overly narrow bubbles */
+      overflow-wrap: break-word !important;
+      font-size: 0.9rem !important; /* Forcer la taille de police */
+      line-height: 1.4 !important; /* Forcer la hauteur de ligne */
+      white-space: pre-line !important;
+      box-shadow: 0 1px 3px var(--shadow-color) !important;
+      box-sizing: border-box !important;
+      width: fit-content !important;
+      transform: scale(1) !important; /* Empêcher toute mise à l'échelle */
+      max-height: none !important;
+      overflow: visible !important;
+      background-clip: padding-box !important; /* Assurer que le fond respecte le padding */
+      -webkit-text-size-adjust: 100% !important; /* Empêcher les ajustements automatiques sur mobile */
+      position: relative; /* For status indicator positioning */
+    }
+    .from-me {
+      background: var(--message-me-bg) !important; /* WhatsApp-like green for sent messages */
+      align-self: flex-end !important;
+    }
+    .from-other {
+      background: var(--message-other-bg) !important; /* White for received messages */
+      align-self: flex-start !important;
+    }
+    .message.audio-wrapper {
+      background: none !important;
+      padding: 0 !important;
+      border: none !important;
+      max-width: 100% !important;
+      min-width: 0 !important; /* Allow audio to size naturally */
+      box-shadow: none !important;
+    }
+    .message.audio-wrapper audio {
+      width: 250px !important;
+      display: block !important;
+      margin: 5px 0 !important;
+      border-radius: 8px !important;
+    }
+    .message img, .message video {
+      max-width: 100% !important;
+      border-radius: 15px !important;
+      display: block !important;
+    }
+    .message video { max-height: 300px !important; }
+
+    /* ---------- MESSAGE STATUS INDICATOR ---------- */
+    .status-indicator {
+      position: absolute;
+      bottom: 5px;
+      right: 10px;
+      font-size: 0.8rem;
+      color: var(--status-color);
+    }
+    .status-indicator.read {
+      color: var(--read-color);
+    }
+
+    /* ---------- INPUT BOX ---------- */
+    .input-box {
+      position: fixed;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      background: var(--card-bg);
+      gap: 8px;
+      box-shadow: 0 -1px 2px var(--shadow-color);
+      z-index: 1000;
+      transition: bottom 0.3s ease; /* Smooth transition for keyboard */
+    }
+    .input-box textarea {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+      resize: none;
+      min-height: 40px;
+      max-height: 100px;
+      background: var(--input-bg);
+      color: var(--text-color);
+    }
+    .input-box button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--button-bg);
+      color: #fff;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+    .input-box button:hover { background: var(--button-hover); }
+    #fileBtn { background: var(--file-btn-bg); }
+    #fileBtn:hover { background: var(--file-btn-hover); }
+    #micBtn { background: var(--mic-btn-bg); }
+    #micBtn.recording {
+      background: var(--mic-btn-recording);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(237,73,86,0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(237,73,86,0); }
+      100% { box-shadow: 0 0 0 0 rgba(237,73,86,0); }
+    }
+    .input-box input[type="file"] { display: none; }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 600px) {
+      .main-container { padding: 16px 16px 70px 16px; }
+      .main-header { padding: 10px 16px; }
+      .logo { font-size: 1.5rem; }
+      .header-icons { gap: 16px; }
+      .header-icons a, .header-icons button { font-size: 1.3rem; }
+      .bottom-nav { padding: 10px 0; }
+      .bottom-nav a { font-size: 1.3rem; }
+      .messages { padding: 10px 12px; }
+      .message {
+        font-size: 0.9rem !important; /* Forcer la taille de police */
+        padding: 10px 14px !important; /* Forcer le padding */
+        line-height: 1.4 !important; /* Forcer la hauteur de ligne */
+        max-width: 75% !important;
+        min-width: 100px !important;
+        overflow-wrap: break-word !important;
+        width: fit-content !important;
+        transform: scale(1) !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background-clip: padding-box !important;
+        -webkit-text-size-adjust: 100% !important;
+      }
+      .message.audio-wrapper audio { width: 200px !important; }
+      .input-box { padding: 6px 12px; }
+      .input-box textarea { font-size: 0.9rem; padding: 10px 12px; }
+      .input-box button { width: 36px; height: 36px; font-size: 0.9rem; }
+      .status-indicator { font-size: 0.7rem; bottom: 4px; right: 8px; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body data-username="{{ session['username'] }}" data-theme="light">
+  <div class="main-container">
+    <header class="main-header">
+      <h2 class="logo">Chat avec {{ chat_user }} <span id="typing-status" class="typing-status"></span></h2>
+      <nav class="header-icons">
+        <a href="{{ url_for('index') }}" title="Accueil"><i class="fa-solid fa-house"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=session.get('username')) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" class="active">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        </a>
+        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
+      </nav>
+    </header>
+
+    <div class="messages" id="messages">
+      {% for msg in messages %}
+      <div class="message {% if msg.type == 'audio' %}audio-wrapper{% endif %} {% if msg.sender == session['username'] %}from-me{% else %}from-other{% endif %}" data-msg-id="{{ msg.id if 'id' in msg else 'old-' + loop.index0|string }}">
+        {% if msg.type == 'text' %}
+        {{ msg.text | replace("\n", "<br>") | safe }}
+        {% elif msg.type == 'image' %}
+        <img src="{{ msg.url }}" alt="image">
+        {% elif msg.type == 'video' %}
+        <video src="{{ msg.url }}" controls></video>
+        {% elif msg.type == 'audio' %}
+        <audio controls src="{{ msg.url }}"></audio>
+        {% endif %}
+        {% if msg.sender == session['username'] %}
+        {% set read_len = msg.read_by|length if 'read_by' in msg else 1 %}
+        {% set delivered_len = msg.delivered_to|length if 'delivered_to' in msg else 0 %}
+        {% set status = 'read' if read_len > 1 else 'delivered' if delivered_len > 0 else 'sent' %}
+        <span class="status-indicator {{ status }}"><i class="fa-solid fa-check{{ '-double' if status != 'sent' else '' }}"></i></span>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="message from-other">Aucun message pour le moment.</div>
+      {% endfor %}
+    </div>
+
+    <div class="input-box">
+      <button id="fileBtn" title="Joindre un fichier"><i class="fa-solid fa-paperclip"></i></button>
+      <button id="micBtn" title="Enregistrer un audio"><i class="fa-solid fa-microphone"></i></button>
+      <textarea id="messageInput" placeholder="Écrire un message..." autocomplete="off"></textarea>
+      <button id="sendBtn" title="Envoyer"><i class="fa-solid fa-paper-plane"></i></button>
+      <input type="file" id="fileInput" accept="image/*,video/*,audio/*">
+    </div>
+
+    <nav class="bottom-nav">
+      <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+        <i class="fa-regular fa-bell"></i>
+        <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+      </a>
+      <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+      <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+    </nav>
+  </div>
+
+  <script>
+    // Theme toggle functionality
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const body = document.body;
+
+    function setTheme(theme) {
+      body.dataset.theme = theme;
+      localStorage.setItem('theme', theme);
+      const icon = themeToggleBtn.querySelector('i');
+      icon.classList.toggle('fa-moon', theme === 'light');
+      icon.classList.toggle('fa-sun', theme === 'dark');
+    }
+
+    // Load saved theme or default to light
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+      });
+    }
+
+    const socket = io({
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+    const username = document.body.dataset.username;
+    const chatUser = "{{ chat_user }}";
+    const input = document.getElementById('messageInput');
+    const btn = document.getElementById('sendBtn');
+    const fileBtn = document.getElementById('fileBtn');
+    const micBtn = document.getElementById('micBtn');
+    const fileInput = document.getElementById('fileInput');
+    const messagesDiv = document.getElementById('messages');
+    const inputBox = document.querySelector('.input-box');
+    const typingStatus = document.getElementById('typing-status');
+
+    let selectedFile = null;
+    let recordedAudio = null;
+    let mediaRecorder, audioChunks = [];
+    let isSending = false;
+    let typingTimer;
+
+    // Normaliser les styles des messages texte
+    function normalizeMessages() {
+      console.log('Normalisation des messages...');
+      const messages = document.querySelectorAll('.message:not(.audio-wrapper)');
+      messages.forEach(msg => {
+        msg.style.fontSize = '0.9rem';
+        msg.style.lineHeight = '1.4';
+        msg.style.padding = '10px 14px';
+        msg.style.maxWidth = '75%';
+        msg.style.minWidth = '100px';
+        msg.style.width = 'fit-content';
+        msg.style.transform = 'scale(1)';
+        msg.style.maxHeight = 'none';
+        msg.style.overflow = 'visible';
+        msg.style.backgroundClip = 'padding-box';
+        msg.style.webkitTextSizeAdjust = '100%';
+        msg.style.whiteSpace = 'pre-line';
+        console.log(`Message ${msg.dataset.msgId}: font-size=${msg.style.fontSize}, padding=${msg.style.padding}`);
+      });
+    }
+
+    // Appliquer les styles à tous les messages (y compris audio)
+    function normalizeAllMessages() {
+      console.log('Normalisation de tous les messages...');
+      const messages = document.querySelectorAll('.message');
+      messages.forEach(msg => {
+        if (msg.classList.contains('audio-wrapper')) {
+          msg.style.padding = '0';
+          msg.style.maxWidth = '100%';
+          msg.style.minWidth = '0';
+          msg.style.background = 'none';
+          msg.style.boxShadow = 'none';
+        } else {
+          msg.style.fontSize = '0.9rem';
+          msg.style.lineHeight = '1.4';
+          msg.style.padding = '10px 14px';
+          msg.style.maxWidth = '75%';
+          msg.style.minWidth = '100px';
+          msg.style.width = 'fit-content';
+          msg.style.transform = 'scale(1)';
+          msg.style.maxHeight = 'none';
+          msg.style.overflow = 'visible';
+          msg.style.backgroundClip = 'padding-box';
+          msg.style.webkitTextSizeAdjust = '100%';
+          msg.style.whiteSpace = 'pre-line';
+        }
+      });
+    }
+
+    // Rejoindre sa room et normaliser les messages
+    socket.on('connect', () => {
+      socket.emit('join_room', { username: username });
+      socket.emit('mark_read', { sender: chatUser });
+      adjustInputHeight();
+      scrollToBottom();
+      adjustMessagesHeight();
+      normalizeMessages();
+      console.log('Connexion Socket.IO établie');
+    });
+
+    // Gérer la reconnexion
+    socket.on('reconnect', (attempt) => {
+      console.log(`Reconnexion réussie après ${attempt} tentatives`);
+      socket.emit('join_room', { username: username });
+      socket.emit('mark_read', { sender: chatUser });
+      adjustMessagesHeight();
+      normalizeMessages();
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('Erreur de reconnexion Socket.IO:', error);
+    });
+
+    // Scroll automatique
+    function scrollToBottom() {
+      requestAnimationFrame(() => {
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        console.log('Scroll vers le bas effectué');
+      });
+    }
+
+    // Ajuster la hauteur du textarea
+    function adjustInputHeight() {
+      input.style.height = 'auto';
+      const newHeight = Math.min(Math.max(input.scrollHeight, 40), 100);
+      input.style.height = `${newHeight}px`;
+      adjustMessagesHeight();
+      console.log(`Hauteur textarea ajustée: ${newHeight}px`);
+    }
+
+    // Ajuster la hauteur du conteneur de messages
+    function adjustMessagesHeight() {
+      const headerHeight = document.querySelector('.main-header').offsetHeight || 60;
+      const inputBoxHeight = inputBox.offsetHeight || 60;
+      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight || 60;
+      const availableHeight = window.innerHeight - headerHeight - inputBoxHeight - bottomNavHeight;
+      messagesDiv.style.height = `${availableHeight}px`;
+      messagesDiv.style.marginTop = `${headerHeight}px`;
+      messagesDiv.style.marginBottom = `${inputBoxHeight}px`;
+      inputBox.style.bottom = `${bottomNavHeight}px`;
+      console.log(`Hauteur messages ajustée: height=${availableHeight}px, margin-top=${headerHeight}px, margin-bottom=${inputBoxHeight}px, bottom-nav=${bottomNavHeight}px`);
+    }
+
+    // Gérer l'apparition du clavier
+    function handleKeyboard() {
+      const initialHeight = window.innerHeight;
+      const bottomNavHeight = document.querySelector('.bottom-nav').offsetHeight || 60;
+      window.addEventListener('resize', () => {
+        const newHeight = window.innerHeight;
+        if (newHeight < initialHeight) {
+          inputBox.style.bottom = `${bottomNavHeight}px`;
+          adjustMessagesHeight();
+          scrollToBottom();
+        } else {
+          inputBox.style.bottom = `${bottomNavHeight}px`;
+          adjustMessagesHeight();
+        }
+        normalizeMessages();
+      });
+
+      input.addEventListener('focus', () => {
+        setTimeout(scrollToBottom, 300);
+      });
+    }
+
+    // Initialisation
+    window.addEventListener('load', () => {
+      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
+      adjustInputHeight();
+      scrollToBottom();
+      adjustMessagesHeight();
+      handleKeyboard();
+      normalizeAllMessages();
+      console.log('Page chargée, normalisation initiale effectuée');
+    });
+
+    // Réappliquer les styles lors de la navigation
+    window.addEventListener('popstate', () => {
+      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
+      adjustMessagesHeight();
+      normalizeAllMessages();
+      console.log('Navigation détectée (popstate), styles réappliqués');
+    });
+
+    input.addEventListener('input', adjustInputHeight);
+
+    // Fonction pour obtenir l'icône de statut
+    function getStatusIcon(status) {
+      if (status === 'pending') {
+        return '<i class="fa-solid fa-clock"></i>';
+      } else if (status === 'sent') {
+        return '<i class="fa-solid fa-check"></i>';
+      } else {
+        return '<i class="fa-solid fa-check-double"></i>';
+      }
+    }
+
+    // Ajouter un message avec indicateur de statut
+    function addMessage(msg, isLocal = false) {
+      if (document.querySelector(`.message[data-msg-id="${msg.id}"]`)) return;
+      const div = document.createElement('div');
+      div.className = `message ${msg.type === 'audio' ? 'audio-wrapper' : ''} ${msg.sender === username ? 'from-me' : 'from-other'}`;
+      div.dataset.msgId = msg.id;
+      if (msg.type === 'text') {
+        div.innerHTML = msg.text.replace(/\n/g, '<br>');
+      } else if (msg.type === 'image') {
+        const img = document.createElement('img');
+        img.src = msg.url;
+        div.appendChild(img);
+      } else if (msg.type === 'video') {
+        const video = document.createElement('video');
+        video.src = msg.url;
+        video.controls = true;
+        div.appendChild(video);
+      } else if (msg.type === 'audio') {
+        const audio = document.createElement('audio');
+        audio.src = msg.url;
+        audio.controls = true;
+        div.appendChild(audio);
+      }
+      // Appliquer les styles explicitement
+      if (msg.type === 'audio') {
+        div.style.padding = '0';
+        div.style.maxWidth = '100%';
+        div.style.minWidth = '0';
+        div.style.background = 'none';
+        div.style.boxShadow = 'none';
+      } else {
+        div.style.fontSize = '0.9rem';
+        div.style.lineHeight = '1.4';
+        div.style.padding = '10px 14px';
+        div.style.maxWidth = '75%';
+        div.style.minWidth = '100px';
+        div.style.width = 'fit-content';
+        div.style.transform = 'scale(1)';
+        div.style.maxHeight = 'none';
+        div.style.overflow = 'visible';
+        div.style.backgroundClip = 'padding-box';
+        div.style.webkitTextSizeAdjust = '100%';
+      }
+      // Ajouter l'indicateur de statut pour les messages envoyés
+      if (msg.sender === username) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = `status-indicator ${isLocal ? 'pending' : 'delivered'}`;
+        statusSpan.innerHTML = getStatusIcon(isLocal ? 'pending' : 'delivered');
+        div.appendChild(statusSpan);
+      }
+      messagesDiv.appendChild(div)
+      scrollToBottom();
+      adjustMessagesHeight();
+      if (msg.sender === chatUser && !isLocal) {
+        socket.emit('mark_read', { sender: chatUser });
+      }
+      console.log(`Message ajouté: type=${msg.type}, id=${div.dataset.msgId}, local=${isLocal}`);
+    }
+
+    // Mettre à jour le statut du message
+    function updateMessageStatus(msgId, status) {
+      const message = document.querySelector(`.message[data-msg-id="${msgId}"]`);
+      if (message) {
+        const statusSpan = message.querySelector('.status-indicator');
+        if (statusSpan) {
+          statusSpan.innerHTML = getStatusIcon(status);
+          statusSpan.classList.toggle('read', status === 'read');
+          statusSpan.className = `status-indicator ${status} ${status === 'read' ? 'read' : ''}`;
+          console.log(`Statut mis à jour pour message ${msgId}: ${status}`);
+        }
+      }
+    }
+
+    // Envoyer un message avec tentative de réessai
+    async function sendMessage() {
+      if (isSending) return;
+      isSending = true;
+      const text = input.value.trim();
+
+      let msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('recipient', chatUser);
+        formData.append('file', selectedFile);
+        try {
+          const res = await fetch('/send_file', { method: 'POST', body: formData });
+          if (res.ok) {
+            fileInput.value = '';
+            selectedFile = null;
+            input.value = '';
+            adjustInputHeight();
+          } else {
+            console.error('Échec de l\'envoi du fichier, statut:', res.status);
+            alert('Erreur lors de l\'envoi du fichier.');
+          }
+        } catch (e) {
+          console.error('Erreur réseau lors de l\'envoi du fichier:', e);
+          alert('Erreur réseau lors de l\'envoi du fichier.');
+        }
+      } else if (recordedAudio) {
+        const formData = new FormData();
+        formData.append('recipient', chatUser);
+        formData.append('file', recordedAudio, "audio_message.webm");
+        try {
+          const res = await fetch('/send_file', { method: 'POST', body: formData });
+          if (res.ok) {
+            recordedAudio = null;
+            input.value = '';
+            adjustInputHeight();
+          } else {
+            console.error('Échec de l\'envoi de l\'audio, statut:', res.status);
+            alert('Erreur lors de l\'envoi de l\'audio.');
+          }
+        } catch (e) {
+          console.error('Erreur réseau lors de l\'envoi de l\'audio:', e);
+          alert('Erreur réseau lors de l\'envoi de l\'audio.');
+        }
+      } else if (text) {
+        addMessage({
+          id: msgId,
+          sender: username,
+          text: text,
+          type: 'text',
+          date: new Date().toISOString()
+        }, true);
+        // Tenter d'envoyer le message
+        let attempts = 0;
+        const maxAttempts = 3;
+        const sendAttempt = () => {
+          if (attempts >= maxAttempts) {
+            console.error('Échec de l\'envoi du message après', maxAttempts, 'tentatives');
+            alert('Échec de l\'envoi du message. Veuillez vérifier votre connexion.');
+            return;
+          }
+          if (socket.connected) {
+            socket.emit('send_message', { receiver: chatUser, text: text, type: 'text', id: msgId });
+            updateMessageStatus(msgId, 'sent');
+            console.log(`Message envoyé: id=${msgId}, texte=${text}`);
+          } else {
+            attempts++;
+            console.warn(`Tentative ${attempts} échouée, Socket.IO non connecté`);
+            setTimeout(sendAttempt, 1000);
+          }
+        };
+        sendAttempt();
+        input.value = '';
+        adjustInputHeight();
+      }
+      isSending = false;
+    }
+
+    // Fichiers
+    fileBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      selectedFile = file;
+      input.value = "[Fichier prêt]";
+      adjustInputHeight();
+      console.log('Fichier sélectionné:', file.name);
+    });
+
+    // Micro
+    micBtn.addEventListener('click', async () => {
+      if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            recordedAudio = new Blob(audioChunks, { type: "audio/webm" });
+            input.value = "[Audio prêt]";
+            adjustInputHeight();
+            stream.getTracks().forEach(track => track.stop());
+            console.log('Enregistrement audio terminé');
+          };
+          mediaRecorder.start();
+          micBtn.classList.add("recording");
+          console.log('Enregistrement audio démarré');
+        } catch (e) {
+          console.error('Erreur d\'accès au micro:', e);
+          alert("Impossible d'accéder au micro");
+        }
+      } else {
+        mediaRecorder.stop();
+        micBtn.classList.remove("recording");
+      }
+    });
+
+    // Bouton envoyer
+    btn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Gestion typing
+    input.addEventListener('input', () => {
+      if (input.value.trim()) {
+        socket.emit('typing', { receiver: chatUser });
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          socket.emit('stop_typing', { receiver: chatUser });
+        }, 500);
+      } else {
+        socket.emit('stop_typing', { receiver: chatUser });
+      }
+    });
+
+    // Réception messages
+    socket.on('new_message', msg => {
+      if (msg.sender === username) {
+        updateMessageStatus(msg.id, 'sent');
+      } else {
+        addMessage(msg);
+      }
+      normalizeMessages();
+    });
+
+    socket.on('message_delivered', data => {
+      updateMessageStatus(data.id, 'delivered');
+    });
+
+    socket.on('messages_read', data => {
+      data.ids.forEach(id => {
+        updateMessageStatus(id, 'read');
+      });
+    });
+
+    socket.on('user_typing', data => {
+      if (data.sender === chatUser) {
+        typingStatus.textContent = 'écrit...';
+        typingStatus.style.display = 'inline';
+      }
+    });
+
+    socket.on('stop_typing', data => {
+      if (data.sender === chatUser) {
+        typingStatus.textContent = '';
+        typingStatus.style.display = 'none';
+      }
+    });
+
+    // Gestion badge messages
+    let unreadCount = 0;
+    const updateUnreadBadge = () => {
+      const badge = document.getElementById('unread-count');
+      if (!badge) return;
+      if (unreadCount > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = unreadCount;
+      } else {
+        badge.style.display = 'none';
+      }
+    };
+
+    socket.on('new_message', (message) => {
+      const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+      if (message.sender !== username && (!currentChatUser || currentChatUser !== message.sender)) {
+        unreadCount++;
+        updateUnreadBadge();
+        console.log('Nouveau message non lu, compte:', unreadCount);
+      }
+    });
+
+    window.addEventListener('load', () => {
+      if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+        unreadCount = 0;
+        updateUnreadBadge();
+      }
+    });
+
+    // Gestion badge notifications
+    let notifCount = 0;
+    const updateNotifBadge = () => {
+      const badge = document.getElementById('notifications-count');
+      if (!badge) return;
+      if (notifCount > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = notifCount;
+      } else {
+        badge.style.display = 'none';
+      }
+    };
+
+    socket.on('new_notification', (notification) => {
+      notifCount++;
+      updateNotifBadge();
+      console.log('Nouvelle notification, compte:', notifCount);
+    });
+
+    window.addEventListener('load', () => {
+      if (window.location.pathname.includes('/notifications')) {
+        notifCount = 0;
+        updateNotifBadge();
+      }
+    });
+  </script>
+</body>
+</html>
