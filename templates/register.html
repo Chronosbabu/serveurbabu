@@ -1,35 +1,45 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
-    <title>Inscription</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription - Chronos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --card-bg: #1e1e1e;
+            --border-color: #333;
+            --button-bg: #4CAF50;
+            --button-hover: #45a049;
+            --link-color: #3498db;
+            --link-hover: #1f78d1;
+            --google-button-bg: #ffffff;
+            --google-button-border: #dadce0;
+            --google-button-hover: #f5f5f5;
+            --input-bg: #333;
+            --input-text: #ffffff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="light"] {
             --bg-color: #fafafa;
             --text-color: #262626;
-            --card-bg: #fff;
+            --card-bg: #ffffff;
             --border-color: #dbdbdb;
             --button-bg: #0095f6;
             --button-hover: #00376b;
             --link-color: #0095f6;
-            --google-button-bg: #4285f4;
-            --google-button-hover: #3578e5;
-        }
-
-        [data-theme="dark"] {
-            --bg-color: #1a1a1a;
-            --text-color: #e0e0e0;
-            --card-bg: #262626;
-            --border-color: #333;
-            --button-bg: #4dabf7;
-            --button-hover: #1c6dd0;
-            --link-color: #4dabf7;
-            --google-button-bg: #4dabf7;
-            --google-button-hover: #1c6dd0;
+            --link-hover: #00376b;
+            --google-button-bg: #ffffff;
+            --google-button-border: #dadce0;
+            --google-button-hover: #f5f5f5;
+            --input-bg: #fafafa;
+            --input-text: #262626;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         body {
@@ -40,117 +50,174 @@
             padding: 0;
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            overflow: hidden;
-            -webkit-text-size-adjust: 100% !important;
-            transform: scale(1) !important;
-        }
-
-        .main-container {
-            max-width: 935px;
-            margin: 0 auto;
-            padding: 20px;
-            flex: 1;
+            overflow-x: hidden;
         }
 
         header {
+            width: 100%;
             background: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
             padding: 20px;
             text-align: center;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: relative;
         }
 
         header h2 {
             color: var(--text-color);
             margin: 0;
-            font-size: 1.8rem;
-        }
-
-        header p {
-            margin-top: 10px;
-            color: var(--text-color);
-        }
-
-        header a {
-            color: var(--link-color);
+            font-size: 2rem;
             font-weight: 600;
+            letter-spacing: 1px;
         }
 
-        header a:hover {
-            color: var(--button-hover);
-        }
-
-        .upload-section {
-            max-width: 400px;
-            margin: 80px auto 20px;
+        .container {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-
-        .upload-section input,
-        .upload-section label {
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
             width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            font-size: 1rem;
-            background: var(--card-bg);
-            color: var(--text-color);
+            max-width: 350px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .upload-section label {
-            border: none;
-            padding: 5px 0;
-            font-weight: 500;
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
         }
 
-        .upload-section button {
-            width: 100%;
-            padding: 10px;
-            background: var(--button-bg);
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background 0.2s ease, transform 0.2s ease;
-        }
-
-        .upload-section button:hover {
-            background: var(--button-hover);
-            transform: scale(1.02) !important;
-        }
-
-        #google-signin-button {
-            width: 100%;
-            padding: 10px;
-            background: var(--google-button-bg);
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
+        .avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #4CAF50, #3498db);
+            border-radius: 50%;
+            margin: 0 auto 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
+            font-size: 2rem;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        h2 {
+            margin: 10px 0 20px;
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #888;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            background: var(--input-bg);
+            color: var(--input-text);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: background 0.2s ease, border 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border: 1px solid var(--link-color);
+            background: var(--input-bg);
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+
+        .checkbox-container input {
+            margin-right: 8px;
+            accent-color: var(--button-bg);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--button-bg);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background: var(--button-hover);
+            transform: scale(1.03);
+        }
+
+        .google-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            background: var(--google-button-bg);
+            border: 1px solid var(--google-button-border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 10px 0;
+            color: var(--text-color);
             transition: background 0.2s ease, transform 0.2s ease;
         }
 
-        #google-signin-button:hover {
+        .google-button img {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+        }
+
+        .google-button:hover {
             background: var(--google-button-hover);
-            transform: scale(1.02) !important;
+            transform: scale(1.03);
+        }
+
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        a:hover {
+            color: var(--link-hover);
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+
+        .footer p {
+            margin: 5px 0;
         }
 
         #theme-toggle {
@@ -167,7 +234,7 @@
 
         #theme-toggle:hover {
             color: var(--link-color);
-            transform: scale(1.1) !important;
+            transform: scale(1.1);
         }
 
         .error-message {
@@ -175,58 +242,78 @@
             font-size: 0.9rem;
             text-align: center;
             margin-top: 10px;
+            animation: fadeIn 0.3s ease;
         }
 
-        @media (max-width: 600px) {
-            .main-container { padding: 16px; }
-            .upload-section { 
-                margin: 70px auto 16px; 
-                padding: 16px; 
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 400px) {
+            .container {
+                padding: 20px;
+                max-width: 90%;
             }
-            header { padding: 16px; }
-            header h2 { font-size: 1.5rem; }
-            .upload-section input,
-            .upload-section button,
-            #google-signin-button {
-                padding: 8px;
-                font-size: 0.9rem;
+
+            header h2 {
+                font-size: 1.5rem;
             }
-            #theme-toggle { 
-                font-size: 1.3rem; 
-                top: 16px; 
-                right: 16px; 
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            h2 {
+                font-size: 1rem;
             }
         }
     </style>
 </head>
 <body data-theme="light">
-    <div class="main-container">
-        <header>
-            <h2>📝 Inscription</h2>
-            <p>Déjà un compte ? <a href="{{ url_for('login') }}">Connexion</a></p>
-            <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
-        </header>
+    <header>
+        <h2>📝 S'inscrire</h2>
+        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
+    </header>
 
-        <section class="upload-section">
-            <form method="POST" enctype="multipart/form-data" id="auth-form">
-                <input type="text" name="username" placeholder="Nom d'utilisateur" required /><br />
-                <input type="password" name="password" placeholder="Mot de passe" required /><br />
-                <label for="avatar">Choisir un avatar (optionnel) :</label><br />
-                <input type="file" name="avatar" accept="image/*" /><br /><br />
-                <button type="submit">S'inscrire</button>
-            </form>
-            <button id="google-signin-button">
-                <i class="fa-brands fa-google"></i> Continuer avec Google
-            </button>
+    <div class="container">
+        <div class="avatar">C</div>
+        <h1>Créer un compte</h1>
+        <h2>Chronos</h2>
+        <form method="POST" enctype="multipart/form-data" id="auth-form" action="{{ url_for('register') }}">
+            <input type="text" name="username" placeholder="Nom d'utilisateur" required>
+            <input type="password" name="password" placeholder="Mot de passe" id="password" required>
+            <div class="checkbox-container">
+                <input type="checkbox" id="showPassword">
+                <label for="showPassword">Afficher le mot de passe</label>
+            </div>
+            <label for="avatar">Choisir un avatar (optionnel) :</label>
+            <input type="file" name="avatar" accept="image/*">
+            <button type="submit">S'inscrire</button>
             {% if error %}
                 <p class="error-message">{{ error }}</p>
             {% endif %}
-        </section>
+        </form>
+        <div id="g_id_onload"
+             data-client_id="{{ google_client_id }}"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="google-button" onclick="google.accounts.id.prompt();">
+            <img src="https://www.google.com/favicon.ico" alt="Google Icon">
+            S'inscrire avec Google
+        </div>
+        <p>Déjà un compte ? <a href="{{ url_for('login') }}">Se connecter</a></p>
+        <div class="footer">
+            <p>Besoin d'aide ? <a href="#">Contactez le support</a></p>
+        </div>
     </div>
 
     <script>
         const themeToggleBtn = document.getElementById('theme-toggle');
         const body = document.body;
+        const showPassword = document.getElementById('showPassword');
+        const passwordField = document.getElementById('password');
 
         function setTheme(theme) {
             body.dataset.theme = theme;
@@ -246,44 +333,34 @@
             });
         }
 
-        // Google Sign-In
-        window.handleCredentialResponse = (response) => {
-            const idToken = response.credential;
-            fetch('/google_register', {
+        if (showPassword && passwordField) {
+            showPassword.addEventListener('change', () => {
+                if (showPassword.checked) {
+                    passwordField.type = 'text';
+                } else {
+                    passwordField.type = 'password';
+                }
+            });
+        }
+
+        window.handleCredentialResponse = async function(response) {
+            const res = await fetch('/google_register', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ token: idToken }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = data.redirect;
-                } else {
-                    const errorMessage = document.createElement('p');
-                    errorMessage.className = 'error-message';
-                    errorMessage.textContent = data.error || 'Erreur lors de l\'inscription avec Google';
-                    document.querySelector('.upload-section').appendChild(errorMessage);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                const errorMessage = document.createElement('p');
-                errorMessage.className = 'error-message';
-                errorMessage.textContent = 'Erreur réseau lors de l\'inscription';
-                document.querySelector('.upload-section').appendChild(errorMessage);
+                body: JSON.stringify({ id_token: response.credential })
             });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                const errorDiv = document.createElement('p');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = data.error || 'Erreur lors de l\'inscription avec Google';
+                document.querySelector('.container').appendChild(errorDiv);
+            }
         };
-
-        document.getElementById('google-signin-button').addEventListener('click', () => {
-            google.accounts.id.initialize({
-                client_id: '587697854709-7kimvj92k1qappbbg92chai69v2o034i.apps.googleusercontent.com',
-                callback: handleCredentialResponse,
-                auto_select: true,
-            });
-            google.accounts.id.prompt();
-        });
     </script>
 </body>
 </html>
