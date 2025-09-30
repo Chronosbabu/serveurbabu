@@ -14,6 +14,9 @@ import numpy as np
 import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+import b2sdk.v2 as b2
+from b2sdk import exception as b2_exception
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render env or fallback
@@ -31,14 +34,63 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DATA_FILE = os.path.join(DATA_DIR, "posts.json")
-USER_FILE = os.path.join(DATA_DIR, "users.json")
-MESSAGES_FILE = os.path.join(DATA_DIR, "messages.json")
+DATA_FILE = "posts.json"
+USER_FILE = "users.json"
+MESSAGES_FILE = "messages.json"
 BANK_FILE = os.path.join(DATA_DIR, "bank_accounts.json")
 CONVERSIONS_FILE = os.path.join(DATA_DIR, "conversions.json")
 STORIES_FILE = os.path.join(DATA_DIR, "stories.json")
+LIKES_FILE = "likes.json"
+FOLLOWERS_FILE = "followers.json"
 
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
+
+# Backblaze B2 initialization
+APPLICATION_KEY_ID = os.environ.get("KEY_ID")
+APPLICATION_KEY = os.environ.get("APPLICATION_KEY")
+BUCKET_NAME = os.environ.get("BUCKET_NAME")
+BUCKET_ENDPOINT = os.environ.get("BUCKET_ENDPOINT")  # Not used for native SDK, but loaded as per instructions
+
+info = b2.InMemoryAccountInfo()
+b2_api = b2.B2Api(info)
+b2_api.authorize_account("production", APPLICATION_KEY_ID, APPLICATION_KEY)
+bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+
+JSON_FILES = {
+    'users.json': [],
+    'posts.json': [],
+    'likes.json': [],
+    'followers.json': [],
+    'messages.json': {},
+}
+
+def file_exists_in_bucket(file_name):
+    try:
+        bucket.get_file_info_by_name(file_name)
+        return True
+    except b2_exception.FileNotPresent:
+        return False
+
+def init_bucket_files():
+    for file_name, default in JSON_FILES.items():
+        if not file_exists_in_bucket(file_name):
+            data = json.dumps(default, ensure_ascii=False, indent=2).encode('utf-8')
+            bucket.upload_bytes(data, file_name, content_type='application/json')
+
+init_bucket_files()
+
+def load_json_from_bucket(file_name):
+    download_dest = b2.DownloadDestBytes()
+    bucket.download_file_by_name(file_name, download_dest)
+    data = download_dest.get_bytes_written()
+    return json.loads(data)
+
+def save_json_to_bucket(file_name, data_obj):
+    data = json.dumps(data_obj, ensure_ascii=False, indent=2).encode('utf-8')
+    bucket.upload_bytes(data, file_name, content_type='application/json')
+
+def get_public_url(file_name):
+    return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
 
 connected_users = set()
 user_notifications = {}
@@ -64,6 +116,18 @@ def toggle_follow(current_user, target_user):
         following_list.append(target_user)
         following = True
     save_users(users)
+
+    # Update followers.json
+    followers = load_followers()
+    existing = next((f for f in followers if f["follower"] == current_user and f["followed"] == target_user), None)
+    if following:
+        if not existing:
+            followers.append({"follower": current_user, "followed": target_user})
+    else:
+        if existing:
+            followers.remove(existing)
+    save_followers(followers)
+
     return following
 
 def is_following(current_user, target_user):
@@ -93,34 +157,40 @@ def handle_join(data):
     if user_id:
         join_room(str(user_id), namespace='/')
 
-for file_path, default in [(DATA_FILE, []), (USER_FILE, []), (MESSAGES_FILE, {}), (BANK_FILE, []), (CONVERSIONS_FILE, []), (STORIES_FILE, [])]:
+for file_path, default in [(BANK_FILE, []), (CONVERSIONS_FILE, []), (STORIES_FILE, [])]:
     if not os.path.exists(file_path):
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
 
 def load_posts():
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_json_from_bucket(DATA_FILE)
 
 def save_posts(posts):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(posts, f, ensure_ascii=False, indent=2)
+    save_json_to_bucket(DATA_FILE, posts)
 
 def load_users():
-    with open(USER_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_json_from_bucket(USER_FILE)
 
 def save_users(users):
-    with open(USER_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
+    save_json_to_bucket(USER_FILE, users)
 
 def load_messages():
-    with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_json_from_bucket(MESSAGES_FILE)
 
 def save_messages(messages):
-    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
-        json.dump(messages, f, ensure_ascii=False, indent=2)
+    save_json_to_bucket(MESSAGES_FILE, messages)
+
+def load_likes():
+    return load_json_from_bucket(LIKES_FILE)
+
+def save_likes(likes):
+    save_json_to_bucket(LIKES_FILE, likes)
+
+def load_followers():
+    return load_json_from_bucket(FOLLOWERS_FILE)
+
+def save_followers(followers):
+    save_json_to_bucket(FOLLOWERS_FILE, followers)
 
 def load_bank():
     with open(BANK_FILE, "r", encoding="utf-8") as f:
@@ -189,10 +259,10 @@ def register():
         password = (request.form.get("password") or "").strip()
         avatar_file = request.files.get("avatar")
         if not username or not password:
-            return "Nom d'utilisateur et mot de passe requis.", 400
+            return jsonify({"success": False, "error": "Nom d'utilisateur et mot de passe requis."}), 400
         users = load_users()
         if any(u["username"].lower() == username.lower() for u in users):
-            return "Nom d'utilisateur déjà pris !", 400
+            return jsonify({"success": False, "error": "Nom d'utilisateur déjà pris !"}), 400
         avatar_filename = None
         if avatar_file and avatar_file.filename:
             avatar_filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
@@ -208,7 +278,8 @@ def register():
             "viewed_posts": []
         })
         save_users(users)
-        return redirect(url_for("login"))
+        url = get_public_url('users.json')
+        return jsonify({"success": True, "url": url})
     return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -368,7 +439,8 @@ def follow_user(username):
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
         socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username, namespace='/')
-    return jsonify({"following": following})
+    url = get_public_url('followers.json')
+    return jsonify({"following": following, "url": url})
 
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
@@ -408,7 +480,8 @@ def add_post():
             "username": new_post["username"],
             "description": new_post["description"]
         }, namespace='/')
-        return redirect(url_for("index"))
+        url = get_public_url('posts.json')
+        return jsonify({"success": True, "url": url})
     return render_template("new_post.html")
 
 @app.route("/add_story", methods=["POST"])
@@ -476,8 +549,21 @@ def like_post(post_id):
             if post_id in liked_posts:
                 liked_posts.remove(post_id)
         save_users(users)
+
+    # Update likes.json
+    likes = load_likes()
+    existing = next((l for l in likes if l.get("user") == username and l.get("post_id") == post_id), None)
+    if liked:
+        if not existing:
+            likes.append({"user": username, "post_id": post_id})
+    else:
+        if existing:
+            likes.remove(existing)
+    save_likes(likes)
+
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username}, namespace='/')
-    return jsonify({"likes": post["likes"], "liked": liked})
+    url = get_public_url('likes.json')
+    return jsonify({"likes": post["likes"], "liked": liked, "url": url})
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
@@ -740,7 +826,8 @@ def send_message_http():
     socketio.emit("new_message", entry, room=sender, namespace='/')
     if receiver in connected_users:
         socketio.emit('message_delivered', {'id': entry['id']}, room=sender, namespace='/')
-    return jsonify({"success": True})
+    url = get_public_url('messages.json')
+    return jsonify({"success": True, "url": url})
 
 @socketio.on('connect', namespace='/')
 def handle_connect(auth=None):
