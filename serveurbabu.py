@@ -1,4 +1,3 @@
-# Modified server code
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
@@ -215,20 +214,17 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username_input = (request.form.get("username") or "").strip().lower()
+        username = (request.form.get("username") or "").strip()
         password = (request.form.get("password") or "").strip()
         users = load_users()
-        user = next((u for u in users if u["username"].lower() == username_input or u.get("google_email", "").lower() == username_input), None)
-        if not user:
-            return render_template("login.html", error="Compte n'existe pas", google_client_id=GOOGLE_CLIENT_ID)
-        if user.get("google_email"):
-            return render_template("login.html", error="Utilisez Google pour vous connecter", google_client_id=GOOGLE_CLIENT_ID)
-        if user["password"] != hash_password(password):
-            return render_template("login.html", error="Mot de passe incorrect", google_client_id=GOOGLE_CLIENT_ID)
-        session["username"] = user["username"]
-        session["avatar"] = user.get("avatar")
-        session["user_id"] = user.get("username")
-        return redirect(url_for("index"))
+        user = next((u for u in users if u["username"].lower() == username.lower()
+                     and u["password"] == hash_password(password)), None)
+        if user:
+            session["username"] = user["username"]
+            session["avatar"] = user.get("avatar")
+            session["user_id"] = user.get("username")
+            return redirect(url_for("index"))
+        return render_template("login.html", error="Nom ou mot de passe incorrect !", google_client_id=GOOGLE_CLIENT_ID)
     return render_template("login.html", google_client_id=GOOGLE_CLIENT_ID)
 
 @app.route("/google_login", methods=["POST"])
@@ -240,10 +236,23 @@ def google_login():
     try:
         idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
         email = idinfo.get("email")
+        name = idinfo.get("name", email.split("@")[0])
         users = load_users()
-        user = next((u for u in users if u.get("google_email") == email), None)
+        user = next((u for u in users if u.get("google_email") == email or u["username"].lower() == name.lower()), None)
         if not user:
-            return jsonify({"error": "Compte Google n'existe pas"}), 400
+            user = {
+                "username": name,
+                "password": "",  # No password for Google login
+                "avatar": None,
+                "bio": "",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "following": [],
+                "liked_posts": [],
+                "viewed_posts": [],
+                "google_email": email
+            }
+            users.append(user)
+            save_users(users)
         session["username"] = user["username"]
         session["avatar"] = user.get("avatar")
         session["user_id"] = user["username"]
@@ -257,39 +266,6 @@ def google_login():
             "google_email": user.get("google_email", "")
         }
         return jsonify({"success": True, "redirect": url_for("index"), "user": user_info})
-    except ValueError as e:
-        return jsonify({"error": "Token invalide: " + str(e)}), 400
-
-@app.route("/google_register", methods=["POST"])
-def google_register():
-    data = request.get_json()
-    token = data.get("id_token")
-    if not token:
-        return jsonify({"error": "Token manquant"}), 400
-    try:
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-        email = idinfo.get("email")
-        name = idinfo.get("name", email.split("@")[0])
-        users = load_users()
-        user = next((u for u in users if u.get("google_email") == email), None)
-        if user:
-            return jsonify({"error": "Compte Google existe déjà"}), 400
-        if any(u["username"].lower() == name.lower() for u in users):
-            return jsonify({"error": "Nom d'utilisateur déjà pris"}), 400
-        new_user = {
-            "username": name,
-            "password": "",  # No password for Google login
-            "avatar": None,
-            "bio": "",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "following": [],
-            "liked_posts": [],
-            "viewed_posts": [],
-            "google_email": email
-        }
-        users.append(new_user)
-        save_users(users)
-        return jsonify({"success": True, "redirect": url_for("login")})
     except ValueError as e:
         return jsonify({"error": "Token invalide: " + str(e)}), 400
 
