@@ -112,9 +112,6 @@ def save_json_to_bucket(file_name, data):
         logging.error(f"Error saving JSON to bucket: {e}")
         raise
 
-def get_public_url(file_name):
-    return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
-
 def delete_file_from_bucket(file_name):
     try:
         file_info = bucket.get_file_info_by_name(file_name)
@@ -124,10 +121,19 @@ def delete_file_from_bucket(file_name):
     except Exception as e:
         logging.error(f"Error deleting file from bucket: {e}")
 
+def get_signed_url(file_name, expiration=3600):
+    try:
+        authorization_token = bucket.get_download_authorization(file_name_prefix=file_name, valid_duration_in_seconds=expiration)
+        base_url = b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
+        return f"{base_url}?Authorization={authorization_token}"
+    except Exception as e:
+        logging.error(f"Error getting signed URL: {e}")
+        return ''
+
 @app.template_filter('public_url')
 def public_url(filename):
     if filename:
-        return get_public_url(filename) + f"?t={int(datetime.now(timezone.utc).timestamp())}"
+        return get_signed_url(filename) + f"&t={int(datetime.now(timezone.utc).timestamp())}"
     return ''
 
 @app.template_filter('timestamp')
@@ -450,7 +456,7 @@ def get_stories(username):
     for s in user_stories:
         stories_data.append({
             "id": s["id"],
-            "media_url": get_public_url(s["file"]),
+            "media_url": get_signed_url(s["file"]),
             "type": s["type"]
         })
     return jsonify({"stories": stories_data})
@@ -707,7 +713,7 @@ def send_file_route():
         file_type = "audio"
     content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
     bucket.upload_bytes(data, 'uploads/' + filename, content_type=content_type)
-    url = get_public_url('uploads/' + filename)
+    url = get_signed_url('uploads/' + filename)
     entry, messages, key = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
     entry['id'] = str(uuid.uuid4())
     save_messages(messages)
