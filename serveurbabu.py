@@ -240,19 +240,7 @@ def google_login():
         users = load_users()
         user = next((u for u in users if u.get("google_email") == email or u["username"].lower() == name.lower()), None)
         if not user:
-            user = {
-                "username": name,
-                "password": "",  # No password for Google login
-                "avatar": None,
-                "bio": "",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "following": [],
-                "liked_posts": [],
-                "viewed_posts": [],
-                "google_email": email
-            }
-            users.append(user)
-            save_users(users)
+            return jsonify({"error": "Compte n'existe pas"}), 400
         session["username"] = user["username"]
         session["avatar"] = user.get("avatar")
         session["user_id"] = user["username"]
@@ -266,6 +254,37 @@ def google_login():
             "google_email": user.get("google_email", "")
         }
         return jsonify({"success": True, "redirect": url_for("index"), "user": user_info})
+    except ValueError as e:
+        return jsonify({"error": "Token invalide: " + str(e)}), 400
+
+@app.route("/google_register", methods=["POST"])
+def google_register():
+    data = request.get_json()
+    token = data.get("id_token")
+    if not token:
+        return jsonify({"error": "Token manquant"}), 400
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+        email = idinfo.get("email")
+        name = idinfo.get("name", email.split("@")[0])
+        users = load_users()
+        user = next((u for u in users if u.get("google_email") == email or u["username"].lower() == name.lower()), None)
+        if user:
+            return jsonify({"error": "Compte existe déjà"}), 400
+        new_user = {
+            "username": name,
+            "password": "",  # No password for Google login
+            "avatar": None,
+            "bio": "",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "following": [],
+            "liked_posts": [],
+            "viewed_posts": [],
+            "google_email": email
+        }
+        users.append(new_user)
+        save_users(users)
+        return jsonify({"success": True, "redirect": url_for("login")})
     except ValueError as e:
         return jsonify({"error": "Token invalide: " + str(e)}), 400
 

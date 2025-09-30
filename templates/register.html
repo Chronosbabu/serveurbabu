@@ -249,7 +249,7 @@
         // Google Sign-In
         window.handleCredentialResponse = (response) => {
             const idToken = response.credential;
-            fetch('/google_login', {
+            fetch('/google_register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -259,11 +259,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = '/';
+                    window.location.href = data.redirect;
                 } else {
                     const errorMessage = document.createElement('p');
                     errorMessage.className = 'error-message';
-                    errorMessage.textContent = data.error || 'Erreur lors de la connexion avec Google';
+                    errorMessage.textContent = data.error || 'Erreur lors de l\'inscription avec Google';
                     document.querySelector('.upload-section').appendChild(errorMessage);
                 }
             })
@@ -271,7 +271,7 @@
                 console.error('Error:', error);
                 const errorMessage = document.createElement('p');
                 errorMessage.className = 'error-message';
-                errorMessage.textContent = 'Erreur réseau lors de la connexion';
+                errorMessage.textContent = 'Erreur réseau lors de l\'inscription';
                 document.querySelector('.upload-section').appendChild(errorMessage);
             });
         };
