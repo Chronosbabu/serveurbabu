@@ -96,14 +96,11 @@ init_bucket_files()
 
 def load_json_from_bucket(file_name):
     try:
-        # Create a BytesIO object to store the downloaded data
-        download_dest = BytesIO()
-        # Download the file directly into the BytesIO object
-        bucket.download_file_by_name(file_name, b2.DownloadDestLocalFile(download_dest))
-        # Seek to the beginning of the BytesIO object and read the content
-        download_dest.seek(0)
-        data = download_dest.read()
-        return json.loads(data.decode('utf-8'))
+        stream = BytesIO()
+        bucket.download_file_by_name(file_name).save(stream)
+        stream.seek(0)
+        data = json.load(stream)
+        return data
     except b2.exception.FileNotPresent:
         logging.error(f"File {file_name} not found in bucket {BUCKET_NAME}")
         raise
@@ -111,10 +108,12 @@ def load_json_from_bucket(file_name):
         logging.error(f"Error loading JSON from bucket: {e}")
         raise
 
-def save_json_to_bucket(file_name, data_obj):
+def save_json_to_bucket(file_name, data):
     try:
-        data = json.dumps(data_obj, ensure_ascii=False, indent=2).encode('utf-8')
-        bucket.upload_bytes(data, file_name, content_type='application/json')
+        stream = BytesIO()
+        stream.write(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
+        stream.seek(0)
+        bucket.upload_bytes(stream.read(), file_name, content_type='application/json')
     except Exception as e:
         logging.error(f"Error saving JSON to bucket: {e}")
         raise
