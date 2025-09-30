@@ -1,3 +1,4 @@
+import mimetypes
 import logging
 import os
 import json
@@ -30,21 +31,12 @@ app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render e
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-UPLOAD_FOLDER = os.path.join(DATA_DIR, "Uploads")
-AVATAR_FOLDER = os.path.join(DATA_DIR, "avatars")
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(AVATAR_FOLDER, exist_ok=True)
-os.makedirs(DATA_DIR, exist_ok=True)
-
 DATA_FILE = "posts.json"
 USER_FILE = "users.json"
 MESSAGES_FILE = "messages.json"
-BANK_FILE = os.path.join(DATA_DIR, "bank_accounts.json")
-CONVERSIONS_FILE = os.path.join(DATA_DIR, "conversions.json")
-STORIES_FILE = os.path.join(DATA_DIR, "stories.json")
+BANK_FILE = "bank_accounts.json"
+CONVERSIONS_FILE = "conversions.json"
+STORIES_FILE = "stories.json"
 LIKES_FILE = "likes.json"
 FOLLOWERS_FILE = "followers.json"
 
@@ -77,6 +69,9 @@ JSON_FILES = {
     'likes.json': [],
     'followers.json': [],
     'messages.json': {},
+    'bank_accounts.json': [],
+    'conversions.json': [],
+    'stories.json': [],
 }
 
 def file_exists_in_bucket(file_name):
@@ -103,7 +98,7 @@ def load_json_from_bucket(file_name):
         return data
     except b2.exception.FileNotPresent:
         logging.error(f"File {file_name} not found in bucket {BUCKET_NAME}")
-        raise
+        return JSON_FILES.get(file_name, [])
     except Exception as e:
         logging.error(f"Error loading JSON from bucket: {e}")
         raise
@@ -120,6 +115,15 @@ def save_json_to_bucket(file_name, data):
 
 def get_public_url(file_name):
     return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
+
+def delete_file_from_bucket(file_name):
+    try:
+        file_info = bucket.get_file_info_by_name(file_name)
+        b2_api.delete_file_version(file_info.id_, file_name)
+    except b2.exception.FileNotPresent:
+        pass
+    except Exception as e:
+        logging.error(f"Error deleting file {file_name}: {e}")
 
 connected_users = set()
 user_notifications = {}
@@ -169,14 +173,14 @@ def is_following(current_user, target_user):
 def notify_like(target_user_id, liker_username, post_id):
     users = load_users()
     liker = next((u for u in users if u["username"] == liker_username), None)
-    avatar_url = url_for('avatar_file', filename=liker["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if liker and liker.get("avatar") else None
+    avatar_url = get_public_url(liker["avatar"]) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if liker and liker.get("avatar") else None
     user_notifications.setdefault(target_user_id, []).append({"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url})
     socketio.emit("new_notification", {"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
 
 def notify_comment(target_user_id, commenter_username, post_id):
     users = load_users()
     commenter = next((u for u in users if u["username"] == commenter_username), None)
-    avatar_url = url_for('avatar_file', filename=commenter["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if commenter and commenter.get("avatar") else None
+    avatar_url = get_public_url(commenter["avatar"]) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if commenter and commenter.get("avatar") else None
     user_notifications.setdefault(target_user_id, []).append({"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url})
     socketio.emit("new_notification", {"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
 
@@ -185,11 +189,6 @@ def handle_join(data):
     user_id = data.get("user_id")
     if user_id:
         join_room(str(user_id), namespace='/')
-
-for file_path, default in [(BANK_FILE, []), (CONVERSIONS_FILE, []), (STORIES_FILE, [])]:
-    if not os.path.exists(file_path):
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(default, f, ensure_ascii=False, indent=2)
 
 def load_posts():
     return load_json_from_bucket(DATA_FILE)
@@ -222,31 +221,34 @@ def save_followers(followers):
     save_json_to_bucket(FOLLOWERS_FILE, followers)
 
 def load_bank():
-    with open(BANK_FILE, "r", encoding="utf-8") as f:
-        bank = json.load(f)
+    bank = load_json_from_bucket(BANK_FILE)
     if not any(acc["username"] == "platform" for acc in bank):
         bank.append({"username": "platform", "balance_franc": 0, "balance_dollar": 0, "account_id": "00000000", "password": "", "subscription_end": None, "referrer_id": None})
         save_bank(bank)
     return bank
 
 def save_bank(bank):
-    with open(BANK_FILE, "w", encoding="utf-8") as f:
-        json.dump(bank, f, ensure_ascii=False, indent=2)
+    save_json_to_bucket(BANK_FILE, bank)
 
 def load_stories():
-    if not os.path.exists(STORIES_FILE):
-        return []
-    with open(STORIES_FILE, "r", encoding="utf-8") as f:
-        stories = json.load(f)
+    stories = load_json_from_bucket(STORIES_FILE)
     now = datetime.now(timezone.utc)
+    expired = [s for s in stories if now >= datetime.fromisoformat(s["timestamp"]) + timedelta(hours=24)]
+    for s in expired:
+        delete_file_from_bucket(s["file"])
     active_stories = [s for s in stories if now < datetime.fromisoformat(s["timestamp"]) + timedelta(hours=24)]
     if len(active_stories) < len(stories):
         save_stories(active_stories)
     return active_stories
 
 def save_stories(stories):
-    with open(STORIES_FILE, "w", encoding="utf-8") as f:
-        json.dump(stories, f, ensure_ascii=False, indent=2)
+    save_json_to_bucket(STORIES_FILE, stories)
+
+def load_conversions():
+    return load_json_from_bucket(CONVERSIONS_FILE)
+
+def save_conversions(convs):
+    save_json_to_bucket(CONVERSIONS_FILE, convs)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -295,7 +297,9 @@ def register():
         avatar_filename = None
         if avatar_file and avatar_file.filename:
             avatar_filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
-            avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_filename))
+            data = avatar_file.read()
+            content_type = avatar_file.mimetype or mimetypes.guess_type(avatar_filename)[0] or 'application/octet-stream'
+            bucket.upload_bytes(data, avatar_filename, content_type=content_type)
         users.append({
             "username": username,
             "password": hash_password(password),
@@ -443,7 +447,7 @@ def get_stories(username):
     for s in user_stories:
         stories_data.append({
             "id": s["id"],
-            "media_url": url_for('uploaded_file', filename=s["file"], _external=True),
+            "media_url": get_public_url(s["file"]),
             "type": s["type"]
         })
     return jsonify({"stories": stories_data})
@@ -463,7 +467,7 @@ def follow_user(username):
     if following:
         users = load_users()
         follower = next((u for u in users if u["username"] == current_user), None)
-        avatar_url = url_for('avatar_file', filename=follower["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if follower and follower.get("avatar") else None
+        avatar_url = get_public_url(follower["avatar"]) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if follower and follower.get("avatar") else None
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
         socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username, namespace='/')
@@ -480,7 +484,9 @@ def add_post():
         for media_file in media_files:
             if media_file and media_file.filename:
                 filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
-                media_file.save(os.path.join(UPLOAD_FOLDER, filename))
+                data = media_file.read()
+                content_type = media_file.mimetype or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                bucket.upload_bytes(data, filename, content_type=content_type)
                 ext = os.path.splitext(filename)[1].lower()
                 if ext in [".jpg", ".jpeg", ".png", ".gif"]:
                     media_type = "image"
@@ -523,7 +529,9 @@ def add_story():
     for file in files:
         if file.filename:
             filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            data = file.read()
+            content_type = file.mimetype or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+            bucket.upload_bytes(data, filename, content_type=content_type)
             ext = os.path.splitext(filename)[1].lower()
             if ext in [".jpg", ".jpeg", ".png", ".gif"]:
                 media_type = "image"
@@ -678,11 +686,11 @@ def search_users():
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    return redirect(get_public_url(filename))
 
 @app.route("/avatars/<filename>")
 def avatar_file(filename):
-    return send_from_directory(AVATAR_FOLDER, filename)
+    return redirect(get_public_url(filename))
 
 @app.route("/send_file", methods=["POST"])
 def send_file_route():
@@ -693,7 +701,9 @@ def send_file_route():
     if not receiver or not file:
         return jsonify({"success": False, "error": "Champs manquants"}), 400
     filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    data = file.read()
+    content_type = file.mimetype or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+    bucket.upload_bytes(data, filename, content_type=content_type)
     ext = os.path.splitext(filename)[1].lower()
     file_type = "text"
     if ext in [".jpg", ".jpeg", ".png", ".gif"]:
@@ -702,7 +712,7 @@ def send_file_route():
         file_type = "video"
     elif ext in [".mp3", ".wav", ".ogg", ".m4a", ".webm"]:
         file_type = "audio"
-    url = url_for("uploaded_file", filename=filename)
+    url = get_public_url(filename)
     entry, messages, key = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
     entry['id'] = str(uuid.uuid4())
     save_messages(messages)
@@ -724,7 +734,9 @@ def update_avatar():
     if ext not in [".jpg", ".jpeg", ".png", ".gif"]:
         return jsonify({"success": False, "error": "Format d'image non supporté"}), 400
     filename = f"{username}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}{ext}"
-    file.save(os.path.join(AVATAR_FOLDER, filename))
+    data = file.read()
+    content_type = file.mimetype or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+    bucket.upload_bytes(data, filename, content_type=content_type)
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
     if user:
@@ -732,9 +744,9 @@ def update_avatar():
         user["avatar"] = filename
         save_users(users)
         session["avatar"] = filename
-        if old_avatar and os.path.exists(os.path.join(AVATAR_FOLDER, old_avatar)):
-            os.remove(os.path.join(AVATAR_FOLDER, old_avatar))
-        new_avatar_url = url_for("avatar_file", filename=filename, _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}"
+        if old_avatar:
+            delete_file_from_bucket(old_avatar)
+        new_avatar_url = get_public_url(filename) + f"?t={int(datetime.now(timezone.utc).timestamp())}"
         socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url}, namespace='/')
         return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
@@ -750,9 +762,7 @@ def delete_post(post_id):
     if post["username"] != session["username"]:
         return jsonify({"success": False, "error": "Non autorisé"}), 403
     for file in post.get("files", []):
-        file_path = os.path.join(UPLOAD_FOLDER, file["name"])
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        delete_file_from_bucket(file["name"])
     posts = [p for p in posts if p["id"] != post_id]
     save_posts(posts)
     socketio.emit("post_deleted", {"post_id": post_id}, namespace='/')
@@ -1162,12 +1172,9 @@ def bank_convert():
         return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {acc[key]}"}), 400
     acc[key] = float(acc[key]) - float(amount)
     save_bank(bank)
-    convs = []
-    with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
-        convs = json.load(f)
+    convs = load_conversions()
     convs.append({"username": un, "phone": phone, "amount": float(amount), "currency": currency, "timestamp": datetime.now(timezone.utc).isoformat()})
-    with open(CONVERSIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(convs, f, ensure_ascii=False, indent=2)
+    save_conversions(convs)
     currency_name = "francs" if currency == "franc" else "dollars"
     socketio.emit("balance_updated", {
         "username": acc["username"],
@@ -1297,10 +1304,7 @@ def deposit():
 
 @app.route("/conversions", methods=["GET"])
 def get_conversions():
-    convs = []
-    with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
-        convs = json.load(f)
-    return jsonify(convs)
+    return jsonify(load_conversions())
 
 @app.route("/get_server_time", methods=["GET"])
 def get_server_time():
