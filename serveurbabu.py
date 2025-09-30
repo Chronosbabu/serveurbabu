@@ -19,8 +19,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render env or fallback
 
 # Load Google OAuth credentials from Render environment variables
-GOOGLE_CLIENT_ID = os.environ.get("chronos_GOOGLE_CLIENT_ID")
-REMOVED = os.environ.get("chronos_REMOVED")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+REMOVED = os.environ.get("REMOVED")
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
