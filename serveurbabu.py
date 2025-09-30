@@ -125,7 +125,14 @@ def upload_file_to_bucket(file, file_name, content_type):
         return False
 
 def get_public_url(file_name):
-    return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
+    try:
+        if file_exists_in_bucket(file_name):
+            return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name) + f"?t={int(datetime.now(timezone.utc).timestamp())}"
+        logging.warning(f"File {file_name} not found in bucket {BUCKET_NAME}")
+        return None
+    except Exception as e:
+        logging.error(f"Error generating public URL for {file_name}: {e}")
+        return None
 
 connected_users = set()
 user_notifications = {}
@@ -175,14 +182,14 @@ def is_following(current_user, target_user):
 def notify_like(target_user_id, liker_username, post_id):
     users = load_json_from_bucket(USER_FILE)
     liker = next((u for u in users if u["username"] == liker_username), None)
-    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{liker['avatar']}") + f"?t={int(datetime.now(timezone.utc).timestamp())}" if liker and liker.get("avatar") else None
+    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{liker['avatar']}") if liker and liker.get("avatar") else None
     user_notifications.setdefault(target_user_id, []).append({"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url})
     socketio.emit("new_notification", {"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
 
 def notify_comment(target_user_id, commenter_username, post_id):
     users = load_json_from_bucket(USER_FILE)
     commenter = next((u for u in users if u["username"] == commenter_username), None)
-    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{commenter['avatar']}") + f"?t={int(datetime.now(timezone.utc).timestamp())}" if commenter and commenter.get("avatar") else None
+    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{commenter['avatar']}") if commenter and commenter.get("avatar") else None
     user_notifications.setdefault(target_user_id, []).append({"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url})
     socketio.emit("new_notification", {"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
 
@@ -351,7 +358,7 @@ def google_login():
         session["user_id"] = user["username"]
         user_info = {
             "username": user["username"],
-            "avatar": user.get("avatar"),
+            "avatar": get_public_url(f"{AVATAR_FOLDER}/{user['avatar']}") if user.get("avatar") else None,
             "user_id": user["username"],
             "bio": user.get("bio", ""),
             "created_at": user.get("created_at"),
@@ -381,6 +388,9 @@ def index():
         session.pop("avatar", None)
         session.pop("user_id", None)
         return redirect(url_for("login"))
+    # Synchronize session avatar with user data
+    if current_user.get("avatar") != session.get("avatar"):
+        session["avatar"] = current_user.get("avatar")
     interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
     interacted_post_ids = list(set(interacted_post_ids))
     if interacted_post_ids:
@@ -462,7 +472,7 @@ def follow_user(username):
     if following:
         users = load_users()
         follower = next((u for u in users if u["username"] == current_user), None)
-        avatar_url = get_public_url(f"{AVATAR_FOLDER}/{follower['avatar']}") + f"?t={int(datetime.now(timezone.utc).timestamp())}" if follower and follower.get("avatar") else None
+        avatar_url = get_public_url(f"{AVATAR_FOLDER}/{follower['avatar']}") if follower and follower.get("avatar") else None
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
         socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username, namespace='/')
@@ -635,6 +645,19 @@ def profile(username):
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
     current_user = get_user(current_username) if current_username else None
+    # Synchronize session avatar with user data
+    if current_user and current_user.get("avatar") != session.get("avatar"):
+        session["avatar"] = current_user.get("avatar")
+    # Ensure avatar URL includes cache-busting parameter
+    if user.get("avatar"):
+        avatar_path = f"{AVATAR_FOLDER}/{user['avatar']}"
+        if file_exists_in_bucket(avatar_path):
+            user["avatar"] = get_public_url(avatar_path)
+        else:
+            logging.warning(f"Avatar file {avatar_path} not found for user {username}")
+            user["avatar"] = None
+    else:
+        user["avatar"] = None
     for p in user_posts:
         p['liked_by_user'] = current_username in p.get("liked_by", []) if current_username else False
         p['comments_count'] = len(p.get("comments", []))
@@ -647,7 +670,6 @@ def profile(username):
     all_users = load_users()
     followers = [u["username"] for u in all_users if username in u.get("following", [])]
     user["followers"] = followers
-    user["avatar"] = get_public_url(f"{AVATAR_FOLDER}/{user['avatar']}") if user.get("avatar") else None
     return render_template(
         "profile.html",
         profile_user=user,
@@ -711,6 +733,7 @@ def avatar_file(filename):
         content_type = 'image/jpeg' if ext in ['.jpg', '.jpeg'] else 'image/png' if ext == '.png' else 'image/gif'
         return send_file(stream, mimetype=content_type)
     except b2.exception.FileNotPresent:
+        logging.warning(f"Avatar file {filename} not found in bucket")
         abort(404)
     except Exception as e:
         logging.error(f"Error serving avatar {filename}: {e}")
@@ -772,8 +795,8 @@ def update_avatar():
             try:
                 bucket.delete_file_version(bucket.get_file_info_by_name(f"{AVATAR_FOLDER}/{old_avatar}").id_)
             except b2.exception.FileNotPresent:
-                pass
-        new_avatar_url = get_public_url(f"{AVATAR_FOLDER}/{filename}") + f"?t={int(datetime.now(timezone.utc).timestamp())}"
+                logging.warning(f"Old avatar {old_avatar} not found during deletion")
+        new_avatar_url = get_public_url(f"{AVATAR_FOLDER}/{filename}")
         socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url}, namespace='/')
         return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
@@ -1032,6 +1055,9 @@ def videos():
         session.pop("avatar", None)
         session.pop("user_id", None)
         return redirect(url_for("login"))
+    # Synchronize session avatar with user data
+    if current_user.get("avatar") != session.get("avatar"):
+        session["avatar"] = current_user.get("avatar")
     interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
     interacted_post_ids = list(set(interacted_post_ids))
     video_posts = []
@@ -1375,3 +1401,4 @@ def handle_stop_typing(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+
