@@ -1,22 +1,27 @@
+import logging
 import os
 import json
 import hashlib
-from datetime import datetime, timedelta, timezone
-from werkzeug.utils import secure_filename
-import requests
 import random
 import string
 import threading
 import time
+import uuid
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
+from flask_socketio import SocketIO, emit, join_room
+from werkzeug.utils import secure_filename
+import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
-from flask_socketio import SocketIO, emit, join_room
-from b2sdk.v2 import InMemoryAccountInfo, B2Api
+import b2sdk.v2 as b2
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render env or fallback
@@ -25,41 +30,96 @@ app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render e
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
-# Backblaze B2 configuration from environment variables
-KEY_ID = os.environ.get("BACKBLAZE_KEYS_KEY_ID")
-APPLICATION_KEY = os.environ.get("BACKBLAZE_KEYS_APPLICATION_KEY")
-BUCKET_NAME = os.environ.get("BACKBLAZE_KEYS_BUCKET_NAME")
-BUCKET_ENDPOINT = os.environ.get("BACKBLAZE_KEYS_BUCKET_ENDPOINT")
-
-# Initialize Backblaze B2
-info = InMemoryAccountInfo()
-b2_api = B2Api(info)
-b2_api.authorize_account("production", KEY_ID, APPLICATION_KEY)
-bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
-
-# Define JSON files to manage
-JSON_FILES = {
-    'posts': 'posts.json',
-    'users': 'users.json',
-    'messages': 'messages.json',
-    'bank_accounts': 'bank_accounts.json',
-    'conversions': 'conversions.json',
-    'stories': 'stories.json',
-    'likes': 'likes.json',
-    'followers': 'followers.json'
-}
-
-# Local directories (for compatibility, though primarily using B2)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-UPLOAD_FOLDER = os.path.join(DATA_DIR, "uploads")
+UPLOAD_FOLDER = os.path.join(DATA_DIR, "Uploads")
 AVATAR_FOLDER = os.path.join(DATA_DIR, "avatars")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(AVATAR_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
+DATA_FILE = "posts.json"
+USER_FILE = "users.json"
+MESSAGES_FILE = "messages.json"
+BANK_FILE = os.path.join(DATA_DIR, "bank_accounts.json")
+CONVERSIONS_FILE = os.path.join(DATA_DIR, "conversions.json")
+STORIES_FILE = os.path.join(DATA_DIR, "stories.json")
+LIKES_FILE = "likes.json"
+FOLLOWERS_FILE = "followers.json"
+
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
+
+# Backblaze B2 initialization
+APPLICATION_KEY_ID = os.environ.get("KEY_ID")
+APPLICATION_KEY = os.environ.get("APPLICATION_KEY")
+BUCKET_NAME = os.environ.get("BUCKET_NAME")
+BUCKET_ENDPOINT = os.environ.get("BUCKET_ENDPOINT")  # Not used for native SDK, but loaded as per instructions
+
+# Validate environment variables
+if not all([APPLICATION_KEY_ID, APPLICATION_KEY, BUCKET_NAME]):
+    logging.error("Missing Backblaze B2 environment variables: KEY_ID, APPLICATION_KEY, or BUCKET_NAME")
+    raise ValueError("Missing required Backblaze B2 environment variables")
+
+info = b2.InMemoryAccountInfo()
+b2_api = b2.B2Api(info)
+try:
+    b2_api.authorize_account("production", APPLICATION_KEY_ID, APPLICATION_KEY)
+    bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+    logging.info(f"Successfully authenticated with Backblaze B2 and accessed bucket {BUCKET_NAME}")
+except b2.exception.B2Error as e:
+    logging.error(f"Failed to authenticate with Backblaze B2: {e}")
+    raise
+
+JSON_FILES = {
+    'users.json': [],
+    'posts.json': [],
+    'likes.json': [],
+    'followers.json': [],
+    'messages.json': {},
+}
+
+def file_exists_in_bucket(file_name):
+    try:
+        bucket.get_file_info_by_name(file_name)
+        return True
+    except b2.exception.FileNotPresent:
+        return False
+
+def init_bucket_files():
+    for file_name, default in JSON_FILES.items():
+        if not file_exists_in_bucket(file_name):
+            data = json.dumps(default, ensure_ascii=False, indent=2).encode('utf-8')
+            bucket.upload_bytes(data, file_name, content_type='application/json')
+
+init_bucket_files()
+
+def load_json_from_bucket(file_name):
+    try:
+        stream = BytesIO()
+        bucket.download_file_by_name(file_name).save(stream)
+        stream.seek(0)
+        data = json.load(stream)
+        return data
+    except b2.exception.FileNotPresent:
+        logging.error(f"File {file_name} not found in bucket {BUCKET_NAME}")
+        raise
+    except Exception as e:
+        logging.error(f"Error loading JSON from bucket: {e}")
+        raise
+
+def save_json_to_bucket(file_name, data):
+    try:
+        stream = BytesIO()
+        stream.write(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
+        stream.seek(0)
+        bucket.upload_bytes(stream.read(), file_name, content_type='application/json')
+    except Exception as e:
+        logging.error(f"Error saving JSON to bucket: {e}")
+        raise
+
+def get_public_url(file_name):
+    return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
 
 connected_users = set()
 user_notifications = {}
@@ -68,73 +128,53 @@ FEE_DOLLAR = 2
 FEE_FRANC = 6000
 TEST_MODE = True
 
-# Initialize JSON files in Backblaze B2 if they don't exist
-def initialize_b2_files():
-    for key, filename in JSON_FILES.items():
-        try:
-            bucket.download_file_by_name(filename)
-        except:
-            default_data = [] if key != 'messages' else {}
-            upload_json_to_b2(filename, default_data)
-
-# Upload JSON to Backblaze B2 and return public URL
-def upload_json_to_b2(filename, data):
-    json_data = json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8')
-    bucket.upload_bytes(
-        data_bytes=json_data,
-        file_name=filename,
-        content_type='application/json'
-    )
-    return f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/{filename}"
-
-# Download JSON from Backblaze B2
-def download_json_from_b2(filename):
-    try:
-        file_info = bucket.download_file_by_name(filename)
-        content = file_info.read().decode('utf-8')
-        return json.loads(content)
-    except:
-        return [] if filename != JSON_FILES['messages'] else {}
-
 @app.template_filter('timestamp')
 def timestamp_filter(s):
     return int(datetime.now(timezone.utc).timestamp())
 
 def toggle_follow(current_user, target_user):
-    users = download_json_from_b2(JSON_FILES['users'])
-    followers = download_json_from_b2(JSON_FILES['followers'])
+    users = load_users()
     cu = next((u for u in users if u["username"] == current_user), None)
     if not cu:
         return False
     following_list = cu.setdefault("following", [])
     if target_user in following_list:
         following_list.remove(target_user)
-        followers = [f for f in followers if not (f['follower'] == current_user and f['followed'] == target_user)]
         following = False
     else:
         following_list.append(target_user)
-        followers.append({'follower': current_user, 'followed': target_user, 'timestamp': datetime.now(timezone.utc).isoformat()})
         following = True
-    upload_json_to_b2(JSON_FILES['users'], users)
-    upload_json_to_b2(JSON_FILES['followers'], followers)
+    save_users(users)
+
+    # Update followers.json
+    followers = load_followers()
+    existing = next((f for f in followers if f["follower"] == current_user and f["followed"] == target_user), None)
+    if following:
+        if not existing:
+            followers.append({"follower": current_user, "followed": target_user})
+    else:
+        if existing:
+            followers.remove(existing)
+    save_followers(followers)
+
     return following
 
 def is_following(current_user, target_user):
-    users = download_json_from_b2(JSON_FILES['users'])
+    users = load_users()
     cu = next((u for u in users if u["username"] == current_user), None)
     if not cu:
         return False
     return target_user in cu.get("following", [])
 
 def notify_like(target_user_id, liker_username, post_id):
-    users = download_json_from_b2(JSON_FILES['users'])
+    users = load_users()
     liker = next((u for u in users if u["username"] == liker_username), None)
     avatar_url = url_for('avatar_file', filename=liker["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if liker and liker.get("avatar") else None
     user_notifications.setdefault(target_user_id, []).append({"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url})
     socketio.emit("new_notification", {"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
 
 def notify_comment(target_user_id, commenter_username, post_id):
-    users = download_json_from_b2(JSON_FILES['users'])
+    users = load_users()
     commenter = next((u for u in users if u["username"] == commenter_username), None)
     avatar_url = url_for('avatar_file', filename=commenter["avatar"], _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}" if commenter and commenter.get("avatar") else None
     user_notifications.setdefault(target_user_id, []).append({"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url})
@@ -146,56 +186,67 @@ def handle_join(data):
     if user_id:
         join_room(str(user_id), namespace='/')
 
+for file_path, default in [(BANK_FILE, []), (CONVERSIONS_FILE, []), (STORIES_FILE, [])]:
+    if not os.path.exists(file_path):
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(default, f, ensure_ascii=False, indent=2)
+
 def load_posts():
-    return download_json_from_b2(JSON_FILES['posts'])
+    return load_json_from_bucket(DATA_FILE)
 
 def save_posts(posts):
-    return upload_json_to_b2(JSON_FILES['posts'], posts)
+    save_json_to_bucket(DATA_FILE, posts)
 
 def load_users():
-    return download_json_from_b2(JSON_FILES['users'])
+    return load_json_from_bucket(USER_FILE)
 
 def save_users(users):
-    return upload_json_to_b2(JSON_FILES['users'], users)
+    save_json_to_bucket(USER_FILE, users)
 
 def load_messages():
-    return download_json_from_b2(JSON_FILES['messages'])
+    return load_json_from_bucket(MESSAGES_FILE)
 
 def save_messages(messages):
-    return upload_json_to_b2(JSON_FILES['messages'], messages)
+    save_json_to_bucket(MESSAGES_FILE, messages)
+
+def load_likes():
+    return load_json_from_bucket(LIKES_FILE)
+
+def save_likes(likes):
+    save_json_to_bucket(LIKES_FILE, likes)
+
+def load_followers():
+    return load_json_from_bucket(FOLLOWERS_FILE)
+
+def save_followers(followers):
+    save_json_to_bucket(FOLLOWERS_FILE, followers)
 
 def load_bank():
-    bank = download_json_from_b2(JSON_FILES['bank_accounts'])
+    with open(BANK_FILE, "r", encoding="utf-8") as f:
+        bank = json.load(f)
     if not any(acc["username"] == "platform" for acc in bank):
         bank.append({"username": "platform", "balance_franc": 0, "balance_dollar": 0, "account_id": "00000000", "password": "", "subscription_end": None, "referrer_id": None})
-        upload_json_to_b2(JSON_FILES['bank_accounts'], bank)
+        save_bank(bank)
     return bank
 
 def save_bank(bank):
-    return upload_json_to_b2(JSON_FILES['bank_accounts'], bank)
+    with open(BANK_FILE, "w", encoding="utf-8") as f:
+        json.dump(bank, f, ensure_ascii=False, indent=2)
 
 def load_stories():
-    stories = download_json_from_b2(JSON_FILES['stories'])
+    if not os.path.exists(STORIES_FILE):
+        return []
+    with open(STORIES_FILE, "r", encoding="utf-8") as f:
+        stories = json.load(f)
     now = datetime.now(timezone.utc)
     active_stories = [s for s in stories if now < datetime.fromisoformat(s["timestamp"]) + timedelta(hours=24)]
     if len(active_stories) < len(stories):
-        upload_json_to_b2(JSON_FILES['stories'], active_stories)
+        save_stories(active_stories)
     return active_stories
 
 def save_stories(stories):
-    return upload_json_to_b2(JSON_FILES['stories'], stories)
-
-def load_likes():
-    return download_json_from_b2(JSON_FILES['likes'])
-
-def save_likes(likes):
-    return upload_json_to_b2(JSON_FILES['likes'], likes)
-
-def load_followers():
-    return download_json_from_b2(JSON_FILES['followers'])
-
-def save_followers(followers):
-    return upload_json_to_b2(JSON_FILES['followers'], followers)
+    with open(STORIES_FILE, "w", encoding="utf-8") as f:
+        json.dump(stories, f, ensure_ascii=False, indent=2)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -237,10 +288,10 @@ def register():
         password = (request.form.get("password") or "").strip()
         avatar_file = request.files.get("avatar")
         if not username or not password:
-            return "Nom d'utilisateur et mot de passe requis.", 400
+            return jsonify({"success": False, "error": "Nom d'utilisateur et mot de passe requis."}), 400
         users = load_users()
         if any(u["username"].lower() == username.lower() for u in users):
-            return "Nom d'utilisateur déjà pris !", 400
+            return jsonify({"success": False, "error": "Nom d'utilisateur déjà pris !"}), 400
         avatar_filename = None
         if avatar_file and avatar_file.filename:
             avatar_filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
@@ -255,8 +306,8 @@ def register():
             "liked_posts": [],
             "viewed_posts": []
         })
-        url = save_users(users)
-        return jsonify({"success": True, "url": url})
+        save_users(users)
+        return redirect(url_for("login"))
     return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -290,7 +341,7 @@ def google_login():
         if not user:
             user = {
                 "username": name,
-                "password": "",
+                "password": "",  # No password for Google login
                 "avatar": None,
                 "bio": "",
                 "created_at": datetime.now(timezone.utc).isoformat(),
@@ -357,7 +408,7 @@ def index():
                     sorted_indices = np.argsort(similarities)[::-1]
                     posts = [posts[i] for i in sorted_indices]
                 except Exception as e:
-                    print(f"Recommendation error: {e}")
+                    logging.error(f"Recommendation error: {e}")
     users = {u["username"]: u for u in users_list}
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
@@ -450,13 +501,13 @@ def add_post():
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         }
         posts.insert(0, new_post)
-        url = save_posts(posts)
+        save_posts(posts)
         socketio.emit('new_post', {
             "id": new_post["id"],
             "username": new_post["username"],
             "description": new_post["description"]
         }, namespace='/')
-        return jsonify({"success": True, "url": url})
+        return redirect(url_for("index"))
     return render_template("new_post.html")
 
 @app.route("/add_story", methods=["POST"])
@@ -489,15 +540,14 @@ def add_story():
             }
             stories.append(new_story)
             new_stories.append(new_story)
-    url = save_stories(stories)
-    return jsonify({"success": True, "url": url})
+    save_stories(stories)
+    return jsonify({"success": True})
 
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
     if "username" not in session:
         return jsonify({"error": "Non connecté"}), 401
     posts = load_posts()
-    likes = load_likes()
     post = next((p for p in posts if p["id"] == post_id), None)
     if not post:
         return jsonify({"error": "Post non trouvé"}), 404
@@ -505,16 +555,15 @@ def like_post(post_id):
     liked_before = username in post.get("liked_by", [])
     if liked_before:
         post["liked_by"].remove(username)
-        likes = [l for l in likes if not (l['post_id'] == post_id and l['username'] == username)]
         liked = False
     else:
         post.setdefault("liked_by", []).append(username)
-        likes.append({'post_id': post_id, 'username': username, 'timestamp': datetime.now(timezone.utc).isoformat()})
         liked = True
         post_owner = post.get("username")
         if post_owner != username:
             notify_like(target_user_id=post_owner, liker_username=username, post_id=post_id)
     post["likes"] = len(post["liked_by"])
+    save_posts(posts)
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
     if user:
@@ -525,11 +574,21 @@ def like_post(post_id):
         else:
             if post_id in liked_posts:
                 liked_posts.remove(post_id)
-    posts_url = save_posts(posts)
-    users_url = save_users(users)
-    likes_url = save_likes(likes)
+        save_users(users)
+
+    # Update likes.json
+    likes = load_likes()
+    existing = next((l for l in likes if l.get("user") == username and l.get("post_id") == post_id), None)
+    if liked:
+        if not existing:
+            likes.append({"user": username, "post_id": post_id})
+    else:
+        if existing:
+            likes.remove(existing)
+    save_likes(likes)
+
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username}, namespace='/')
-    return jsonify({"likes": post["likes"], "liked": liked, "posts_url": posts_url, "users_url": users_url, "likes_url": likes_url})
+    return jsonify({"likes": post["likes"], "liked": liked})
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
@@ -551,11 +610,11 @@ def comments(post_id):
                 "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             }
             post["comments"].append(comment_data)
-            url = save_posts(posts)
+            save_posts(posts)
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
-            return jsonify({"comment_id": next_id, "avatar": session.get("avatar"), "url": url}), 201
+            return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
     post['avatar'] = users.get(post["username"], {}).get("avatar")
     for comment in post.get("comments", []):
         comment['avatar'] = users.get(comment["username"], {}).get("avatar")
@@ -568,7 +627,6 @@ def profile(username):
         abort(404)
     posts = load_posts()
     users = {u["username"]: u for u in load_users()}
-    followers = load_followers()
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
     current_user = get_user(current_username) if current_username else None
@@ -579,7 +637,9 @@ def profile(username):
         p['avatar'] = users.get(p["username"], {}).get("avatar")
         for comment in p.get("comments", []):
             comment['avatar'] = users.get(comment["username"], {}).get("avatar")
-    user["followers"] = [f["follower"] for f in followers if f["followed"] == username]
+    all_users = load_users()
+    followers = [u["username"] for u in all_users if username in u.get("following", [])]
+    user["followers"] = followers
     return render_template(
         "profile.html",
         profile_user=user,
@@ -645,12 +705,12 @@ def send_file_route():
     url = url_for("uploaded_file", filename=filename)
     entry, messages, key = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
     entry['id'] = str(uuid.uuid4())
-    messages_url = save_messages(messages)
+    save_messages(messages)
     socketio.emit("new_message", entry, room=receiver, namespace='/')
     socketio.emit("new_message", entry, room=session["username"], namespace='/')
     if receiver in connected_users:
         socketio.emit('message_delivered', {'id': entry['id']}, room=session["username"], namespace='/')
-    return jsonify({"success": True, "url": url, "type": file_type, "messages_url": messages_url})
+    return jsonify({"success": True, "url": url, "type": file_type})
 
 @app.route("/update_avatar", methods=["POST"])
 def update_avatar():
@@ -670,13 +730,13 @@ def update_avatar():
     if user:
         old_avatar = user.get("avatar")
         user["avatar"] = filename
-        url = save_users(users)
+        save_users(users)
         session["avatar"] = filename
         if old_avatar and os.path.exists(os.path.join(AVATAR_FOLDER, old_avatar)):
             os.remove(os.path.join(AVATAR_FOLDER, old_avatar))
         new_avatar_url = url_for("avatar_file", filename=filename, _external=True) + f"?t={int(datetime.now(timezone.utc).timestamp())}"
         socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url}, namespace='/')
-        return jsonify({"success": True, "avatar_url": new_avatar_url, "users_url": url})
+        return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
 
 @app.route("/posts/<int:post_id>", methods=["DELETE"])
@@ -694,12 +754,9 @@ def delete_post(post_id):
         if os.path.exists(file_path):
             os.remove(file_path)
     posts = [p for p in posts if p["id"] != post_id]
-    likes = load_likes()
-    likes = [l for l in likes if l['post_id'] != post_id]
-    url = save_posts(posts)
-    likes_url = save_likes(likes)
+    save_posts(posts)
     socketio.emit("post_deleted", {"post_id": post_id}, namespace='/')
-    return jsonify({"success": True, "posts_url": url, "likes_url": likes_url})
+    return jsonify({"success": True})
 
 @app.route("/conversations")
 def conversations():
@@ -789,12 +846,12 @@ def send_message_http():
         return jsonify({"success": False, "error": "Champs manquants"}), 400
     entry, messages, key = append_message(sender, receiver, text, msg_type="text")
     entry['id'] = data.get('id', str(uuid.uuid4()))
-    url = save_messages(messages)
+    save_messages(messages)
     socketio.emit("new_message", entry, room=receiver, namespace='/')
     socketio.emit("new_message", entry, room=sender, namespace='/')
     if receiver in connected_users:
         socketio.emit('message_delivered', {'id': entry['id']}, room=sender, namespace='/')
-    return jsonify({"success": True, "messages_url": url})
+    return jsonify({"success": True})
 
 @socketio.on('connect', namespace='/')
 def handle_connect(auth=None):
@@ -841,7 +898,7 @@ def handle_send_message(data):
         return
     entry, messages, key = append_message(sender, receiver, text, msg_type="text")
     entry['id'] = data.get('id', str(uuid.uuid4()))
-    url = save_messages(messages)
+    save_messages(messages)
     socketio.emit("new_message", entry, room=receiver, namespace='/')
     socketio.emit("new_message", entry, room=sender, namespace='/')
     if receiver in connected_users:
@@ -861,7 +918,7 @@ def mark_read(data):
             m.setdefault("read_by", []).append(user)
             if 'id' in m:
                 newly_read.append(m['id'])
-    url = save_messages(messages)
+    save_messages(messages)
     if newly_read:
         socketio.emit('messages_read', {'ids': newly_read}, room=sender, namespace='/')
 
@@ -968,7 +1025,7 @@ def videos():
                     sorted_indices = np.argsort(similarities)[::-1]
                     video_posts = [video_posts[i] for i in sorted_indices]
                 except Exception as e:
-                    print(f"Recommendation error: {e}")
+                    logging.error(f"Recommendation error: {e}")
     for p in video_posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
@@ -1042,8 +1099,8 @@ def bank_create():
         "referrer_id": referral_id,
         "subscription_end": None
     })
-    url = save_bank(bank)
-    return jsonify({"success": True, "account_id": account_id, "bank_url": url})
+    save_bank(bank)
+    return jsonify({"success": True, "account_id": account_id})
 
 @app.route("/bank/login", methods=["POST"])
 def bank_login():
@@ -1104,10 +1161,13 @@ def bank_convert():
     if key not in acc or float(acc[key]) < float(amount):
         return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {acc[key]}"}), 400
     acc[key] = float(acc[key]) - float(amount)
-    bank_url = save_bank(bank)
-    convs = download_json_from_b2(JSON_FILES['conversions'])
+    save_bank(bank)
+    convs = []
+    with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
+        convs = json.load(f)
     convs.append({"username": un, "phone": phone, "amount": float(amount), "currency": currency, "timestamp": datetime.now(timezone.utc).isoformat()})
-    convs_url = upload_json_to_b2(JSON_FILES['conversions'], convs)
+    with open(CONVERSIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(convs, f, ensure_ascii=False, indent=2)
     currency_name = "francs" if currency == "franc" else "dollars"
     socketio.emit("balance_updated", {
         "username": acc["username"],
@@ -1117,9 +1177,7 @@ def bank_convert():
     }, room=acc["username"], namespace='/')
     return jsonify({
         "success": True,
-        "message": f"Vous avez converti {amount:.2f} {currency_name} à {phone}. Attendez votre réponse dans 5 heures du temps.",
-        "bank_url": bank_url,
-        "conversions_url": convs_url
+        "message": f"Vous avez converti {amount:.2f} {currency_name} à {phone}. Attendez votre réponse dans 5 heures du temps."
     })
 
 @app.route("/bank/transfer", methods=["POST"])
@@ -1151,7 +1209,7 @@ def bank_transfer():
         return jsonify({"error": f"Solde insuffisant en {currency}. Solde disponible: {sender[key]}"}), 400
     sender[key] = float(sender[key]) - float(amount)
     recipient[key] = float(recipient[key]) + float(amount)
-    url = save_bank(bank)
+    save_bank(bank)
     currency_name = "francs" if currency == "franc" else "dollars"
     socketio.emit("balance_updated", {
         "username": sender["username"],
@@ -1167,8 +1225,7 @@ def bank_transfer():
     }, room=recipient["username"], namespace='/')
     return jsonify({
         "success": True,
-        "message": f"Vous avez transféré {amount:.2f} {currency_name} à {recipient['username']}.",
-        "bank_url": url
+        "message": f"Vous avez transféré {amount:.2f} {currency_name} à {recipient['username']}."
     })
 
 @app.route("/pay_subscription", methods=["POST"])
@@ -1198,14 +1255,14 @@ def pay_subscription():
             referrer[key] += fee * 0.3
     delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
     acc["subscription_end"] = (datetime.now(timezone.utc) + delta).isoformat()
-    url = save_bank(bank)
+    save_bank(bank)
     socketio.emit("balance_updated", {
         "username": acc["username"],
         "balance_franc": float(acc["balance_franc"]),
         "balance_dollar": float(acc["balance_dollar"]),
         "account_id": acc["account_id"]
     }, room=acc["username"], namespace='/')
-    return jsonify({"success": True, "bank_url": url})
+    return jsonify({"success": True})
 
 @app.route("/bank/platform_balance", methods=["GET"])
 def platform_balance():
@@ -1229,18 +1286,20 @@ def deposit():
         return jsonify({"error": "Compte non trouvé"}), 404
     acc["balance_franc"] = float(acc["balance_franc"]) + float(franc)
     acc["balance_dollar"] = float(acc["balance_dollar"]) + float(dollar)
-    url = save_bank(bank)
+    save_bank(bank)
     socketio.emit("balance_updated", {
         "username": acc["username"],
         "balance_franc": float(acc["balance_franc"]),
         "balance_dollar": float(acc["balance_dollar"]),
         "account_id": acc["account_id"]
     }, room=acc["username"], namespace='/')
-    return jsonify({"success": True, "message": f"Vous avez déposé {franc:.2f} francs et {dollar:.2f} dollars pour l'ID {account_id} ({acc['username']})", "bank_url": url})
+    return jsonify({"success": True, "message": f"Vous avez déposé {franc:.2f} francs et {dollar:.2f} dollars pour l'ID {account_id} ({acc['username']})"})
 
 @app.route("/conversions", methods=["GET"])
 def get_conversions():
-    convs = download_json_from_b2(JSON_FILES['conversions'])
+    convs = []
+    with open(CONVERSIONS_FILE, "r", encoding="utf-8") as f:
+        convs = json.load(f)
     return jsonify(convs)
 
 @app.route("/get_server_time", methods=["GET"])
@@ -1277,6 +1336,8 @@ def handle_stop_typing(data):
         emit('stop_typing', {'sender': session.get('username')}, room=receiver)
 
 if __name__ == "__main__":
-    initialize_b2_files()  # Initialize JSON files in B2 on startup
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+
+
+
