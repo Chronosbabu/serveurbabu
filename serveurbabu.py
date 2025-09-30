@@ -140,6 +140,7 @@ user_notifications = {}
 FEE_DOLLAR = 2
 FEE_FRANC = 6000
 TEST_MODE = True
+DEFAULT_AVATAR_URL = "/static/default_avatar.png"  # Add a default avatar URL
 
 @app.template_filter('timestamp')
 def timestamp_filter(s):
@@ -182,16 +183,50 @@ def is_following(current_user, target_user):
 def notify_like(target_user_id, liker_username, post_id):
     users = load_json_from_bucket(USER_FILE)
     liker = next((u for u in users if u["username"] == liker_username), None)
-    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{liker['avatar']}") if liker and liker.get("avatar") else None
-    user_notifications.setdefault(target_user_id, []).append({"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url})
-    socketio.emit("new_notification", {"type": "like", "sender": liker_username, "message": f"{liker_username} a aimé votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
+    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{liker['avatar']}") if liker and liker.get("avatar") else DEFAULT_AVATAR_URL
+    user_notifications.setdefault(target_user_id, []).append({
+        "type": "like",
+        "sender": liker_username,
+        "message": f"{liker_username} a aimé votre publication",
+        "post_id": post_id,
+        "avatar": avatar_url
+    })
+    socketio.emit(
+        "new_notification",
+        {
+            "type": "like",
+            "sender": liker_username,
+            "message": f"{liker_username} a aimé votre publication",
+            "post_id": post_id,
+            "avatar": avatar_url
+        },
+        room=str(target_user_id),
+        namespace='/'
+    )
 
 def notify_comment(target_user_id, commenter_username, post_id):
     users = load_json_from_bucket(USER_FILE)
     commenter = next((u for u in users if u["username"] == commenter_username), None)
-    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{commenter['avatar']}") if commenter and commenter.get("avatar") else None
-    user_notifications.setdefault(target_user_id, []).append({"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url})
-    socketio.emit("new_notification", {"type": "comment", "sender": commenter_username, "message": f"{commenter_username} a commenté votre publication", "post_id": post_id, "avatar": avatar_url}, room=str(target_user_id), namespace='/')
+    avatar_url = get_public_url(f"{AVATAR_FOLDER}/{commenter['avatar']}") if commenter and commenter.get("avatar") else DEFAULT_AVATAR_URL
+    user_notifications.setdefault(target_user_id, []).append({
+        "type": "comment",
+        "sender": commenter_username,
+        "message": f"{commenter_username} a commenté votre publication",
+        "post_id": post_id,
+        "avatar": avatar_url
+    })
+    socketio.emit(
+        "new_notification",
+        {
+            "type": "comment",
+            "sender": commenter_username,
+            "message": f"{commenter_username} a commenté votre publication",
+            "post_id": post_id,
+            "avatar": avatar_url
+        },
+        room=str(target_user_id),
+        namespace='/'
+    )
 
 @socketio.on("join", namespace='/')
 def handle_join(data):
@@ -266,7 +301,15 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     key1 = f"{sender}_{receiver}"
     key2 = f"{receiver}_{sender}"
     now_iso = datetime.now(timezone.utc).isoformat()
-    entry = {"sender": sender, "text": text, "type": msg_type, "url": url, "date": now_iso, "read_by": [sender], "delivered_to": [] if receiver not in connected_users else [receiver]}
+    entry = {
+        "sender": sender,
+        "text": text,
+        "type": msg_type,
+        "url": url,
+        "date": now_iso,
+        "read_by": [sender],
+        "delivered_to": [] if receiver not in connected_users else [receiver]
+    }
     if key1 in messages:
         messages[key1].append(entry)
         key = key1
@@ -296,6 +339,7 @@ def register():
             ext = os.path.splitext(avatar_filename)[1].lower()
             content_type = 'image/jpeg' if ext in ['.jpg', '.jpeg'] else 'image/png' if ext == '.png' else 'image/gif'
             if not upload_file_to_bucket(avatar_file, f"{AVATAR_FOLDER}/{avatar_filename}", content_type):
+                logging.error(f"Failed to upload avatar for user {username}: {avatar_filename}")
                 return jsonify({"success": False, "error": "Échec de l'upload de l'avatar"}), 500
         users.append({
             "username": username,
@@ -358,7 +402,7 @@ def google_login():
         session["user_id"] = user["username"]
         user_info = {
             "username": user["username"],
-            "avatar": get_public_url(f"{AVATAR_FOLDER}/{user['avatar']}") if user.get("avatar") else None,
+            "avatar": get_public_url(f"{AVATAR_FOLDER}/{user['avatar']}") if user.get("avatar") else DEFAULT_AVATAR_URL,
             "user_id": user["username"],
             "bio": user.get("bio", ""),
             "created_at": user.get("created_at"),
@@ -418,9 +462,9 @@ def index():
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
-        p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(p['username'], {}).get('avatar')}") if users.get(p["username"], {}).get("avatar") else None
+        p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(p['username'], {}).get('avatar')}") if users.get(p["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
         for comment in p.get("comments", []):
-            comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else None
+            comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
         for file in p.get("files", []):
             file["url"] = get_public_url(f"{UPLOAD_FOLDER}/{file['name']}")
     following = current_user.get("following", [])
@@ -436,7 +480,16 @@ def index():
             story["media_url"] = get_public_url(f"{UPLOAD_FOLDER}/{story['file']}")
     own_stories = stories_by_user.get(session["username"], [])
     other_stories_users = [u for u in following if u in stories_by_user]
-    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"), own_stories=own_stories, other_stories_users=other_stories_users, stories_by_user=stories_by_user, users=users)
+    return render_template(
+        "style.html",
+        posts=posts,
+        username=session["username"],
+        avatar=get_public_url(f"{AVATAR_FOLDER}/{session.get('avatar')}") if session.get("avatar") else DEFAULT_AVATAR_URL,
+        own_stories=own_stories,
+        other_stories_users=other_stories_users,
+        stories_by_user=stories_by_user,
+        users=users
+    )
 
 @app.route("/get_stories/<username>")
 def get_stories(username):
@@ -472,7 +525,7 @@ def follow_user(username):
     if following:
         users = load_users()
         follower = next((u for u in users if u["username"] == current_user), None)
-        avatar_url = get_public_url(f"{AVATAR_FOLDER}/{follower['avatar']}") if follower and follower.get("avatar") else None
+        avatar_url = get_public_url(f"{AVATAR_FOLDER}/{follower['avatar']}") if follower and follower.get("avatar") else DEFAULT_AVATAR_URL
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
         socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username, namespace='/')
@@ -627,13 +680,19 @@ def comments(post_id):
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
-            return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
-    post['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(post['username'], {}).get('avatar')}") if users.get(post["username"], {}).get("avatar") else None
+            avatar_url = get_public_url(f"{AVATAR_FOLDER}/{session.get('avatar')}") if session.get("avatar") else DEFAULT_AVATAR_URL
+            return jsonify({"comment_id": next_id, "avatar": avatar_url}), 201
+    post['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(post['username'], {}).get('avatar')}") if users.get(post["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
     for comment in post.get("comments", []):
-        comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else None
+        comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
     for file in post.get("files", []):
         file["url"] = get_public_url(f"{UPLOAD_FOLDER}/{file['name']}")
-    return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
+    return render_template(
+        "comments.html",
+        post=post,
+        username=session["username"],
+        avatar=get_public_url(f"{AVATAR_FOLDER}/{session.get('avatar')}") if session.get("avatar") else DEFAULT_AVATAR_URL
+    )
 
 @app.route("/profile/<username>")
 def profile(username):
@@ -652,19 +711,20 @@ def profile(username):
     if user.get("avatar"):
         avatar_path = f"{AVATAR_FOLDER}/{user['avatar']}"
         if file_exists_in_bucket(avatar_path):
-            user["avatar"] = get_public_url(avatar_path)
+            user["avatar_url"] = get_public_url(avatar_path)
+            logging.debug(f"Generated avatar URL for {username}: {user['avatar_url']}")
         else:
             logging.warning(f"Avatar file {avatar_path} not found for user {username}")
-            user["avatar"] = None
+            user["avatar_url"] = DEFAULT_AVATAR_URL
     else:
-        user["avatar"] = None
+        user["avatar_url"] = DEFAULT_AVATAR_URL
     for p in user_posts:
         p['liked_by_user'] = current_username in p.get("liked_by", []) if current_username else False
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = username in current_user.get("following", []) if current_user else False
-        p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(p['username'], {}).get('avatar')}") if users.get(p["username"], {}).get("avatar") else None
+        p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(p['username'], {}).get('avatar')}") if users.get(p["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
         for comment in p.get("comments", []):
-            comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else None
+            comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
         for file in p.get("files", []):
             file["url"] = get_public_url(f"{UPLOAD_FOLDER}/{file['name']}")
     all_users = load_users()
@@ -675,7 +735,7 @@ def profile(username):
         profile_user=user,
         posts=user_posts,
         current_username=session.get("username"),
-        current_avatar=session.get("avatar")
+        current_avatar=get_public_url(f"{AVATAR_FOLDER}/{session.get('avatar')}") if session.get("avatar") else DEFAULT_AVATAR_URL
     )
 
 @app.route("/search", methods=["GET"])
@@ -695,9 +755,9 @@ def search_users():
             p['liked_by_user'] = current_username in p.get("liked_by", [])
             p['comments_count'] = len(p.get("comments", []))
             p['following'] = is_following(current_username, p["username"])
-            p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users_dict.get(p['username'], {}).get('avatar')}") if users_dict.get(p["username"], {}).get("avatar") else None
+            p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users_dict.get(p['username'], {}).get('avatar')}") if users_dict.get(p["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
             for comment in p.get("comments", []):
-                comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users_dict.get(comment['username'], {}).get('avatar')}") if users_dict.get(comment["username"], {}).get("avatar") else None
+                comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users_dict.get(comment['username'], {}).get('avatar')}") if users_dict.get(comment["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
             for file in p.get("files", []):
                 file["url"] = get_public_url(f"{UPLOAD_FOLDER}/{file['name']}")
     return render_template(
@@ -783,6 +843,7 @@ def update_avatar():
     filename = f"{username}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}{ext}"
     content_type = 'image/jpeg' if ext in ['.jpg', '.jpeg'] else 'image/png' if ext == '.png' else 'image/gif'
     if not upload_file_to_bucket(file, f"{AVATAR_FOLDER}/{filename}", content_type):
+        logging.error(f"Failed to upload new avatar {filename} for user {username}")
         return jsonify({"success": False, "error": "Échec de l'upload de l'avatar"}), 500
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
@@ -794,9 +855,13 @@ def update_avatar():
         if old_avatar:
             try:
                 bucket.delete_file_version(bucket.get_file_info_by_name(f"{AVATAR_FOLDER}/{old_avatar}").id_)
+                logging.debug(f"Deleted old avatar {old_avatar} for user {username}")
             except b2.exception.FileNotPresent:
                 logging.warning(f"Old avatar {old_avatar} not found during deletion")
         new_avatar_url = get_public_url(f"{AVATAR_FOLDER}/{filename}")
+        if not new_avatar_url:
+            logging.error(f"Failed to generate URL for new avatar {filename}")
+            return jsonify({"success": False, "error": "Échec de la génération de l'URL de l'avatar"}), 500
         socketio.emit("avatar_updated", {"username": username, "new_avatar_url": new_avatar_url}, namespace='/')
         return jsonify({"success": True, "avatar_url": new_avatar_url})
     return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
@@ -849,7 +914,7 @@ def conversations():
         other_user_data = get_user(other_user)
         user_conversations.append({
             "username": other_user,
-            "profile_pic": get_public_url(f"{AVATAR_FOLDER}/{users.get(other_user, {}).get('avatar')}") if users.get(other_user, {}).get("avatar") else None,
+            "profile_pic": get_public_url(f"{AVATAR_FOLDER}/{users.get(other_user, {}).get('avatar')}") if users.get(other_user, {}).get("avatar") else DEFAULT_AVATAR_URL,
             "last_msg": last_msg,
             "last_date": last_date,
             "unread_count": sum(1 for m in conv if username not in m.get("read_by", [])),
@@ -894,8 +959,13 @@ def chat(username):
     if newly_read:
         socketio.emit('messages_read', {'ids': newly_read}, room=username, namespace='/')
     for msg in conv:
-        msg['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(msg['sender'], {}).get('avatar')}") if users.get(msg["sender"], {}).get("avatar") else None
-    return render_template("chat.html", chat_user=username, messages=conv, avatar=session.get("avatar"))
+        msg['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(msg['sender'], {}).get('avatar')}") if users.get(msg["sender"], {}).get("avatar") else DEFAULT_AVATAR_URL
+    return render_template(
+        "chat.html",
+        chat_user=username,
+        messages=conv,
+        avatar=get_public_url(f"{AVATAR_FOLDER}/{session.get('avatar')}") if session.get("avatar") else DEFAULT_AVATAR_URL
+    )
 
 @app.route("/send_message", methods=["POST"])
 def send_message_http():
@@ -1000,10 +1070,17 @@ def handle_send_comment(data):
     post_owner = post.get("username")
     if post_owner != data['username']:
         notify_comment(target_user_id=post_owner, commenter_username=data['username'], post_id=post_id)
-    avatar = get_public_url(f"{AVATAR_FOLDER}/{get_user(data['username'])['avatar']}") if get_user(data['username']) and get_user(data['username'])['avatar'] else None
+    avatar = get_public_url(f"{AVATAR_FOLDER}/{get_user(data['username'])['avatar']}") if get_user(data['username']) and get_user(data['username'])['avatar'] else DEFAULT_AVATAR_URL
     date = data.get('date') or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     comment_id = data.get('comment_id') or None
-    socketio.emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date}, namespace='/')
+    socketio.emit('new_comment', {
+        "post_id": post_id,
+        "comment_id": comment_id,
+        "username": data['username'],
+        "content": content,
+        "avatar": avatar,
+        "date": date
+    }, namespace='/')
 
 @socketio.on('view_post', namespace='/')
 def handle_view_post(data):
@@ -1096,16 +1173,16 @@ def videos():
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
-        p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(p['username'], {}).get('avatar')}") if users.get(p["username"], {}).get("avatar") else None
+        p['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(p['username'], {}).get('avatar')}") if users.get(p["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
         for comment in p.get("comments", []):
-            comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else None
+            comment['avatar'] = get_public_url(f"{AVATAR_FOLDER}/{users.get(comment['username'], {}).get('avatar')}") if users.get(comment["username"], {}).get("avatar") else DEFAULT_AVATAR_URL
         for file in p.get("files", []):
             file["url"] = get_public_url(f"{UPLOAD_FOLDER}/{file['name']}")
     return render_template(
         "videos.html",
         posts=video_posts,
         username=session["username"],
-        avatar=session.get("avatar")
+        avatar=get_public_url(f"{AVATAR_FOLDER}/{session.get('avatar')}") if session.get("avatar") else DEFAULT_AVATAR_URL
     )
 
 @app.route("/user_exists/<username>", methods=["GET"])
@@ -1401,4 +1478,3 @@ def handle_stop_typing(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
