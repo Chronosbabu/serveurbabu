@@ -1,3 +1,4 @@
+import io
 import logging
 import os
 import json
@@ -20,7 +21,6 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import b2sdk.v2 as b2
 
-from b2sdk.download_dest import DownloadDestBytes
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -92,17 +92,13 @@ def init_bucket_files():
 init_bucket_files()
 
 def load_json_from_bucket(file_name):
-    try:
-        download_dest = DownloadDestBytes()
-        bucket.download_file_by_name(file_name, download_dest)
-        data_bytes = download_dest.get_bytes_written()
-        return json.loads(data_bytes.decode('utf-8'))
-    except b2.exception.FileNotPresent:
-        logging.error(f"File {file_name} not found in bucket {BUCKET_NAME}")
-        return JSON_FILES.get(file_name, [])
-    except Exception as e:
-        logging.error(f"Error loading JSON from bucket: {e}")
-        raise
+    bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+    stream = io.BytesIO()
+    bucket.download_file_by_name(file_name).save(stream)
+    stream.seek(0)
+    return json.load(stream)
+
+
 
 def save_json_to_bucket(file_name, data):
     try:
