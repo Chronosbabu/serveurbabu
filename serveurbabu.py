@@ -95,14 +95,29 @@ def init_bucket_files():
 init_bucket_files()
 
 def load_json_from_bucket(file_name):
-    download_dest = b2.DownloadDestBytes()
-    bucket.download_file_by_name(file_name, download_dest)
-    data = download_dest.get_bytes_written()
-    return json.loads(data)
+    try:
+        # Create a BytesIO object to store the downloaded data
+        download_dest = BytesIO()
+        # Download the file from the bucket into the BytesIO object
+        bucket.download_file_by_name(file_name, b2.WriteBuffer(download_dest))
+        # Seek to the beginning of the BytesIO object and read the content
+        download_dest.seek(0)
+        data = download_dest.read()
+        return json.loads(data.decode('utf-8'))
+    except b2.exception.FileNotPresent:
+        logging.error(f"File {file_name} not found in bucket {BUCKET_NAME}")
+        raise
+    except Exception as e:
+        logging.error(f"Error loading JSON from bucket: {e}")
+        raise
 
 def save_json_to_bucket(file_name, data_obj):
-    data = json.dumps(data_obj, ensure_ascii=False, indent=2).encode('utf-8')
-    bucket.upload_bytes(data, file_name, content_type='application/json')
+    try:
+        data = json.dumps(data_obj, ensure_ascii=False, indent=2).encode('utf-8')
+        bucket.upload_bytes(data, file_name, content_type='application/json')
+    except Exception as e:
+        logging.error(f"Error saving JSON to bucket: {e}")
+        raise
 
 def get_public_url(file_name):
     return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
