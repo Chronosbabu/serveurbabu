@@ -114,7 +114,7 @@ def save_json_to_bucket(file_name, data):
         raise
 
 def get_public_url(file_name):
-    return b2_api.get_download_url_for_file_name(BUCKET_NAME, file_name)
+    return f"https://f005.backblazeb2.com/file/{BUCKET_NAME}/{file_name}"
 
 def delete_file_from_bucket(file_name):
     try:
@@ -418,9 +418,12 @@ def index():
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
-        p['avatar'] = users.get(p["username"], {}).get("avatar")
+        p['avatar'] = get_public_url(users.get(p["username"], {}).get("avatar")) if users.get(p["username"], {}).get("avatar") else None
         for comment in p.get("comments", []):
-            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
+            comment['avatar'] = get_public_url(users.get(comment["username"], {}).get("avatar")) if users.get(comment["username"], {}).get("avatar") else None
+        if 'files' in p:
+            for f in p['files']:
+                f['url'] = get_public_url(f['name'])
     following = current_user.get("following", [])
     all_stories = load_stories()
     stories_by_user = {}
@@ -431,7 +434,7 @@ def index():
         user_stories.sort(key=lambda s: datetime.fromisoformat(s["timestamp"]))
     own_stories = stories_by_user.get(session["username"], [])
     other_stories_users = [u for u in following if u in stories_by_user]
-    return render_template("style.html", posts=posts, username=session["username"], avatar=session.get("avatar"), own_stories=own_stories, other_stories_users=other_stories_users, stories_by_user=stories_by_user, users=users)
+    return render_template("style.html", posts=posts, username=session["username"], avatar=get_public_url(session.get("avatar")) if session.get("avatar") else None, own_stories=own_stories, other_stories_users=other_stories_users, stories_by_user=stories_by_user, users=users)
 
 @app.route("/get_stories/<username>")
 def get_stories(username):
@@ -622,11 +625,11 @@ def comments(post_id):
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
-            return jsonify({"comment_id": next_id, "avatar": session.get("avatar")}), 201
-    post['avatar'] = users.get(post["username"], {}).get("avatar")
+            return jsonify({"comment_id": next_id, "avatar": get_public_url(session.get("avatar")) if session.get("avatar") else None}), 201
+    post['avatar'] = get_public_url(users.get(post["username"], {}).get("avatar")) if users.get(post["username"], {}).get("avatar") else None
     for comment in post.get("comments", []):
-        comment['avatar'] = users.get(comment["username"], {}).get("avatar")
-    return render_template("comments.html", post=post, username=session["username"], avatar=session.get("avatar"))
+        comment['avatar'] = get_public_url(users.get(comment["username"], {}).get("avatar")) if users.get(comment["username"], {}).get("avatar") else None
+    return render_template("comments.html", post=post, username=session["username"], avatar=get_public_url(session.get("avatar")) if session.get("avatar") else None)
 
 @app.route("/profile/<username>")
 def profile(username):
@@ -642,18 +645,22 @@ def profile(username):
         p['liked_by_user'] = current_username in p.get("liked_by", []) if current_username else False
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = username in current_user.get("following", []) if current_user else False
-        p['avatar'] = users.get(p["username"], {}).get("avatar")
+        p['avatar'] = get_public_url(users.get(p["username"], {}).get("avatar")) if users.get(p["username"], {}).get("avatar") else None
         for comment in p.get("comments", []):
-            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
+            comment['avatar'] = get_public_url(users.get(comment["username"], {}).get("avatar")) if users.get(comment["username"], {}).get("avatar") else None
+        if 'files' in p:
+            for f in p['files']:
+                f['url'] = get_public_url(f['name'])
     all_users = load_users()
     followers = [u["username"] for u in all_users if username in u.get("following", [])]
     user["followers"] = followers
+    user['avatar'] = get_public_url(user.get("avatar")) if user.get("avatar") else None
     return render_template(
         "profile.html",
         profile_user=user,
         posts=user_posts,
         current_username=session.get("username"),
-        current_avatar=session.get("avatar")
+        current_avatar=get_public_url(session.get("avatar")) if session.get("avatar") else None
     )
 
 @app.route("/search", methods=["GET"])
@@ -673,9 +680,14 @@ def search_users():
             p['liked_by_user'] = current_username in p.get("liked_by", [])
             p['comments_count'] = len(p.get("comments", []))
             p['following'] = is_following(current_username, p["username"])
-            p['avatar'] = users_dict.get(p["username"], {}).get("avatar")
+            p['avatar'] = get_public_url(users_dict.get(p["username"], {}).get("avatar")) if users_dict.get(p["username"], {}).get("avatar") else None
             for comment in p.get("comments", []):
-                comment['avatar'] = users_dict.get(comment["username"], {}).get("avatar")
+                comment['avatar'] = get_public_url(users_dict.get(comment["username"], {}).get("avatar")) if users_dict.get(comment["username"], {}).get("avatar") else None
+            if 'files' in p:
+                for f in p['files']:
+                    f['url'] = get_public_url(f['name'])
+    for u in users_results:
+        u['avatar'] = get_public_url(u.get("avatar")) if u.get("avatar") else None
     return render_template(
         "search.html",
         users=users_results,
@@ -796,7 +808,7 @@ def conversations():
         other_user_data = get_user(other_user)
         user_conversations.append({
             "username": other_user,
-            "profile_pic": users.get(other_user, {}).get("avatar"),
+            "profile_pic": get_public_url(users.get(other_user, {}).get("avatar")) if users.get(other_user, {}).get("avatar") else None,
             "last_msg": last_msg,
             "last_date": last_date,
             "unread_count": sum(1 for m in conv if username not in m.get("read_by", [])),
@@ -841,8 +853,10 @@ def chat(username):
     if newly_read:
         socketio.emit('messages_read', {'ids': newly_read}, room=username, namespace='/')
     for msg in conv:
-        msg['avatar'] = users.get(msg["sender"], {}).get("avatar")
-    return render_template("chat.html", chat_user=username, messages=conv, avatar=session.get("avatar"))
+        msg['avatar'] = get_public_url(users.get(msg["sender"], {}).get("avatar")) if users.get(msg["sender"], {}).get("avatar") else None
+        if msg.get('url'):
+            msg['url'] = get_public_url(msg['text'].split(']: ')[1]) if ']: ' in msg['text'] else msg['url']
+    return render_template("chat.html", chat_user=username, messages=conv, avatar=get_public_url(session.get("avatar")) if session.get("avatar") else None)
 
 @app.route("/send_message", methods=["POST"])
 def send_message_http():
@@ -947,7 +961,7 @@ def handle_send_comment(data):
     post_owner = post.get("username")
     if post_owner != data['username']:
         notify_comment(target_user_id=post_owner, commenter_username=data['username'], post_id=post_id)
-    avatar = data.get('avatar') or get_user(data['username'])['avatar'] if get_user(data['username']) else None
+    avatar = get_public_url(data.get('avatar')) if data.get('avatar') else get_public_url(get_user(data['username'])['avatar']) if get_user(data['username']) and get_user(data['username'])['avatar'] else None
     date = data.get('date') or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     comment_id = data.get('comment_id') or None
     socketio.emit('new_comment', {"post_id": post_id, "comment_id": comment_id, "username": data['username'], "content": content, "avatar": avatar, "date": date}, namespace='/')
@@ -1040,14 +1054,17 @@ def videos():
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
-        p['avatar'] = users.get(p["username"], {}).get("avatar")
+        p['avatar'] = get_public_url(users.get(p["username"], {}).get("avatar")) if users.get(p["username"], {}).get("avatar") else None
         for comment in p.get("comments", []):
-            comment['avatar'] = users.get(comment["username"], {}).get("avatar")
+            comment['avatar'] = get_public_url(users.get(comment["username"], {}).get("avatar")) if users.get(comment["username"], {}).get("avatar") else None
+        if 'files' in p:
+            for f in p['files']:
+                f['url'] = get_public_url(f['name'])
     return render_template(
         "videos.html",
         posts=video_posts,
         username=session["username"],
-        avatar=session.get("avatar")
+        avatar=get_public_url(session.get("avatar")) if session.get("avatar") else None
     )
 
 @app.route("/user_exists/<username>", methods=["GET"])
