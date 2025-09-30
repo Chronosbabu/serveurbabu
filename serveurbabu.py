@@ -15,7 +15,6 @@ import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import b2sdk.v2 as b2
-from b2sdk import exception as b2_exception
 from io import BytesIO
 
 app = Flask(__name__)
@@ -68,7 +67,7 @@ def file_exists_in_bucket(file_name):
     try:
         bucket.get_file_info_by_name(file_name)
         return True
-    except b2_exception.FileNotPresent:
+    except b2.exception.FileNotPresent:
         return False
 
 def init_bucket_files():
