@@ -1,32 +1,38 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
-from flask_socketio import SocketIO, emit, join_room
-import os, json, hashlib
-from datetime import datetime, timedelta, timezone
-from werkzeug.utils import secure_filename
-import requests
+import logging
+import os
+import json
+import hashlib
 import random
 import string
 import threading
 import time
+import uuid
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
+from flask_socketio import SocketIO, emit, join_room
+from werkzeug.utils import secure_filename
+import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import b2sdk.v2 as b2
-from io import BytesIO
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render env or fallback
 
-# Load Google OAuth credentials from Render environment variables (correct keys without prefix)
+# Load Google OAuth credentials from Render environment variables
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-UPLOAD_FOLDER = os.path.join(DATA_DIR, "uploads")
+UPLOAD_FOLDER = os.path.join(DATA_DIR, "Uploads")
 AVATAR_FOLDER = os.path.join(DATA_DIR, "avatars")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -50,10 +56,20 @@ APPLICATION_KEY = os.environ.get("APPLICATION_KEY")
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
 BUCKET_ENDPOINT = os.environ.get("BUCKET_ENDPOINT")  # Not used for native SDK, but loaded as per instructions
 
+# Validate environment variables
+if not all([APPLICATION_KEY_ID, APPLICATION_KEY, BUCKET_NAME]):
+    logging.error("Missing Backblaze B2 environment variables: KEY_ID, APPLICATION_KEY, or BUCKET_NAME")
+    raise ValueError("Missing required Backblaze B2 environment variables")
+
 info = b2.InMemoryAccountInfo()
 b2_api = b2.B2Api(info)
-b2_api.authorize_account("production", APPLICATION_KEY_ID, APPLICATION_KEY)
-bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+try:
+    b2_api.authorize_account("production", APPLICATION_KEY_ID, APPLICATION_KEY)
+    bucket = b2_api.get_bucket_by_name(BUCKET_NAME)
+    logging.info(f"Successfully authenticated with Backblaze B2 and accessed bucket {BUCKET_NAME}")
+except b2.exception.B2Error as e:
+    logging.error(f"Failed to authenticate with Backblaze B2: {e}")
+    raise
 
 JSON_FILES = {
     'users.json': [],
@@ -379,7 +395,7 @@ def index():
                     sorted_indices = np.argsort(similarities)[::-1]
                     posts = [posts[i] for i in sorted_indices]
                 except Exception as e:
-                    print(f"Recommendation error: {e}")
+                    logging.error(f"Recommendation error: {e}")
     users = {u["username"]: u for u in users_list}
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
@@ -1000,7 +1016,7 @@ def videos():
                     sorted_indices = np.argsort(similarities)[::-1]
                     video_posts = [video_posts[i] for i in sorted_indices]
                 except Exception as e:
-                    print(f"Recommendation error: {e}")
+                    logging.error(f"Recommendation error: {e}")
     for p in video_posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
