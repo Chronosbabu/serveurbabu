@@ -18,9 +18,9 @@ from google.auth.transport import requests as google_requests
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render env or fallback
 
-# Load Google OAuth credentials from Render environment variables
+# Load Google OAuth credentials from Render environment variables (correct keys without prefix)
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
-REMOVED = os.environ.get("REMOVED")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
