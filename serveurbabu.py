@@ -19,8 +19,8 @@ import numpy as np
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import b2sdk.v2 as b2
-from b2sdk.download_dest import DownloadDestBytes
 
+from b2sdk.download_dest import DownloadDestBytes
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
