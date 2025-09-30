@@ -307,8 +307,7 @@ def register():
             "viewed_posts": []
         })
         save_users(users)
-        url = get_public_url('users.json')
-        return jsonify({"success": True, "url": url})
+        return redirect(url_for("login"))
     return render_template("register.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -468,8 +467,7 @@ def follow_user(username):
         msg = f"{current_user} a commencé à vous suivre"
         user_notifications.setdefault(username, []).append({"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url})
         socketio.emit("new_notification", {"type": "follow", "sender": current_user, "message": msg, "avatar": avatar_url}, room=username, namespace='/')
-    url = get_public_url('followers.json')
-    return jsonify({"following": following, "url": url})
+    return jsonify({"following": following})
 
 @app.route("/add_post", methods=["GET", "POST"])
 def add_post():
@@ -509,8 +507,7 @@ def add_post():
             "username": new_post["username"],
             "description": new_post["description"]
         }, namespace='/')
-        url = get_public_url('posts.json')
-        return jsonify({"success": True, "url": url})
+        return redirect(url_for("index"))
     return render_template("new_post.html")
 
 @app.route("/add_story", methods=["POST"])
@@ -591,8 +588,7 @@ def like_post(post_id):
     save_likes(likes)
 
     socketio.emit('update_like', {"post_id": post_id, "likes": post["likes"], "user": username}, namespace='/')
-    url = get_public_url('likes.json')
-    return jsonify({"likes": post["likes"], "liked": liked, "url": url})
+    return jsonify({"likes": post["likes"], "liked": liked})
 
 @app.route("/comments/<int:post_id>", methods=["GET", "POST"])
 def comments(post_id):
@@ -855,8 +851,7 @@ def send_message_http():
     socketio.emit("new_message", entry, room=sender, namespace='/')
     if receiver in connected_users:
         socketio.emit('message_delivered', {'id': entry['id']}, room=sender, namespace='/')
-    url = get_public_url('messages.json')
-    return jsonify({"success": True, "url": url})
+    return jsonify({"success": True})
 
 @socketio.on('connect', namespace='/')
 def handle_connect(auth=None):
