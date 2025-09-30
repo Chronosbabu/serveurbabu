@@ -98,8 +98,8 @@ def load_json_from_bucket(file_name):
     try:
         # Create a BytesIO object to store the downloaded data
         download_dest = BytesIO()
-        # Download the file from the bucket into the BytesIO object
-        bucket.download_file_by_name(file_name, b2.WriteBuffer(download_dest))
+        # Download the file directly into the BytesIO object
+        bucket.download_file_by_name(file_name, b2.DownloadDestLocalFile(download_dest))
         # Seek to the beginning of the BytesIO object and read the content
         download_dest.seek(0)
         data = download_dest.read()
