@@ -731,13 +731,7 @@
       <nav class="header-icons">
         <a href="#" title="Accueil" id="home-btn"><i class="fa-solid fa-house"></i><span class="message-badge" style="display:none;"></span></a>
         <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
-        <a href="{{ url_for('profile', username=username) }}" title="Profil">
-          {% if avatar %}
-          <img src="{{ url_for('avatar_file', filename=avatar) }}?t={{ 'now'|timestamp }}" alt="{{ username }}" class="avatar-post" style="width:24px;height:24px;border-radius:50%;">
-          {% else %}
-          <i class="fa-regular fa-user"></i>
-          {% endif %}
-        </a>
+        <a href="{{ url_for('profile', username=username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
         <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
           <i class="fa-regular fa-message"></i>
           <span class="message-badge" id="unread-count" style="display:none;">0</span>
@@ -751,8 +745,7 @@
         <div class="story-item">
           <div class="story-circle {% if own_stories %}has-story view-trigger{% else %}no-story add-story-trigger{% endif %}" data-username="{{ username }}">
             {% if avatar %}
-            <img src="{{ url_for('avatar_file', filename=avatar) }}?t={{ 'now'|timestamp }}" alt="{{ username }}" class="avatar-story" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-            <div class="avatar-fallback" style="display:none;">{{ username[:1]|upper }}</div>
+            <img src="{{ url_for('avatar_file', filename=avatar) }}?t={{ 'now'|timestamp }}" alt="{{ username }}">
             {% else %}
             <div class="avatar-fallback">{{ username[:1]|upper }}</div>
             {% endif %}
@@ -765,8 +758,7 @@
         <div class="story-item">
           <div class="story-circle has-story view-trigger" data-username="{{ user }}">
             {% if users[user].avatar %}
-            <img src="{{ url_for('avatar_file', filename=users[user].avatar) }}?t={{ 'now'|timestamp }}" alt="{{ user }}" class="avatar-story" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-            <div class="avatar-fallback" style="display:none;">{{ user[:1]|upper }}</div>
+            <img src="{{ url_for('avatar_file', filename=users[user].avatar) }}?t={{ 'now'|timestamp }}" alt="{{ user }}">
             {% else %}
             <div class="avatar-fallback">{{ user[:1]|upper }}</div>
             {% endif %}
@@ -782,8 +774,7 @@
         <div class="user-info">
           {% if post.avatar %}
           <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
-            <img src="{{ post.avatar }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-post" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-            <div class="avatar-fallback" style="display:none;">{{ post.username[:1]|upper }}</div>
+            <img src="{{ url_for('avatar_file', filename=post.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-post" />
           </a>
           {% else %}
           <a class="avatar-link" href="{{ url_for('profile', username=post.username) }}">
@@ -798,10 +789,10 @@
         <span class="toggle-description">Afficher plus</span>
         {# ---- Single file ---- #}
         {% if post.type == "image" and not post.files %}
-        <img src="{{ url_for('uploaded_file', filename=post.file) }}?t={{ 'now'|timestamp }}" alt="image" class="post-image" />
+        <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
         {% elif post.type == "video" and not post.files %}
         <div class="video-container">
-          <video src="{{ url_for('uploaded_file', filename=post.file) }}?t={{ 'now'|timestamp }}" muted loop class="post-video"></video>
+          <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop class="post-video"></video>
           <button class="mute-btn" title="Activer/Désactiver le son">
             <i class="fa-solid fa-volume-xmark"></i>
           </button>
@@ -813,10 +804,10 @@
           <div class="carousel-track">
             {% for file in post.files %}
             {% if file.type == "image" %}
-            <img src="{{ file.url }}?t={{ 'now'|timestamp }}" alt="image" class="post-image" />
+            <img src="{{ url_for('uploaded_file', filename=file.name) }}" alt="image" class="post-image" />
             {% elif file.type == "video" %}
             <div class="video-container">
-              <video src="{{ file.url }}?t={{ 'now'|timestamp }}" muted loop class="post-video"></video>
+              <video src="{{ url_for('uploaded_file', filename=file.name) }}" muted loop class="post-video"></video>
               <button class="mute-btn" title="Activer/Désactiver le son">
                 <i class="fa-solid fa-volume-xmark"></i>
               </button>
@@ -861,8 +852,7 @@
               <div class="comment">
                 {% if comment.avatar %}
                 <a href="{{ url_for('profile', username=comment.username) }}">
-                  <img src="{{ comment.avatar }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-comment" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                  <div class="avatar-fallback" style="display:none;">{{ comment.username[:1]|upper }}</div>
+                  <img src="{{ url_for('avatar_file', filename=comment.avatar) }}?t={{ 'now'|timestamp }}" alt="avatar" class="avatar-comment" />
                 </a>
                 {% else %}
                 <a href="{{ url_for('profile', username=comment.username) }}">
@@ -912,7 +902,7 @@
     const socket = io();
     let viewedPosts = new Set();
     const avatar = '{{ avatar }}';
-    const avatarUrl = {% if avatar %}'{{ url_for("avatar_file", filename=avatar) }}?t=' + Date.now() {% else %} '' {% endif %};
+    const avatarUrl = {% if avatar %}'{{ url_for("avatar_file", filename=avatar) }}' + '?t=' + Date.now() {% else %} '' {% endif %};
     const hasAvatar = {{ 'true' if avatar else 'false' }};
 
     // Theme toggle functionality
@@ -1185,8 +1175,8 @@
               const commentDiv = document.createElement('div');
               commentDiv.className = 'comment';
               commentDiv.dataset.commentId = commentId;
-              const avatarHtml = hasAvatar
-                ? `<a href="/profile/${encodeURIComponent(currentUsername)}"><img src="${avatarUrl}" alt="avatar" class="avatar-comment" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /></a>`
+              const avatarHtml = data.avatar
+                ? `<a href="/profile/${encodeURIComponent(currentUsername)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
                 : `<a href="/profile/${encodeURIComponent(currentUsername)}"><div class="avatar-fallback">${currentUsername[0].toUpperCase()}</div></a>`;
               commentDiv.innerHTML = `
                 ${avatarHtml}
@@ -1203,7 +1193,7 @@
               textarea.focus();
               const countEl = post.querySelector('.comment-count');
               countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-              socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: avatar });
+              socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: data.avatar });
             });
           } else {
             textarea.value = content;
@@ -1281,7 +1271,7 @@
             toggleButton.textContent = 'Afficher moins';
           }
         });
-      });
+      }
     });
     document.querySelectorAll('.post img').forEach(img => {
       img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
@@ -1313,7 +1303,7 @@
         commentDiv.className = 'comment';
         commentDiv.dataset.commentId = data.comment_id;
         const avatarHtml = data.avatar
-          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="${data.avatar}?t=${Date.now()}" alt="avatar" class="avatar-comment" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /></a>`
+          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
           : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
         commentDiv.innerHTML = `
           ${avatarHtml}
@@ -1332,32 +1322,6 @@
         const countEl = post.querySelector('.comment-count');
         countEl.textContent = parseInt(countEl.textContent || "0") + 1;
       }
-    });
-
-    socket.on('avatar_updated', data => {
-      if (data.username === currentUsername) {
-        const avatarImages = document.querySelectorAll('.avatar-post, .avatar-story, .avatar-comment');
-        avatarImages.forEach(img => {
-          if (img.classList.contains('avatar-post') || img.classList.contains('avatar-story') || img.classList.contains('avatar-comment')) {
-            img.src = data.new_avatar_url + '?t=' + Date.now();
-            img.style.display = 'block';
-            if (img.nextElementSibling && img.nextElementSibling.classList.contains('avatar-fallback')) {
-              img.nextElementSibling.style.display = 'none';
-            }
-          }
-        });
-      }
-      document.querySelectorAll(`.post[data-post-id] .avatar-post, .comment .avatar-comment`).forEach(img => {
-        const postUsername = img.closest('.post')?.querySelector('.username')?.textContent.trim();
-        const commentUsername = img.closest('.comment')?.querySelector('.comment-content a')?.textContent.trim();
-        if ((postUsername === data.username || commentUsername === data.username) && data.new_avatar_url) {
-          img.src = data.new_avatar_url + '?t=' + Date.now();
-          img.style.display = 'block';
-          if (img.nextElementSibling && img.nextElementSibling.classList.contains('avatar-fallback')) {
-            img.nextElementSibling.style.display = 'none';
-          }
-        }
-      });
     });
 
     /* ---------- Nouveau post badge Accueil ---------- */
@@ -1467,8 +1431,8 @@
           <div class="story-carousel">
             <div class="story-track">
               ${stories.map(s => {
-                if (s.type === 'image') return `<div class="story-slide"><img src="${s.media_url}?t=${Date.now()}" onerror="this.style.display='none';"></div>`;
-                else return `<div class="story-slide"><video src="${s.media_url}?t=${Date.now()}" playsinline></video></div>`;
+                if (s.type === 'image') return `<div class="story-slide"><img src="${s.media_url}"></div>`;
+                else return `<div class="story-slide"><video src="${s.media_url}" playsinline></video></div>`;
               }).join('')}
             </div>
           </div>
@@ -1644,3 +1608,4 @@
 </script>
 </body>
 </html>
+
