@@ -18,7 +18,7 @@ from google.auth.transport import requests as google_requests
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "secret_key_here")  # Use Render env or fallback
 
-# Load Google OAuth credentials from Render environment variables (correct keys without prefix)
+# Load Google OAuth credentials from Render environment variables
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
@@ -321,8 +321,14 @@ def recommend_posts(post_list, interacted_posts, current_user):
 
 def get_sorted_posts(posts, current_user, filter_videos=False):
     now = datetime.now(timezone.utc)
+    username = current_user.get("username")
+    # Separate boosted and non-boosted posts
     boosted = [p for p in posts if p.get("boost_end") and datetime.fromisoformat(p["boost_end"]) > now]
-    boosted.sort(key=lambda p: p["id"], reverse=True)
+    # Filter boosted posts that the user hasn't seen
+    boosted_unseen = [p for p in boosted if username not in p.get("boosted_viewed_by", [])]
+    boosted_seen = [p for p in boosted if p not in boosted_unseen]
+    # Sort boosted unseen posts by recency
+    boosted_unseen.sort(key=lambda p: datetime.fromisoformat(p["boost_start"]), reverse=True)
     non_boosted = [p for p in posts if p not in boosted]
     following = current_user.get("following", [])
     followed_posts = [p for p in non_boosted if p["username"] in following]
@@ -331,8 +337,32 @@ def get_sorted_posts(posts, current_user, filter_videos=False):
     interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
     rec_followed = recommend_posts(followed_posts, interacted_posts, current_user)
     rec_other = recommend_posts(other_posts, interacted_posts, current_user)
-    non_boosted_rec = rec_followed if rec_followed else rec_other
-    final_posts = boosted + non_boosted_rec
+    # Interleave boosted unseen and followed posts to maintain balance
+    max_boosted = min(len(boosted_unseen), 3)  # Limit boosted posts to avoid overwhelming feed
+    final_posts = []
+    boosted_index = 0
+    followed_index = 0
+    other_index = 0
+    while boosted_index < len(boosted_unseen) or followed_index < len(rec_followed) or other_index < len(rec_other):
+        # Add up to 'max_boosted' boosted posts at the start
+        if boosted_index < max_boosted and boosted_index < len(boosted_unseen):
+            final_posts.append(boosted_unseen[boosted_index])
+            boosted_index += 1
+        # Add followed posts
+        elif followed_index < len(rec_followed):
+            final_posts.append(rec_followed[followed_index])
+            followed_index += 1
+        # Add other posts
+        elif other_index < len(rec_other):
+            final_posts.append(rec_other[other_index])
+            other_index += 1
+        else:
+            # If no more followed/other posts, add remaining boosted unseen
+            if boosted_index < len(boosted_unseen):
+                final_posts.append(boosted_unseen[boosted_index])
+                boosted_index += 1
+    # Append any seen boosted posts at the end
+    final_posts.extend(boosted_seen)
     if filter_videos:
         video_posts = []
         for p in final_posts:
@@ -475,7 +505,8 @@ def add_post():
             "likes": 0,
             "liked_by": [],
             "comments": [],
-            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "boosted_viewed_by": []
         }
         posts.insert(0, new_post)
         save_posts(posts)
@@ -921,6 +952,13 @@ def handle_view_post(data):
         viewed_posts = user.setdefault("viewed_posts", [])
         if post_id not in viewed_posts:
             viewed_posts.append(post_id)
+        posts = load_posts()
+        post = next((p for p in posts if p["id"] == post_id), None)
+        if post and post.get("boost_end") and datetime.fromisoformat(post["boost_end"]) > datetime.now(timezone.utc):
+            boosted_viewed_by = post.setdefault("boosted_viewed_by", [])
+            if session["username"] not in boosted_viewed_by:
+                boosted_viewed_by.append(session["username"])
+                save_posts(posts)
         save_users(users)
 
 @app.route("/notifications")
@@ -1290,7 +1328,7 @@ def boost_confirm(post_id):
     posts = load_posts()
     post = next((p for p in posts if p["id"] == post_id), None)
     if not post or post["username"] != session["username"]:
-        return jupytext({"error": "Publication non trouvée ou non autorisée"}), 404
+        return jsonify({"error": "Publication non trouvée ou non autorisée"}), 404
     if post.get("boost_end"):
         return jsonify({"error": "Publication déjà boostée"}), 400
     bank = load_bank()
@@ -1307,12 +1345,21 @@ def boost_confirm(post_id):
     now = datetime.now(timezone.utc)
     post["boost_start"] = now.isoformat()
     post["boost_end"] = (now + timedelta(days=duration_days)).isoformat()
+    post["boosted_viewed_by"] = []
     save_posts(posts)
     save_bank(bank)
     durations = {1: "jour", 7: "semaine", 30: "mois", 365: "an"}
     delai = durations[duration_days]
     devise = "FC" if currency == "franc" else "USD"
     message = f"Vous avez payé {tariff} {devise} pour un {delai} de boost."
+    # Notify all connected users of the new boosted post
+    socketio.emit('new_boosted_post', {
+        "id": post["id"],
+        "username": post["username"],
+        "description": post["description"],
+        "boost_start": post["boost_start"],
+        "boost_end": post["boost_end"]
+    }, namespace='/')
     return jsonify({"success": True, "message": message})
 
 @socketio.on('typing', namespace='/')
