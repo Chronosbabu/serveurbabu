@@ -159,6 +159,7 @@
       gap: 15px;
       padding: 10px 0;
       scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
     }
     .stories-scroll::-webkit-scrollbar {
       display: none;
@@ -170,6 +171,7 @@
       min-width: 80px;
       cursor: pointer;
       transition: transform 0.2s ease;
+      touch-action: manipulation;
     }
     .story-item:hover {
       transform: translateY(-4px);
@@ -237,12 +239,13 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 100vw;
+      width: Juno 100vw;
       height: 100vh;
       background: rgba(0,0,0,0.9);
       z-index: 2000;
       justify-content: center;
       align-items: center;
+      touch-action: manipulation;
     }
     .story-progress {
       position: absolute;
@@ -270,18 +273,21 @@
       width: 100%;
       height: 100%;
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .story-track {
       display: flex;
       width: 100%;
-      height: 100vh;
+      height: 100%;
       overflow-x: hidden;
       transition: transform 0.3s ease;
     }
     .story-slide {
       flex: 0 0 100%;
       width: 100%;
-      height: 100vh;
+      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -292,12 +298,15 @@
       object-fit: contain;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
     }
     .tap-left, .tap-right {
       position: absolute;
       top: 0;
       height: 100%;
-      width: 50%;
+      width: 33.33%;
       z-index: 15;
     }
     .tap-left {
@@ -305,6 +314,14 @@
     }
     .tap-right {
       right: 0;
+    }
+    .tap-middle {
+      position: absolute;
+      top: 0;
+      left: 33.33%;
+      width: 33.34%;
+      height: 100%;
+      z-index: 15;
     }
 
     /* ---------- STORY VIEWERS ---------- */
@@ -322,6 +339,7 @@
       background: rgba(0,0,0,0.5);
       padding: 5px 10px;
       border-radius: 20px;
+      touch-action: manipulation;
     }
     #viewer-modal {
       display: none;
@@ -339,6 +357,7 @@
       max-width: 400px;
       z-index: 25;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      touch-action: auto;
     }
     #viewer-modal.dark {
       background: rgba(0,0,0,0.9);
@@ -392,7 +411,7 @@
       height: 44px;
       border-radius: 50%;
       object-fit: cover;
-      background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+      background: linear-gradient(45deg, var(--gradient-start), var--gradient-end);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -649,7 +668,7 @@
       height: 36px;
       border-radius: 50%;
       object-fit: cover;
-      background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+      background: linear-gradient(45deg, var(--gradient-start), var--gradient-end);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -778,6 +797,9 @@
       .comment-form { padding: 10px 12px; }
       .comment-form textarea { font-size: 0.8rem; height: 36px; }
       .comment-form button { padding: 6px 12px; font-size: 0.8rem; }
+      .story-slide img, .story-slide video {
+        max-height: 90vh;
+      }
     }
   </style>
 </head>
@@ -946,7 +968,7 @@
     </nav>
   </div>
   <input type="file" id="story-file-input" accept="image/*,video/*" multiple style="display:none;">
-  <div id="story-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center;">
+  <div id="story-modal" style="display:none;">
     <div class="story-content" style="width:100%; height:100%; position:relative;"></div>
     <button id="close-story" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:2rem; cursor:pointer; z-index:20;">&times;</button>
   </div>
@@ -1495,6 +1517,7 @@
             </div>
           </div>
           <div class="tap-left"></div>
+          <div class="tap-middle"></div>
           <div class="tap-right"></div>
         `;
         if (isOwnStory) {
@@ -1515,6 +1538,7 @@
         const progressBars = content.querySelectorAll('.progress-bar');
         const fills = content.querySelectorAll('.progress-fill');
         const leftTap = content.querySelector('.tap-left');
+        const middleTap = content.querySelector('.tap-middle');
         const rightTap = content.querySelector('.tap-right');
         const viewerCountEl = content.querySelector('#viewer-count');
         const viewerModal = content.querySelector('#viewer-modal');
@@ -1523,13 +1547,9 @@
         if (isOwnStory && viewerCountEl) {
           viewerCountEl.style.display = 'flex';
           viewerModal.classList.toggle('dark', body.dataset.theme === 'dark');
-          viewerCountEl.addEventListener('click', () => {
+          viewerCountEl.addEventListener('click', (e) => {
+            e.stopPropagation();
             viewerModal.style.display = viewerModal.style.display === 'block' ? 'none' : 'block';
-          });
-          modal.addEventListener('click', e => {
-            if (!viewerModal.contains(e.target) && !viewerCountEl.contains(e.target)) {
-              viewerModal.style.display = 'none';
-            }
           });
         }
 
@@ -1579,14 +1599,14 @@
         }
 
         function startStory() {
-          isPaused = false;
+          if (isPaused) return;
           const slide = slides[currentIndex];
           const media = slide.querySelector('img, video');
           startTime = Date.now();
           if (media.tagName === 'VIDEO') {
             media.currentTime = 0;
-            media.play();
-            duration = media.duration * 1000;
+            media.play().catch(() => {});
+            duration = media.duration * 1000 || 5000;
             media.ontimeupdate = () => {
               if (isPaused) return;
               const perc = (media.currentTime / media.duration) * 100;
@@ -1607,8 +1627,6 @@
           fills[currentIndex].style.width = perc + '%';
           if (perc < 100) {
             requestAnimationFrame(updateProgress);
-          } else {
-            nextStory();
           }
         }
 
@@ -1621,11 +1639,17 @@
         }
 
         function resumeStory() {
+          if (!isPaused) return;
           isPaused = false;
           const slide = slides[currentIndex];
           const media = slide.querySelector('video');
-          if (media) media.play();
-          else requestAnimationFrame(updateProgress);
+          if (media) {
+            media.play().catch(() => {});
+          } else {
+            startTime = Date.now();
+            requestAnimationFrame(updateProgress);
+            timerId = setTimeout(nextStory, duration - (Date.now() - startTime));
+          }
         }
 
         function nextStory() {
@@ -1642,19 +1666,39 @@
           }
         }
 
-        // Remove these as we handle in modal events
-        // leftTap.addEventListener('click', prevStory);
-        // rightTap.addEventListener('click', nextStory);
+        leftTap.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          prevStory();
+        });
+
+        rightTap.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          nextStory();
+        });
+
+        middleTap.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isPaused) {
+            resumeStory();
+          } else {
+            pauseStory();
+          }
+        });
 
         let isHold = false;
-        let wasPaused = false;
+        let touchStartY;
+
         modal.addEventListener('touchstart', e => {
+          e.preventDefault();
           if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
           touchStartTime = Date.now();
           touchTimer = setTimeout(() => {
             isHold = true;
-            wasPaused = isPaused;
             if (!isPaused) {
               pauseStory();
             }
@@ -1662,38 +1706,52 @@
         });
 
         modal.addEventListener('touchend', e => {
+          e.preventDefault();
           clearTimeout(touchTimer);
+          if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           const dur = Date.now() - touchStartTime;
           const dx = e.changedTouches[0].clientX - touchStartX;
-          if (Math.abs(dx) > 50) return; // swipe ignore
+          const dy = e.changedTouches[0].clientY - touchStartY;
+          if (Math.abs(dy) > 50 && Math.abs(dx) < 50) {
+            closeModal();
+            return;
+          }
+          if (Math.abs(dx) > 50) {
+            if (dx > 0) prevStory();
+            else nextStory();
+            isHold = false;
+            return;
+          }
           if (dur < 250) {
             const width = window.innerWidth;
-            if (touchStartX < width / 3) {
+            if (touchStartX < width * 0.33) {
               prevStory();
-            } else if (touchStartX > (width * 2 / 3)) {
+            } else if (touchStartX > width * 0.66) {
               nextStory();
             } else {
-              if (isPaused) {
-                resumeStory();
-              } else {
-                pauseStory();
-              }
+              if (isPaused) resumeStory();
+              else pauseStory();
             }
           } else if (isHold) {
             isHold = false;
-            if (!wasPaused) {
-              resumeStory();
-            }
+            resumeStory();
+          }
+        });
+
+        modal.addEventListener('touchmove', e => {
+          const dy = e.touches[0].clientY - touchStartY;
+          if (Math.abs(dy) > 50) {
+            e.preventDefault();
           }
         });
 
         modal.addEventListener('mousedown', e => {
+          e.preventDefault();
           if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           touchStartX = e.clientX;
           touchStartTime = Date.now();
           touchTimer = setTimeout(() => {
             isHold = true;
-            wasPaused = isPaused;
             if (!isPaused) {
               pauseStory();
             }
@@ -1701,28 +1759,30 @@
         });
 
         modal.addEventListener('mouseup', e => {
+          e.preventDefault();
           clearTimeout(touchTimer);
+          if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           const dur = Date.now() - touchStartTime;
           const dx = e.clientX - touchStartX;
-          if (Math.abs(dx) > 50) return;
+          if (Math.abs(dx) > 50) {
+            if (dx > 0) prevStory();
+            else nextStory();
+            isHold = false;
+            return;
+          }
           if (dur < 250) {
             const width = window.innerWidth;
-            if (touchStartX < width / 3) {
+            if (touchStartX < width * 0.33) {
               prevStory();
-            } else if (touchStartX > (width * 2 / 3)) {
+            } else if (touchStartX > width * 0.66) {
               nextStory();
             } else {
-              if (isPaused) {
-                resumeStory();
-              } else {
-                pauseStory();
-              }
+              if (isPaused) resumeStory();
+              else pauseStory();
             }
           } else if (isHold) {
             isHold = false;
-            if (!wasPaused) {
-              resumeStory();
-            }
+            resumeStory();
           }
         });
 
@@ -1741,10 +1801,14 @@
       isPaused = false;
       isOwnStory = false;
       viewedStories.clear();
+      clearTimeout(timerId);
     }
 
     const closeStory = document.getElementById('close-story');
-    closeStory.addEventListener('click', closeModal);
+    closeStory.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeModal();
+    });
 
     const storyModal = document.getElementById('story-modal');
     storyModal.addEventListener('click', e => {
@@ -1752,8 +1816,8 @@
         closeModal();
       }
     });
-
   });
 </script>
 </body>
 </html>
+
