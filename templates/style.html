@@ -47,7 +47,6 @@
       line-height: 1.5;
       overflow-x: hidden;
       transition: background 0.3s ease;
-      overscroll-behavior: none; /* Prevent pull-to-refresh */
     }
     a { text-decoration: none; color: inherit; }
     .main-container { max-width: 935px; margin: 0 auto; padding: 20px 20px 80px 20px; }
@@ -244,7 +243,6 @@
       z-index: 2000;
       justify-content: center;
       align-items: center;
-      touch-action: none; /* Prevent default touch scrolling */
     }
     .story-progress {
       position: absolute;
@@ -253,7 +251,6 @@
       width: 90%;
       display: flex;
       gap: 3px;
-      z-index: 20;
     }
     .progress-bar {
       flex: 1;
@@ -273,7 +270,6 @@
       width: 100%;
       height: 100%;
       position: relative;
-      overflow: hidden;
     }
     .story-track {
       display: flex;
@@ -296,15 +292,12 @@
       object-fit: contain;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
     }
     .tap-left, .tap-right {
       position: absolute;
       top: 0;
       height: 100%;
-      width: 40%; /* Adjusted for better mobile usability */
+      width: 50%;
       z-index: 15;
     }
     .tap-left {
@@ -329,7 +322,6 @@
       background: rgba(0,0,0,0.5);
       padding: 5px 10px;
       border-radius: 20px;
-      z-index: 25;
     }
     #viewer-modal {
       display: none;
@@ -786,10 +778,6 @@
       .comment-form { padding: 10px 12px; }
       .comment-form textarea { font-size: 0.8rem; height: 36px; }
       .comment-form button { padding: 6px 12px; font-size: 0.8rem; }
-      .tap-left, .tap-right { width: 40%; }
-      .story-progress { top: 10px; }
-      #viewer-count { bottom: 15px; padding: 4px 8px; font-size: 0.8rem; }
-      #viewer-modal { bottom: 50px; width: 90%; max-width: 350px; }
     }
   </style>
 </head>
@@ -958,828 +946,816 @@
     </nav>
   </div>
   <input type="file" id="story-file-input" accept="image/*,video/*" multiple style="display:none;">
-  <div id="story-modal" style="display:none;">
-    <div class="story-content"></div>
+  <div id="story-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center;">
+    <div class="story-content" style="max-width:90%; max-height:90%; width:100%; height:100%; position:relative;"></div>
     <button id="close-story" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:2rem; cursor:pointer; z-index:20;">&times;</button>
   </div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const currentUsername = document.body.dataset.username;
+    const postsContainer = document.getElementById('posts');
+    const videos = new Set();
+    let currentVideo = null;
+    const socket = io();
+    let viewedPosts = new Set();
+    const avatar = '{{ avatar }}';
+    const avatarUrl = {% if avatar %}'{{ url_for("avatar_file", filename=avatar) }}' + '?t=' + Date.now() {% else %} '' {% endif %};
+    const hasAvatar = {{ 'true' if avatar else 'false' }};
 
+    // Theme toggle functionality
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const body = document.body;
 
-document.addEventListener('DOMContentLoaded', () => {
-  const currentUsername = document.body.dataset.username;
-  const postsContainer = document.getElementById('posts');
-  const videos = new Set();
-  let currentVideo = null;
-  const socket = io();
-  let viewedPosts = new Set();
-  const avatar = '{{ avatar }}';
-  const avatarUrl = {% if avatar %}'{{ url_for("avatar_file", filename=avatar) }}' + '?t=' + Date.now() {% else %} '' {% endif %};
-  const hasAvatar = {{ 'true' if avatar else 'false' }};
-
-  // Theme toggle functionality
-  const themeToggleBtn = document.getElementById('theme-toggle');
-  const body = document.body;
-
-  function setTheme(theme) {
-    body.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
-    const icon = themeToggleBtn.querySelector('i');
-    icon.classList.toggle('fa-moon', theme === 'light');
-    icon.classList.toggle('fa-sun', theme === 'dark');
-  }
-
-  // Load saved theme or default to light
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  setTheme(savedTheme);
-
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
-      setTheme(newTheme);
-    });
-  }
-
-  // --- Badge Management ---
-  const msgBadge = document.getElementById("unread-count");
-  const notifBadge = document.getElementById("notifications-count");
-  const msgLink = document.getElementById("messages-link");
-  const notifLink = document.getElementById("notifications-link");
-
-  // Load badge counts from localStorage
-  const savedMsgs = localStorage.getItem("unreadMsgs");
-  const savedNotifs = localStorage.getItem("unreadNotifs");
-
-  if (savedMsgs && parseInt(savedMsgs) > 0) {
-    msgBadge.textContent = savedMsgs;
-    msgBadge.style.display = "inline-block";
-  }
-  if (savedNotifs && parseInt(savedNotifs) > 0) {
-    notifBadge.textContent = savedNotifs;
-    notifBadge.style.display = "inline-block";
-  }
-
-  // Reset badges when clicking Messages link or visiting conversations/chat pages
-  if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
-    localStorage.setItem("unreadMsgs", 0);
-    msgBadge.style.display = "none";
-    msgBadge.textContent = "0";
-  }
-
-  // Reset badges when clicking Notifications link or visiting notifications page
-  if (window.location.pathname.includes('/notifications')) {
-    localStorage.setItem("unreadNotifs", 0);
-    notifBadge.style.display = "none";
-    notifBadge.textContent = "0";
-  }
-
-  // Reset message badge on click
-  msgLink.addEventListener("click", () => {
-    localStorage.setItem("unreadMsgs", 0);
-    msgBadge.style.display = "none";
-    msgBadge.textContent = "0";
-  });
-
-  // Reset notification badge on click
-  notifLink.addEventListener('click', () => {
-    localStorage.setItem("unreadNotifs", 0);
-    notifBadge.style.display = "none";
-    notifBadge.textContent = "0";
-  });
-
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-
-  const homeBtn = document.getElementById('home-btn');
-  const homeBadge = homeBtn.querySelector('.message-badge');
-  let newPostsCount = 0;
-
-  window.addEventListener('load', () => window.scrollTo(0, 0));
-
-  window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
-      window.location.reload();
-    }
-  });
-
-  homeBtn.addEventListener('click', e => {
-    e.preventDefault();
-    location.reload();
-  });
-
-  // --- Handle Back Button ---
-  window.addEventListener('popstate', () => {
-    document.querySelectorAll('.comments-section.open').forEach(section => {
-      section.classList.remove('open');
-    });
-  });
-
-  async function toggleLike(button) {
-    const post = button.closest('.post');
-    const postId = post.dataset.postId;
-    const countEl = post.querySelector('.like-count');
-    try {
-      const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
-      if (!res.ok) return;
-      const data = await res.json();
-      countEl.textContent = data.likes;
-      button.classList.toggle('liked', data.liked);
-      const icon = button.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
-      socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
-    } catch (err) { console.error(err); }
-  }
-
-  function bindLikes(post) {
-    const btn = post.querySelector('.like-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => toggleLike(btn));
-    const icon = btn.querySelector('i');
-    const isLiked = btn.classList.contains('liked');
-    icon.classList.toggle('fa-solid', isLiked);
-    icon.classList.toggle('fa-regular', !isLiked);
-  }
-
-  function bindFollowButtons(post) {
-    const btn = post.querySelector('.follow-btn');
-    if (!btn) return;
-    const postUsername = post.querySelector('.username').textContent.trim();
-
-    function updateButton(button, isFollowing) {
-      if (isFollowing) {
-        button.dataset.following = "true";
-        button.classList.add('following');
-        button.innerHTML = 'Abonné ✔';
-        button.disabled = true;
-      } else {
-        button.dataset.following = "false";
-        button.classList.remove('following');
-        button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-        button.disabled = false;
-      }
+    function setTheme(theme) {
+      body.dataset.theme = theme;
+      localStorage.setItem('theme', theme);
+      const icon = themeToggleBtn.querySelector('i');
+      icon.classList.toggle('fa-moon', theme === 'light');
+      icon.classList.toggle('fa-sun', theme === 'dark');
     }
 
-    if (!window.followingUsers) window.followingUsers = new Set();
-    if (window.followingUsers.has(postUsername)) updateButton(btn, true);
-    else updateButton(btn, btn.dataset.following === "true");
+    // Load saved theme or default to light
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
 
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.following === "true") return;
-      try {
-        const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) throw new Error('Erreur serveur');
-        const data = await res.json();
-        if (data.following) {
-          window.followingUsers.add(postUsername);
-          document.querySelectorAll('.post').forEach(p => {
-            const usernameEl = p.querySelector('.username');
-            const followBtn = p.querySelector('.follow-btn');
-            if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
-              updateButton(followBtn, true);
-            }
-          });
-        } else {
-          window.followingUsers.delete(postUsername);
-          updateButton(btn, false);
-        }
-      } catch (e) {
-        console.error(e);
-        alert('Impossible de suivre pour le moment.');
-      }
-    });
-  }
-
-  function applyFollowStateToNewPosts(newPosts) {
-    newPosts.forEach(post => {
-      const usernameEl = post.querySelector('.username');
-      if (!usernameEl) return;
-      const postUsername = usernameEl.textContent.trim();
-      const followBtn = post.querySelector('.follow-btn');
-      if (!followBtn) return;
-      if (window.followingUsers && window.followingUsers.has(postUsername)) {
-        followBtn.dataset.following = "true";
-        followBtn.classList.add('following');
-        followBtn.innerHTML = 'Abonné ✔';
-        followBtn.disabled = true;
-      } else {
-        followBtn.dataset.following = "false";
-        followBtn.classList.remove('following');
-        followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
-        followBtn.disabled = false;
-      }
-      bindFollowButtons(post);
-    });
-  }
-
-  /* ---------- Video autoplay and loop ---------- */
-  const ioObserver = new IntersectionObserver((entries) => {
-    let best = null;
-    entries.forEach(entry => {
-      const vid = entry.target;
-      const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
-      if (visible && !best) best = vid;
-      if (!visible && !vid.paused) vid.pause();
-    });
-    if (best && currentVideo !== best) {
-      if (currentVideo) currentVideo.pause();
-      currentVideo = best;
-      currentVideo.play().catch(() => {});
-    }
-  }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-
-  function observeVideo(vid) {
-    if (!videos.has(vid)) {
-      videos.add(vid);
-      ioObserver.observe(vid);
-      vid.pause();
-      vid.addEventListener('ended', () => {
-        vid.currentTime = 0;
-        vid.play().catch(() => {});
-      });
-      vid.addEventListener('click', (e) => {
-        if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
-        if (vid.paused) {
-          vid.play().catch(() => {});
-        } else {
-          vid.pause();
-        }
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
       });
     }
-  }
 
-  /* ---------- Mute button functionality ---------- */
-  function bindMuteButton(video, muteBtn) {
-    if (!muteBtn) return;
-    muteBtn.addEventListener('click', () => {
-      video.muted = !video.muted;
-      const icon = muteBtn.querySelector('i');
-      icon.classList.toggle('fa-volume-xmark', video.muted);
-      icon.classList.toggle('fa-volume-high', !video.muted);
-    });
-  }
+    // --- Badge Management ---
+    const msgBadge = document.getElementById("unread-count");
+    const notifBadge = document.getElementById("notifications-count");
+    const msgLink = document.getElementById("messages-link");
+    const notifLink = document.getElementById("notifications-link");
 
-  /* ---------- Comment Form Submission --- */
-  function bindCommentForm(post) {
-    const form = post.querySelector('.comment-form form');
-    if (!form) return;
-    const textarea = form.querySelector('textarea');
-    const submitButton = form.querySelector('button');
-    const postId = form.dataset.postId;
-    const commentsBox = post.querySelector('#commentsBox-' + postId);
+    // Load badge counts from localStorage
+    const savedMsgs = localStorage.getItem("unreadMsgs");
+    const savedNotifs = localStorage.getItem("unreadNotifs");
 
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      let content = textarea.value.trim();
-      if (!content) return;
-      textarea.value = '';
-      submitButton.disabled = true;
-      fetch(`/comments/${postId}`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `comment=${encodeURIComponent(content)}`
-      }).then(res => {
-        if (res.ok) {
-          return res.json().then(data => {
-            const commentId = data.comment_id;
-            const commentDiv = document.createElement('div');
-            commentDiv.className = 'comment';
-            commentDiv.dataset.commentId = commentId;
-            const avatarHtml = data.avatar
-              ? `<a href="/profile/${encodeURIComponent(currentUsername)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
-              : `<a href="/profile/${encodeURIComponent(currentUsername)}"><div class="avatar-fallback">${currentUsername[0].toUpperCase()}</div></a>`;
-            commentDiv.innerHTML = `
-              ${avatarHtml}
-              <div class="comment-content">
-                <p><strong><a href="/profile/${encodeURIComponent(currentUsername)}">${currentUsername}</a></strong></p>
-                <p>${content}</p>
-                <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
-              </div>
-            `;
-            const noComments = commentsBox.querySelector('.no-comments');
-            if (noComments) noComments.remove();
-            commentsBox.appendChild(commentDiv);
-            commentsBox.scrollTop = commentsBox.scrollHeight;
-            textarea.focus();
-            const countEl = post.querySelector('.comment-count');
-            countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-            socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: data.avatar });
-          });
-        } else {
-          textarea.value = content;
-        }
-      }).catch(err => {
-        console.error(err);
-        textarea.value = content;
-      }).finally(() => {
-        submitButton.disabled = false;
-      });
-    });
-
-    textarea.addEventListener('input', () => {
-      submitButton.disabled = !textarea.value.trim();
-    });
-  }
-
-  /* ---------- Comments Toggle --- */
-  function bindCommentToggle(post) {
-    const btn = post.querySelector('.comment-btn');
-    const commentsSection = post.querySelector('.comments-section');
-    if (!btn || !commentsSection) return;
-    btn.addEventListener('click', () => {
-      const isOpen = commentsSection.classList.contains('open');
-      if (!isOpen) {
-        commentsSection.classList.add('open');
-        const commentsBox = commentsSection.querySelector('.comments-box');
-        commentsBox.scrollTop = 0;
-        history.pushState({ commentsOpen: true, postId: post.dataset.postId }, '', window.location.href);
-      } else {
-        commentsSection.classList.remove('open');
-        history.back();
-      }
-      if (currentVideo) currentVideo.pause();
-    });
-  }
-
-  /* ---------- Post View Observer --- */
-  const postObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-        const postId = entry.target.dataset.postId;
-        if (!viewedPosts.has(postId)) {
-          socket.emit('view_post', { post_id: parseInt(postId) });
-          viewedPosts.add(postId);
-        }
-      }
-    });
-  }, { threshold: 0.5 });
-
-  /* ---------- Init posts existants ---------- */
-  document.querySelectorAll('.post').forEach(post => {
-    bindLikes(post);
-    bindFollowButtons(post);
-    bindCommentForm(post);
-    bindCommentToggle(post);
-    postObserver.observe(post);
-    post.querySelectorAll('video').forEach(video => {
-      observeVideo(video);
-      const muteBtn = video.parentElement.querySelector('.mute-btn');
-      bindMuteButton(video, muteBtn);
-    });
-    const description = post.querySelector('.description');
-    const toggleButton = post.querySelector('.toggle-description');
-    if (description && toggleButton) {
-      if (description.scrollHeight > description.clientHeight) {
-        description.classList.add('long');
-      }
-      toggleButton.addEventListener('click', () => {
-        if (description.classList.contains('expanded')) {
-          description.classList.remove('expanded');
-          toggleButton.textContent = 'Afficher plus';
-        } else {
-          description.classList.add('expanded');
-          toggleButton.textContent = 'Afficher moins';
-        }
-      });
-    }
-  });
-  document.querySelectorAll('.post img').forEach(img => {
-    img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
-  });
-
-  /* ---------- Socket.IO ---------- */
-  socket.on('like_updated', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if (post) {
-      const countEl = post.querySelector('.like-count');
-      if (countEl) countEl.textContent = data.likes;
-      const btn = post.querySelector('.like-btn');
-      if (btn) btn.classList.toggle('liked', data.liked);
-      const icon = btn.querySelector('i');
-      icon.classList.toggle('fa-solid', data.liked);
-      icon.classList.toggle('fa-regular', !data.liked);
-    }
-  });
-
-  socket.on('new_comment', data => {
-    const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-    if (!post) return;
-    const commentsBox = post.querySelector('#commentsBox-' + data.post_id);
-    if (!commentsBox) return;
-
-    const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
-    if (!existingComment) {
-      const commentDiv = document.createElement('div');
-      commentDiv.className = 'comment';
-      commentDiv.dataset.commentId = data.comment_id;
-      const avatarHtml = data.avatar
-        ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
-        : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
-      commentDiv.innerHTML = `
-        ${avatarHtml}
-        <div class="comment-content">
-          <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
-          <p>${data.content}</p>
-          <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
-        </div>
-      `;
-      const noComments = commentsBox.querySelector('.no-comments');
-      if (noComments) noComments.remove();
-      commentsBox.appendChild(commentDiv);
-      if (commentsBox.parentElement.classList.contains('open')) {
-        commentsBox.scrollTop = commentsBox.scrollHeight;
-      }
-      const countEl = post.querySelector('.comment-count');
-      countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-    }
-  });
-
-  /* ---------- Nouveau post badge Accueil ---------- */
-  socket.on('new_post', postHtml => {
-    newPostsCount++;
-    homeBadge.style.display = 'inline';
-    homeBadge.textContent = newPostsCount;
-  });
-
-  /* ---------- Socket.IO Badge Handlers ---------- */
-  socket.on('new_message', (message) => {
-    const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
-    if (!currentChatUser || currentChatUser !== message.sender) {
-      let count = parseInt(localStorage.getItem("unreadMsgs") || "0") + 1;
-      localStorage.setItem("unreadMsgs", count);
-      msgBadge.textContent = count;
+    if (savedMsgs && parseInt(savedMsgs) > 0) {
+      msgBadge.textContent = savedMsgs;
       msgBadge.style.display = "inline-block";
     }
-  });
-
-  socket.on('new_notification', (notification) => {
-    if (!window.location.pathname.includes('/notifications')) {
-      let count = parseInt(localStorage.getItem("unreadNotifs") || "0") + 1;
-      localStorage.setItem("unreadNotifs", count);
-      notifBadge.textContent = count;
+    if (savedNotifs && parseInt(savedNotifs) > 0) {
+      notifBadge.textContent = savedNotifs;
       notifBadge.style.display = "inline-block";
     }
-  });
 
-  /* ---------- Carousel Initialization ---------- */
-  function initCarousel(post) {
-    const track = post.querySelector('.carousel-track');
-    const dots = post.querySelectorAll('.carousel-indicators .dot');
-    if (!track || dots.length === 0) return;
+    // Reset badges when clicking Messages link or visiting conversations/chat pages
+    if (window.location.pathname.includes('/conversations') || window.location.pathname.includes('/chat/')) {
+      localStorage.setItem("unreadMsgs", 0);
+      msgBadge.style.display = "none";
+      msgBadge.textContent = "0";
+    }
 
-    Array.from(track.children).forEach(child => {
-      child.style.width = '100%';
-      child.style.flex = '0 0 100%';
+    // Reset badges when clicking Notifications link or visiting notifications page
+    if (window.location.pathname.includes('/notifications')) {
+      localStorage.setItem("unreadNotifs", 0);
+      notifBadge.style.display = "none";
+      notifBadge.textContent = "0";
+    }
+
+    // Reset message badge on click
+    msgLink.addEventListener("click", () => {
+      localStorage.setItem("unreadMsgs", 0);
+      msgBadge.style.display = "none";
+      msgBadge.textContent = "0";
     });
 
-    track.style.overflowX = 'auto';
-    track.style.scrollSnapType = 'x mandatory';
-
-    track.addEventListener('scroll', () => {
-      const index = Math.round(track.scrollLeft / track.offsetWidth);
-      dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+    // Reset notification badge on click
+    notifLink.addEventListener('click', () => {
+      localStorage.setItem("unreadNotifs", 0);
+      notifBadge.style.display = "none";
+      notifBadge.textContent = "0";
     });
 
-    dots.forEach((dot, index) => {
-      dot.addEventListener('click', () => {
-        track.scrollTo({
-          left: index * track.offsetWidth,
-          behavior: 'smooth'
-        });
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+    const homeBtn = document.getElementById('home-btn');
+    const homeBadge = homeBtn.querySelector('.message-badge');
+    let newPostsCount = 0;
+
+    window.addEventListener('load', () => window.scrollTo(0, 0));
+
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    });
+
+    homeBtn.addEventListener('click', e => {
+      e.preventDefault();
+      location.reload();
+    });
+
+    // --- Handle Back Button ---
+    window.addEventListener('popstate', () => {
+      document.querySelectorAll('.comments-section.open').forEach(section => {
+        section.classList.remove('open');
       });
     });
-  }
 
-  document.querySelectorAll('.post').forEach(post => initCarousel(post));
-
-  /* ---------- Stories Functionality ---------- */
-  const addTriggers = document.querySelectorAll('.add-story-trigger');
-  addTriggers.forEach(trigger => {
-    trigger.addEventListener('click', () => {
-      document.getElementById('story-file-input').click();
-    });
-  });
-
-  const viewTriggers = document.querySelectorAll('.view-trigger');
-  viewTriggers.forEach(trigger => {
-    trigger.addEventListener('click', storyClickHandler);
-  });
-
-  const fileInput = document.getElementById('story-file-input');
-  fileInput.addEventListener('change', async (e) => {
-    const files = e.target.files;
-    if (files.length === 0) return;
-    const formData = new FormData();
-    for (let file of files) {
-      formData.append('file', file);
+    async function toggleLike(button) {
+      const post = button.closest('.post');
+      const postId = post.dataset.postId;
+      const countEl = post.querySelector('.like-count');
+      try {
+        const res = await fetch(`/like/${postId}`, { method: 'POST', credentials: 'same-origin' });
+        if (!res.ok) return;
+        const data = await res.json();
+        countEl.textContent = data.likes;
+        button.classList.toggle('liked', data.liked);
+        const icon = button.querySelector('i');
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
+        socket.emit('like_updated', { post_id: parseInt(postId), likes: data.likes, liked: data.liked });
+      } catch (err) { console.error(err); }
     }
-    try {
-      const res = await fetch('/add_story', { method: 'POST', body: formData });
-      if (res.ok) {
-        location.reload();
+
+    function bindLikes(post) {
+      const btn = post.querySelector('.like-btn');
+      if (!btn) return;
+      btn.addEventListener('click', () => toggleLike(btn));
+      const icon = btn.querySelector('i');
+      const isLiked = btn.classList.contains('liked');
+      icon.classList.toggle('fa-solid', isLiked);
+      icon.classList.toggle('fa-regular', !isLiked);
+    }
+
+    function bindFollowButtons(post) {
+      const btn = post.querySelector('.follow-btn');
+      if (!btn) return;
+      const postUsername = post.querySelector('.username').textContent.trim();
+
+      function updateButton(button, isFollowing) {
+        if (isFollowing) {
+          button.dataset.following = "true";
+          button.classList.add('following');
+          button.innerHTML = 'Abonné ✔';
+          button.disabled = true;
+        } else {
+          button.dataset.following = "false";
+          button.classList.remove('following');
+          button.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+          button.disabled = false;
+        }
       }
-    } catch (err) { console.error(err); }
-  });
 
-  let touchStartTime, touchStartX, touchTimer, isPaused = false, currentIndex = 0, stories = [], timerId, startTime, duration, isOwnStory = false, viewedStories = new Set();
+      if (!window.followingUsers) window.followingUsers = new Set();
+      if (window.followingUsers.has(postUsername)) updateButton(btn, true);
+      else updateButton(btn, btn.dataset.following === "true");
 
-  function storyClickHandler(e) {
-    e.preventDefault();
-    const modal = document.getElementById('story-modal');
-    const content = modal.querySelector('.story-content');
-    content.innerHTML = '';
-    const username = e.currentTarget.dataset.username;
-    fetch(`/get_stories/${username}`)
-    .then(res => res.json())
-    .then(data => {
-      stories = data.stories;
-      isOwnStory = data.is_own;
-      if (stories.length === 0) return;
-      let html = `
-        <div class="story-progress">
-          ${stories.map(() => '<div class="progress-bar"><div class="progress-fill"></div></div>').join('')}
-        </div>
-        <div class="story-carousel">
-          <div class="story-track">
-            ${stories.map(s => {
-              if (s.type === 'image') return `<div class="story-slide"><img src="${s.media_url}"></div>`;
-              else return `<div class="story-slide"><video src="${s.media_url}" playsinline preload="metadata"></video></div>`;
-            }).join('')}
-          </div>
-        </div>
-        <div class="tap-left"></div>
-        <div class="tap-right"></div>
-      `;
-      if (isOwnStory) {
-        html += `
-          <div id="viewer-count" style="display:none;">
-            <i class="fa-solid fa-eye"></i>
-            <span>0</span>
-          </div>
-          <div id="viewer-modal" style="display:none;">
-            <div id="viewer-list"></div>
-          </div>
-        `;
+      btn.addEventListener('click', async () => {
+        if (btn.dataset.following === "true") return;
+        try {
+          const res = await fetch(`/follow/${encodeURIComponent(postUsername)}`, { method: 'POST', credentials: 'same-origin' });
+          if (!res.ok) throw new Error('Erreur serveur');
+          const data = await res.json();
+          if (data.following) {
+            window.followingUsers.add(postUsername);
+            document.querySelectorAll('.post').forEach(p => {
+              const usernameEl = p.querySelector('.username');
+              const followBtn = p.querySelector('.follow-btn');
+              if (usernameEl && followBtn && usernameEl.textContent.trim() === postUsername) {
+                updateButton(followBtn, true);
+              }
+            });
+          } else {
+            window.followingUsers.delete(postUsername);
+            updateButton(btn, false);
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Impossible de suivre pour le moment.');
+        }
+      });
+    }
+
+    function applyFollowStateToNewPosts(newPosts) {
+      newPosts.forEach(post => {
+        const usernameEl = post.querySelector('.username');
+        if (!usernameEl) return;
+        const postUsername = usernameEl.textContent.trim();
+        const followBtn = post.querySelector('.follow-btn');
+        if (!followBtn) return;
+        if (window.followingUsers && window.followingUsers.has(postUsername)) {
+          followBtn.dataset.following = "true";
+          followBtn.classList.add('following');
+          followBtn.innerHTML = 'Abonné ✔';
+          followBtn.disabled = true;
+        } else {
+          followBtn.dataset.following = "false";
+          followBtn.classList.remove('following');
+          followBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Suivre';
+          followBtn.disabled = false;
+        }
+        bindFollowButtons(post);
+      });
+    }
+
+    /* ---------- Video autoplay and loop ---------- */
+    const ioObserver = new IntersectionObserver((entries) => {
+      let best = null;
+      entries.forEach(entry => {
+        const vid = entry.target;
+        const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6;
+        if (visible && !best) best = vid;
+        if (!visible && !vid.paused) vid.pause();
+      });
+      if (best && currentVideo !== best) {
+        if (currentVideo) currentVideo.pause();
+        currentVideo = best;
+        currentVideo.play().catch(() => {});
       }
-      content.innerHTML = html;
-      modal.style.display = 'flex';
-      const track = content.querySelector('.story-track');
-      const slides = track.children;
-      const progressBars = content.querySelectorAll('.progress-bar');
-      const fills = content.querySelectorAll('.progress-fill');
-      const leftTap = content.querySelector('.tap-left');
-      const rightTap = content.querySelector('.tap-right');
-      const viewerCountEl = content.querySelector('#viewer-count');
-      const viewerModal = content.querySelector('#viewer-modal');
-      const viewerList = content.querySelector('#viewer-list');
+    }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
 
-      if (isOwnStory && viewerCountEl) {
-        viewerCountEl.style.display = 'flex';
-        viewerModal.classList.toggle('dark', body.dataset.theme === 'dark');
-        viewerCountEl.addEventListener('click', () => {
-          viewerModal.style.display = viewerModal.style.display === 'block' ? 'none' : 'block';
+    function observeVideo(vid) {
+      if (!videos.has(vid)) {
+        videos.add(vid);
+        ioObserver.observe(vid);
+        vid.pause();
+        vid.addEventListener('ended', () => {
+          vid.currentTime = 0;
+          vid.play().catch(() => {});
         });
-        modal.addEventListener('click', e => {
-          if (!viewerModal.contains(e.target) && !viewerCountEl.contains(e.target)) {
-            viewerModal.style.display = 'none';
+        vid.addEventListener('click', (e) => {
+          if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
+          if (vid.paused) {
+            vid.play().catch(() => {});
+          } else {
+            vid.pause();
           }
         });
       }
+    }
 
-      function updateViewerInfo(index) {
-        if (!isOwnStory) return;
-        const count = stories[index].viewer_count || 0;
-        viewerCountEl.querySelector('span').textContent = count;
-        viewerList.innerHTML = '';
-        const viewers = stories[index].viewers || [];
-        viewers.forEach(v => {
-          const item = document.createElement('div');
-          item.className = 'viewer-item';
-          const avatarHtml = v.avatar
-            ? `<img src="/avatars/${v.avatar}?t=${Date.now()}" alt="${v.username}" class="viewer-avatar">`
-            : `<div class="avatar-fallback viewer-avatar">${v.username[0].toUpperCase()}</div>`;
-          const avatarA = `<a href="/profile/${encodeURIComponent(v.username)}">${avatarHtml}</a>`;
-          const usernameA = `<a href="/profile/${encodeURIComponent(v.username)}" class="viewer-username">${v.username}</a>`;
-          item.innerHTML = `
-            ${avatarA}
-            ${usernameA}
-          `;
-          viewerList.appendChild(item);
+    /* ---------- Mute button functionality ---------- */
+    function bindMuteButton(video, muteBtn) {
+      if (!muteBtn) return;
+      muteBtn.addEventListener('click', () => {
+        video.muted = !video.muted;
+        const icon = muteBtn.querySelector('i');
+        icon.classList.toggle('fa-volume-xmark', video.muted);
+        icon.classList.toggle('fa-volume-high', !video.muted);
+      });
+    }
+
+    /* ---------- Comment Form Submission --- */
+    function bindCommentForm(post) {
+      const form = post.querySelector('.comment-form form');
+      if (!form) return;
+      const textarea = form.querySelector('textarea');
+      const submitButton = form.querySelector('button');
+      const postId = form.dataset.postId;
+      const commentsBox = post.querySelector('#commentsBox-' + postId);
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        let content = textarea.value.trim();
+        if (!content) return;
+        textarea.value = '';
+        submitButton.disabled = true;
+        fetch(`/comments/${postId}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `comment=${encodeURIComponent(content)}`
+        }).then(res => {
+          if (res.ok) {
+            return res.json().then(data => {
+              const commentId = data.comment_id;
+              const commentDiv = document.createElement('div');
+              commentDiv.className = 'comment';
+              commentDiv.dataset.commentId = commentId;
+              const avatarHtml = data.avatar
+                ? `<a href="/profile/${encodeURIComponent(currentUsername)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+                : `<a href="/profile/${encodeURIComponent(currentUsername)}"><div class="avatar-fallback">${currentUsername[0].toUpperCase()}</div></a>`;
+              commentDiv.innerHTML = `
+                ${avatarHtml}
+                <div class="comment-content">
+                  <p><strong><a href="/profile/${encodeURIComponent(currentUsername)}">${currentUsername}</a></strong></p>
+                  <p>${content}</p>
+                  <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+                </div>
+              `;
+              const noComments = commentsBox.querySelector('.no-comments');
+              if (noComments) noComments.remove();
+              commentsBox.appendChild(commentDiv);
+              commentsBox.scrollTop = commentsBox.scrollHeight;
+              textarea.focus();
+              const countEl = post.querySelector('.comment-count');
+              countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+              socket.emit('send_comment', { post_id: parseInt(postId), comment_id: commentId, username: currentUsername, content, avatar: data.avatar });
+            });
+          } else {
+            textarea.value = content;
+          }
+        }).catch(err => {
+          console.error(err);
+          textarea.value = content;
+        }).finally(() => {
+          submitButton.disabled = false;
+        });
+      });
+
+      textarea.addEventListener('input', () => {
+        submitButton.disabled = !textarea.value.trim();
+      });
+    }
+
+    /* ---------- Comments Toggle --- */
+    function bindCommentToggle(post) {
+      const btn = post.querySelector('.comment-btn');
+      const commentsSection = post.querySelector('.comments-section');
+      if (!btn || !commentsSection) return;
+      btn.addEventListener('click', () => {
+        const isOpen = commentsSection.classList.contains('open');
+        if (!isOpen) {
+          commentsSection.classList.add('open');
+          const commentsBox = commentsSection.querySelector('.comments-box');
+          commentsBox.scrollTop = 0;
+          history.pushState({ commentsOpen: true, postId: post.dataset.postId }, '', window.location.href);
+        } else {
+          commentsSection.classList.remove('open');
+          history.back();
+        }
+        if (currentVideo) currentVideo.pause();
+      });
+    }
+
+    /* ---------- Post View Observer --- */
+    const postObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          const postId = entry.target.dataset.postId;
+          if (!viewedPosts.has(postId)) {
+            socket.emit('view_post', { post_id: parseInt(postId) });
+            viewedPosts.add(postId);
+          }
+        }
+      });
+    }, { threshold: 0.5 });
+
+    /* ---------- Init posts existants ---------- */
+    document.querySelectorAll('.post').forEach(post => {
+      bindLikes(post);
+      bindFollowButtons(post);
+      bindCommentForm(post);
+      bindCommentToggle(post);
+      postObserver.observe(post);
+      post.querySelectorAll('video').forEach(video => {
+        observeVideo(video);
+        const muteBtn = video.parentElement.querySelector('.mute-btn');
+        bindMuteButton(video, muteBtn);
+      });
+      const description = post.querySelector('.description');
+      const toggleButton = post.querySelector('.toggle-description');
+      if (description && toggleButton) {
+        if (description.scrollHeight > description.clientHeight) {
+          description.classList.add('long');
+        }
+        toggleButton.addEventListener('click', () => {
+          if (description.classList.contains('expanded')) {
+            description.classList.remove('expanded');
+            toggleButton.textContent = 'Afficher plus';
+          } else {
+            description.classList.add('expanded');
+            toggleButton.textContent = 'Afficher moins';
+          }
         });
       }
+    });
+    document.querySelectorAll('.post img').forEach(img => {
+      img.addEventListener('click', () => { if (currentVideo) currentVideo.pause(); });
+    });
 
-      function goTo(index) {
-        if (index < 0 || index >= slides.length) return;
-        pauseStory();
-        for (let i = 0; i < index; i++) {
-          fills[i].style.width = '100%';
-        }
-        for (let i = index + 1; i < slides.length; i++) {
-          fills[i].style.width = '0%';
-        }
-        fills[index].style.width = '0%';
-        track.style.transform = `translateX(-${index * 100}%)`;
-        currentIndex = index;
-        if (!isOwnStory && !viewedStories.has(stories[index].id)) {
-          fetch(`/view_story/${stories[index].id}`, { method: 'POST' })
-            .then(res => {
-              if (res.ok) viewedStories.add(stories[index].id);
-            })
-            .catch(err => console.error(err));
-        }
-        updateViewerInfo(index);
-        startStory();
+    /* ---------- Socket.IO ---------- */
+    socket.on('like_updated', data => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (post) {
+        const countEl = post.querySelector('.like-count');
+        if (countEl) countEl.textContent = data.likes;
+        const btn = post.querySelector('.like-btn');
+        if (btn) btn.classList.toggle('liked', data.liked);
+        const icon = btn.querySelector('i');
+        icon.classList.toggle('fa-solid', data.liked);
+        icon.classList.toggle('fa-regular', !data.liked);
       }
+    });
 
-      function startStory() {
-        isPaused = false;
-        const slide = slides[currentIndex];
-        const media = slide.querySelector('img, video');
-        startTime = Date.now();
-        if (media.tagName === 'VIDEO') {
-          const startVideo = () => {
+    socket.on('new_comment', data => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (!post) return;
+      const commentsBox = post.querySelector('#commentsBox-' + data.post_id);
+      if (!commentsBox) return;
+
+      const existingComment = commentsBox.querySelector(`.comment[data-comment-id="${data.comment_id}"]`);
+      if (!existingComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment';
+        commentDiv.dataset.commentId = data.comment_id;
+        const avatarHtml = data.avatar
+          ? `<a href="/profile/${encodeURIComponent(data.username)}"><img src="/avatars/${encodeURIComponent(data.avatar)}?t=${Date.now()}" alt="avatar" class="avatar-comment" /></a>`
+          : `<a href="/profile/${encodeURIComponent(data.username)}"><div class="avatar-fallback">${data.username[0].toUpperCase()}</div></a>`;
+        commentDiv.innerHTML = `
+          ${avatarHtml}
+          <div class="comment-content">
+            <p><strong><a href="/profile/${encodeURIComponent(data.username)}">${data.username}</a></strong></p>
+            <p>${data.content}</p>
+            <small>${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</small>
+          </div>
+        `;
+        const noComments = commentsBox.querySelector('.no-comments');
+        if (noComments) noComments.remove();
+        commentsBox.appendChild(commentDiv);
+        if (commentsBox.parentElement.classList.contains('open')) {
+          commentsBox.scrollTop = commentsBox.scrollHeight;
+        }
+        const countEl = post.querySelector('.comment-count');
+        countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+      }
+    });
+
+    /* ---------- Nouveau post badge Accueil ---------- */
+    socket.on('new_post', postHtml => {
+      newPostsCount++;
+      homeBadge.style.display = 'inline';
+      homeBadge.textContent = newPostsCount;
+    });
+
+    /* ---------- Socket.IO Badge Handlers ---------- */
+    socket.on('new_message', (message) => {
+      const currentChatUser = window.location.pathname.includes('/chat/') ? window.location.pathname.split('/chat/')[1] : null;
+      if (!currentChatUser || currentChatUser !== message.sender) {
+        let count = parseInt(localStorage.getItem("unreadMsgs") || "0") + 1;
+        localStorage.setItem("unreadMsgs", count);
+        msgBadge.textContent = count;
+        msgBadge.style.display = "inline-block";
+      }
+    });
+
+    socket.on('new_notification', (notification) => {
+      if (!window.location.pathname.includes('/notifications')) {
+        let count = parseInt(localStorage.getItem("unreadNotifs") || "0") + 1;
+        localStorage.setItem("unreadNotifs", count);
+        notifBadge.textContent = count;
+        notifBadge.style.display = "inline-block";
+      }
+    });
+
+    /* ---------- Carousel Initialization ---------- */
+    function initCarousel(post) {
+      const track = post.querySelector('.carousel-track');
+      const dots = post.querySelectorAll('.carousel-indicators .dot');
+      if (!track || dots.length === 0) return;
+
+      Array.from(track.children).forEach(child => {
+        child.style.width = '100%';
+        child.style.flex = '0 0 100%';
+      });
+
+      track.style.overflowX = 'auto';
+      track.style.scrollSnapType = 'x mandatory';
+
+      track.addEventListener('scroll', () => {
+        const index = Math.round(track.scrollLeft / track.offsetWidth);
+        dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+      });
+
+      dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+          track.scrollTo({
+            left: index * track.offsetWidth,
+            behavior: 'smooth'
+          });
+        });
+      });
+    }
+
+    document.querySelectorAll('.post').forEach(post => initCarousel(post));
+
+    /* ---------- Stories Functionality ---------- */
+    const addTriggers = document.querySelectorAll('.add-story-trigger');
+    addTriggers.forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        document.getElementById('story-file-input').click();
+      });
+    });
+
+    const viewTriggers = document.querySelectorAll('.view-trigger');
+    viewTriggers.forEach(trigger => {
+      trigger.addEventListener('click', storyClickHandler);
+    });
+
+    const fileInput = document.getElementById('story-file-input');
+    fileInput.addEventListener('change', async (e) => {
+      const files = e.target.files;
+      if (files.length === 0) return;
+      const formData = new FormData();
+      for (let file of files) {
+        formData.append('file', file);
+      }
+      try {
+        const res = await fetch('/add_story', { method: 'POST', body: formData });
+        if (res.ok) {
+          location.reload();
+        }
+      } catch (err) { console.error(err); }
+    });
+
+    let touchStartTime, touchStartX, touchTimer, isPaused = false, currentIndex = 0, stories = [], timerId, startTime, duration, isOwnStory = false, viewedStories = new Set();
+
+    function storyClickHandler(e) {
+      e.preventDefault();
+      const modal = document.getElementById('story-modal');
+      const content = modal.querySelector('.story-content');
+      content.innerHTML = '';
+      const username = e.currentTarget.dataset.username;
+      fetch(`/get_stories/${username}`)
+      .then(res => res.json())
+      .then(data => {
+        stories = data.stories;
+        isOwnStory = data.is_own;
+        if (stories.length === 0) return;
+        let html = `
+          <div class="story-progress">
+            ${stories.map(() => '<div class="progress-bar"><div class="progress-fill"></div></div>').join('')}
+          </div>
+          <div class="story-carousel">
+            <div class="story-track">
+              ${stories.map(s => {
+                if (s.type === 'image') return `<div class="story-slide"><img src="${s.media_url}"></div>`;
+                else return `<div class="story-slide"><video src="${s.media_url}" playsinline></video></div>`;
+              }).join('')}
+            </div>
+          </div>
+          <div class="tap-left"></div>
+          <div class="tap-right"></div>
+        `;
+        if (isOwnStory) {
+          html += `
+            <div id="viewer-count" style="display:none;">
+              <i class="fa-solid fa-eye"></i>
+              <span>0</span>
+            </div>
+            <div id="viewer-modal" style="display:none;">
+              <div id="viewer-list"></div>
+            </div>
+          `;
+        }
+        content.innerHTML = html;
+        modal.style.display = 'flex';
+        const track = content.querySelector('.story-track');
+        const slides = track.children;
+        const progressBars = content.querySelectorAll('.progress-bar');
+        const fills = content.querySelectorAll('.progress-fill');
+        const leftTap = content.querySelector('.tap-left');
+        const rightTap = content.querySelector('.tap-right');
+        const viewerCountEl = content.querySelector('#viewer-count');
+        const viewerModal = content.querySelector('#viewer-modal');
+        const viewerList = content.querySelector('#viewer-list');
+
+        if (isOwnStory && viewerCountEl) {
+          viewerCountEl.style.display = 'flex';
+          viewerModal.classList.toggle('dark', body.dataset.theme === 'dark');
+          viewerCountEl.addEventListener('click', () => {
+            viewerModal.style.display = viewerModal.style.display === 'block' ? 'none' : 'block';
+          });
+          modal.addEventListener('click', e => {
+            if (!viewerModal.contains(e.target) && !viewerCountEl.contains(e.target)) {
+              viewerModal.style.display = 'none';
+            }
+          });
+        }
+
+        function updateViewerInfo(index) {
+          if (!isOwnStory) return;
+          const count = stories[index].viewer_count || 0;
+          viewerCountEl.querySelector('span').textContent = count;
+          viewerList.innerHTML = '';
+          const viewers = stories[index].viewers || [];
+          viewers.forEach(v => {
+            const item = document.createElement('div');
+            item.className = 'viewer-item';
+            const avatarHtml = v.avatar
+              ? `<img src="/avatars/${v.avatar}?t=${Date.now()}" alt="${v.username}" class="viewer-avatar">`
+              : `<div class="avatar-fallback viewer-avatar">${v.username[0].toUpperCase()}</div>`;
+            const avatarA = `<a href="/profile/${encodeURIComponent(v.username)}">${avatarHtml}</a>`;
+            const usernameA = `<a href="/profile/${encodeURIComponent(v.username)}" class="viewer-username">${v.username}</a>`;
+            item.innerHTML = `
+              ${avatarA}
+              ${usernameA}
+            `;
+            viewerList.appendChild(item);
+          });
+        }
+
+        function goTo(index) {
+          if (index < 0 || index >= slides.length) return;
+          pauseStory();
+          for (let i = 0; i < index; i++) {
+            fills[i].style.width = '100%';
+          }
+          for (let i = index + 1; i < slides.length; i++) {
+            fills[i].style.width = '0%';
+          }
+          fills[index].style.width = '0%';
+          track.scrollLeft = index * track.offsetWidth;
+          currentIndex = index;
+          if (!isOwnStory && !viewedStories.has(stories[index].id)) {
+            fetch(`/view_story/${stories[index].id}`, { method: 'POST' })
+              .then(res => {
+                if (res.ok) viewedStories.add(stories[index].id);
+              })
+              .catch(err => console.error(err));
+          }
+          updateViewerInfo(index);
+          startStory();
+        }
+
+        function startStory() {
+          isPaused = false;
+          const slide = slides[currentIndex];
+          const media = slide.querySelector('img, video');
+          startTime = Date.now();
+          if (media.tagName === 'VIDEO') {
             media.currentTime = 0;
             media.play();
-            duration = media.duration * 1000 || 5000; // Fallback if NaN
+            duration = media.duration * 1000;
             media.ontimeupdate = () => {
               if (isPaused) return;
               const perc = (media.currentTime / media.duration) * 100;
-              fills[currentIndex].style.width = `${perc}%`;
+              fills[currentIndex].style.width = perc + '%';
             };
             media.onended = nextStory;
-          };
-          if (media.readyState >= 1) { // HAVE_METADATA
-            startVideo();
           } else {
-            media.addEventListener('loadedmetadata', startVideo, { once: true });
+            duration = 5000;
+            requestAnimationFrame(updateProgress);
+            timerId = setTimeout(nextStory, duration);
           }
-        } else {
-          duration = 5000;
-          requestAnimationFrame(updateProgress);
-          timerId = setTimeout(nextStory, duration);
         }
-      }
 
-      function updateProgress() {
-        if (isPaused) return;
-        const elapsed = Date.now() - startTime;
-        const perc = Math.min((elapsed / duration) * 100, 100);
-        fills[currentIndex].style.width = `${perc}%`;
-        if (perc < 100) {
-          requestAnimationFrame(updateProgress);
-        } else {
-          nextStory();
+        function updateProgress() {
+          if (isPaused) return;
+          const elapsed = Date.now() - startTime;
+          const perc = Math.min((elapsed / duration) * 100, 100);
+          fills[currentIndex].style.width = perc + '%';
+          if (perc < 100) {
+            requestAnimationFrame(updateProgress);
+          } else {
+            nextStory();
+          }
         }
-      }
 
-      function pauseStory() {
-        isPaused = true;
-        const slide = slides[currentIndex];
-        const media = slide.querySelector('video');
-        if (media) media.pause();
-        clearTimeout(timerId);
-        cancelAnimationFrame(updateProgress);
-      }
-
-      function resumeStory() {
-        isPaused = false;
-        startTime = Date.now() - (parseFloat(fills[currentIndex].style.width) / 100 * duration);
-        const slide = slides[currentIndex];
-        const media = slide.querySelector('video');
-        if (media) {
-          media.play();
-        } else {
-          requestAnimationFrame(updateProgress);
+        function pauseStory() {
+          isPaused = true;
+          const slide = slides[currentIndex];
+          const media = slide.querySelector('video');
+          if (media) media.pause();
           clearTimeout(timerId);
-          timerId = setTimeout(nextStory, duration - (Date.now() - startTime));
         }
-      }
 
-      function nextStory() {
-        if (currentIndex < stories.length - 1) {
-          goTo(currentIndex + 1);
-        } else {
-          closeModal();
+        function resumeStory() {
+          isPaused = false;
+          const slide = slides[currentIndex];
+          const media = slide.querySelector('video');
+          if (media) media.play();
+          else requestAnimationFrame(updateProgress);
         }
-      }
 
-      function prevStory() {
-        if (currentIndex > 0) {
-          goTo(currentIndex - 1);
-        }
-      }
-
-      let isHold = false;
-      let wasPaused = false;
-      modal.addEventListener('touchstart', e => {
-        e.preventDefault(); // Prevent emulation issues
-        if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
-        touchStartX = e.touches[0].clientX;
-        touchStartTime = Date.now();
-        touchTimer = setTimeout(() => {
-          isHold = true;
-          wasPaused = isPaused;
-          if (!isPaused) {
-            pauseStory();
-          }
-        }, 250);
-      });
-
-      modal.addEventListener('touchend', e => {
-        e.preventDefault(); // Prevent click emulation on mobile
-        clearTimeout(touchTimer);
-        const dur = Date.now() - touchStartTime;
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        if (Math.abs(dx) > 30) return; // Increased tolerance for small movements on mobile
-        if (dur < 250) {
-          const width = window.innerWidth;
-          if (touchStartX < width * 0.4) { // Adjusted to 40% left, 20% middle, 40% right for better mobile feel
-            prevStory();
-          } else if (touchStartX > width * 0.6) {
-            nextStory();
+        function nextStory() {
+          if (currentIndex < stories.length - 1) {
+            goTo(currentIndex + 1);
           } else {
-            if (isPaused) {
-              resumeStory();
-            } else {
+            closeModal();
+          }
+        }
+
+        function prevStory() {
+          if (currentIndex > 0) {
+            goTo(currentIndex - 1);
+          }
+        }
+
+        // Remove these as we handle in modal events
+        // leftTap.addEventListener('click', prevStory);
+        // rightTap.addEventListener('click', nextStory);
+
+        let isHold = false;
+        let wasPaused = false;
+        modal.addEventListener('touchstart', e => {
+          if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
+          touchStartX = e.touches[0].clientX;
+          touchStartTime = Date.now();
+          touchTimer = setTimeout(() => {
+            isHold = true;
+            wasPaused = isPaused;
+            if (!isPaused) {
               pauseStory();
             }
-          }
-        } else if (isHold) {
-          isHold = false;
-          if (!wasPaused) {
-            resumeStory();
-          }
-        }
-      });
+          }, 250);
+        });
 
-      modal.addEventListener('mousedown', e => {
-        if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
-        touchStartX = e.clientX;
-        touchStartTime = Date.now();
-        touchTimer = setTimeout(() => {
-          isHold = true;
-          wasPaused = isPaused;
-          if (!isPaused) {
-            pauseStory();
-          }
-        }, 250);
-      });
-
-      modal.addEventListener('mouseup', e => {
-        clearTimeout(touchTimer);
-        const dur = Date.now() - touchStartTime;
-        const dx = e.clientX - touchStartX;
-        if (Math.abs(dx) > 50) return;
-        if (dur < 250) {
-          const width = window.innerWidth;
-          if (touchStartX < width / 3) {
-            prevStory();
-          } else if (touchStartX > (width * 2 / 3)) {
-            nextStory();
-          } else {
-            if (isPaused) {
-              resumeStory();
+        modal.addEventListener('touchend', e => {
+          clearTimeout(touchTimer);
+          const dur = Date.now() - touchStartTime;
+          const dx = e.changedTouches[0].clientX - touchStartX;
+          if (Math.abs(dx) > 50) return; // swipe ignore
+          if (dur < 250) {
+            const width = window.innerWidth;
+            if (touchStartX < width / 3) {
+              prevStory();
+            } else if (touchStartX > (width * 2 / 3)) {
+              nextStory();
             } else {
-              pauseStory();
+              if (isPaused) {
+                resumeStory();
+              } else {
+                pauseStory();
+              }
+            }
+          } else if (isHold) {
+            isHold = false;
+            if (!wasPaused) {
+              resumeStory();
             }
           }
-        } else if (isHold) {
-          isHold = false;
-          if (!wasPaused) {
-            resumeStory();
+        });
+
+        modal.addEventListener('mousedown', e => {
+          if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
+          touchStartX = e.clientX;
+          touchStartTime = Date.now();
+          touchTimer = setTimeout(() => {
+            isHold = true;
+            wasPaused = isPaused;
+            if (!isPaused) {
+              pauseStory();
+            }
+          }, 250);
+        });
+
+        modal.addEventListener('mouseup', e => {
+          clearTimeout(touchTimer);
+          const dur = Date.now() - touchStartTime;
+          const dx = e.clientX - touchStartX;
+          if (Math.abs(dx) > 50) return;
+          if (dur < 250) {
+            const width = window.innerWidth;
+            if (touchStartX < width / 3) {
+              prevStory();
+            } else if (touchStartX > (width * 2 / 3)) {
+              nextStory();
+            } else {
+              if (isPaused) {
+                resumeStory();
+              } else {
+                pauseStory();
+              }
+            }
+          } else if (isHold) {
+            isHold = false;
+            if (!wasPaused) {
+              resumeStory();
+            }
           }
-        }
-      });
+        });
 
-      goTo(0);
-    })
-    .catch(err => console.error(err));
-  }
-
-  function closeModal() {
-    const modal = document.getElementById('story-modal');
-    modal.style.display = 'none';
-    const content = modal.querySelector('.story-content');
-    content.innerHTML = '';
-    stories = [];
-    currentIndex = 0;
-    isPaused = false;
-    isOwnStory = false;
-    viewedStories.clear();
-  }
-
-  const closeStory = document.getElementById('close-story');
-  closeStory.addEventListener('click', closeModal);
-
-  const storyModal = document.getElementById('story-modal');
-  storyModal.addEventListener('click', e => {
-    if (e.target === storyModal) {
-      closeModal();
+        goTo(0);
+      })
+      .catch(err => console.error(err));
     }
+
+    function closeModal() {
+      const modal = document.getElementById('story-modal');
+      modal.style.display = 'none';
+      const content = modal.querySelector('.story-content');
+      content.innerHTML = '';
+      stories = [];
+      currentIndex = 0;
+      isPaused = false;
+      isOwnStory = false;
+      viewedStories.clear();
+    }
+
+    const closeStory = document.getElementById('close-story');
+    closeStory.addEventListener('click', closeModal);
+
+    const storyModal = document.getElementById('story-modal');
+    storyModal.addEventListener('click', e => {
+      if (e.target === storyModal) {
+        closeModal();
+      }
+    });
+
   });
-
-});
-
-
+</script>
 </body>
 </html>
+
+   
