@@ -1545,9 +1545,11 @@
             const avatarHtml = v.avatar
               ? `<img src="/avatars/${v.avatar}?t=${Date.now()}" alt="${v.username}" class="viewer-avatar">`
               : `<div class="avatar-fallback viewer-avatar">${v.username[0].toUpperCase()}</div>`;
+            const avatarA = `<a href="/profile/${encodeURIComponent(v.username)}">${avatarHtml}</a>`;
+            const usernameA = `<a href="/profile/${encodeURIComponent(v.username)}" class="viewer-username">${v.username}</a>`;
             item.innerHTML = `
-              ${avatarHtml}
-              <span class="viewer-username">${v.username}</span>
+              ${avatarA}
+              ${usernameA}
             `;
             viewerList.appendChild(item);
           });
