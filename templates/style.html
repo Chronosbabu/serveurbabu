@@ -684,7 +684,7 @@
       height: 36px;
       border-radius: 50%;
       object-fit: cover;
-      background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+      background: linear-gradient(45deg, var(--gradient-start), var--gradient-end);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -881,6 +881,7 @@
             <i class="fa-solid fa-ellipsis" data-post-id="{{ post.id }}"></i>
             <div class="menu-dropdown" style="display:none;">
               <button class="boost-btn">Booster</button>
+              <button class="delete-btn">Supprimer</button>
             </div>
           </div>
           {% endif %}
@@ -1378,6 +1379,10 @@
     });
 
     /* ---------- Socket.IO ---------- */
+    socket.on('connect', () => {
+      socket.emit('join_room', { username: currentUsername });
+    });
+
     socket.on('like_updated', data => {
       const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
       if (post) {
@@ -1421,6 +1426,15 @@
         }
         const countEl = post.querySelector('.comment-count');
         countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+      }
+    });
+
+    socket.on('post_deleted', data => {
+      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
+      if (post) {
+        post.style.transition = 'opacity 0.3s ease';
+        post.style.opacity = '0';
+        setTimeout(() => post.remove(), 300);
       }
     });
 
@@ -1685,10 +1699,6 @@
           }
         }
 
-        // Remove these as we handle in modal events
-        // leftTap.addEventListener('click', prevStory);
-        // rightTap.addEventListener('click', nextStory);
-
         let isHold = false;
         let wasPaused = false;
         modal.addEventListener('touchstart', e => {
@@ -1869,6 +1879,35 @@
           }
         } catch (e) {
           alert("Erreur");
+        }
+      });
+    });
+
+    /* ---------- Delete Post Functionality ---------- */
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const post = btn.closest('.post');
+        const postId = post.dataset.postId;
+        // Hide menu
+        btn.closest('.menu-dropdown').style.display = 'none';
+        if (confirm("Voulez-vous vraiment supprimer cette publication ?")) {
+          try {
+            const res = await fetch(`/posts/${postId}`, {
+              method: 'DELETE',
+              credentials: 'same-origin'
+            });
+            const data = await res.json();
+            if (data.success) {
+              post.style.transition = 'opacity 0.3s ease';
+              post.style.opacity = '0';
+              setTimeout(() => post.remove(), 300);
+              socket.emit('post_deleted', { post_id: parseInt(postId) });
+            } else {
+              alert(data.error);
+            }
+          } catch (e) {
+            alert("Erreur lors de la suppression de la publication");
+          }
         }
       });
     });
