@@ -660,18 +660,6 @@
           </div>
           <p class="description">{{ post.description }}</p>
           <span class="toggle-description">Afficher plus</span>
-          {# ---- Single file ---- #}
-          {% if post.type == "image" and not post.files %}
-          <img src="{{ url_for('uploaded_file', filename=post.file) }}" alt="image" class="post-image" />
-          {% elif post.type == "video" and not post.files %}
-          <div class="video-container">
-            <video src="{{ url_for('uploaded_file', filename=post.file) }}" muted loop loop class="post-video"></video>
-            <button class="mute-btn" title="Activer/Désactiver le son">
-              <i class="fa-solid fa-volume-xmark"></i>
-            </button>
-          </div>
-          {% endif %}
-
           {# ---- Multiple files (carousel) ---- #}
           {% if post.files|length > 0 %}
           <div class="carousel">

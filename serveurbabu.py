@@ -98,16 +98,6 @@ def delete_file(b2_key):
     if file_versions:
         b2_api.delete_file_version(file_versions[0].file_id, file_versions[0].file_name)
 
-def add_media_urls(posts):
-    for p in posts:
-        p['media_urls'] = [f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/uploads/{f['name']}" for f in p.get('files', [])]
-    return posts
-
-def add_story_urls(stories):
-    for s in stories:
-        s['media_url'] = f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/uploads/{s['file']}"
-    return stories
-
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 connected_users = set()
@@ -368,7 +358,7 @@ def logout():
 def index():
     if "username" not in session:
         return redirect(url_for("login"))
-    posts = add_media_urls(load_posts())
+    posts = load_posts()
     users_list = load_users()
     current_user = next((u for u in users_list if u["username"] == session["username"]), None)
     if not current_user:
@@ -407,7 +397,7 @@ def index():
         for comment in p.get("comments", []):
             comment['avatar'] = users.get(comment["username"], {}).get("avatar")
     following = current_user.get("following", [])
-    all_stories = add_story_urls(load_stories())
+    all_stories = load_stories()
     stories_by_user = {}
     for s in all_stories:
         if s["username"] == session["username"] or s["username"] in following:
@@ -425,14 +415,15 @@ def get_stories(username):
     current_user = get_user(session["username"])
     if not current_user or (username != session["username"] and username not in current_user.get("following", [])):
         return jsonify({"error": "Non autorisé"}), 403
-    stories = add_story_urls(load_stories())
+    stories = load_stories()
     user_stories = [s for s in stories if s["username"] == username]
     user_stories.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
     stories_data = []
     for s in user_stories:
+        media_url = f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/uploads/{s['file']}"
         stories_data.append({
             "id": s["id"],
-            "media_url": s["media_url"],
+            "media_url": media_url,
             "type": s["type"]
         })
     return jsonify({"stories": stories_data})
@@ -468,6 +459,7 @@ def add_post():
         files_data = []
         for media_file in media_files:
             if media_file and media_file.filename:
+                print(f"Uploading post file: {media_file.filename}")  # Log pour débogage
                 filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(media_file.filename)
                 b2_key = f"uploads/{filename}"
                 upload_stream(media_file, filename, b2_key)
@@ -478,7 +470,9 @@ def add_post():
                     media_type = "video"
                 else:
                     media_type = "other"
+                    print(f"File type not recognized: {filename}, marked as 'other'")  # Log
                 files_data.append({"name": filename, "type": media_type})
+                print(f"File processed: {filename}, type: {media_type}")  # Log
         posts = load_posts()
         new_post = {
             "id": len(posts) + 1,
@@ -492,12 +486,10 @@ def add_post():
         }
         posts.insert(0, new_post)
         save_posts(posts)
-        new_post_with_urls = add_media_urls([new_post])[0]
         socketio.emit('new_post', {
             "id": new_post["id"],
             "username": new_post["username"],
-            "description": new_post["description"],
-            "media_urls": new_post_with_urls["media_urls"]
+            "description": new_post["description"]
         }, namespace='/')
         return redirect(url_for("index"))
     return render_template("new_post.html")
@@ -514,6 +506,7 @@ def add_story():
     new_stories = []
     for file in files:
         if file.filename:
+            print(f"Uploading story file: {file.filename}")  # Log pour débogage
             filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(file.filename)
             b2_key = f"uploads/{filename}"
             upload_stream(file, filename, b2_key)
@@ -523,6 +516,7 @@ def add_story():
             elif ext in [".mp4", ".mov", ".avi", ".webm"]:
                 media_type = "video"
             else:
+                print(f"Skipping unsupported file: {filename}")  # Log
                 continue
             new_story = {
                 "id": str(uuid.uuid4()),
@@ -533,9 +527,9 @@ def add_story():
             }
             stories.append(new_story)
             new_stories.append(new_story)
+            print(f"Story processed: {filename}, type: {media_type}")  # Log
     save_stories(stories)
-    new_stories_with_urls = add_story_urls(new_stories)
-    return jsonify({"success": True, "new_stories": [ {"id": s["id"], "media_url": s["media_url"], "type": s["type"]} for s in new_stories_with_urls ]})
+    return jsonify({"success": True})
 
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
@@ -576,7 +570,7 @@ def like_post(post_id):
 def comments(post_id):
     if "username" not in session:
         return redirect(url_for("login"))
-    posts = add_media_urls(load_posts())
+    posts = load_posts()
     post = next((p for p in posts if p["id"] == post_id), None)
     if not post:
         abort(404)
@@ -592,7 +586,7 @@ def comments(post_id):
                 "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             }
             post["comments"].append(comment_data)
-            save_posts([p for p in posts if p["id"] != post_id] + [post])  # Re-save with updated post
+            save_posts(posts)
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
@@ -607,7 +601,7 @@ def profile(username):
     user = get_user(username)
     if not user:
         abort(404)
-    posts = add_media_urls(load_posts())
+    posts = load_posts()
     users = {u["username"]: u for u in load_users()}
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
@@ -636,7 +630,7 @@ def search_users():
         return redirect(url_for("login"))
     query = (request.args.get("q") or "").strip().lower()
     users = load_users()
-    posts = add_media_urls(load_posts())
+    posts = load_posts()
     users_dict = {u["username"]: u for u in users}
     users_results, posts_results = [], []
     if query:
@@ -976,7 +970,7 @@ def handle_join_room(data):
 def videos():
     if "username" not in session:
         return redirect(url_for("login"))
-    posts = add_media_urls(load_posts())
+    posts = load_posts()
     users = {u["username"]: u for u in load_users()}
     current_user = users.get(session["username"])
     if not current_user:
@@ -989,9 +983,7 @@ def videos():
     video_posts = []
     for p in posts:
         has_video = False
-        if p.get("type") == "video" and not p.get("files"):
-            has_video = True
-        elif p.get("files"):
+        if p.get("files"):
             for file in p["files"]:
                 if file["type"] == "video":
                     has_video = True
