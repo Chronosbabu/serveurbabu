@@ -1642,17 +1642,22 @@
           }
         }
 
-        leftTap.addEventListener('click', prevStory);
-        rightTap.addEventListener('click', nextStory);
+        // Remove these as we handle in modal events
+        // leftTap.addEventListener('click', prevStory);
+        // rightTap.addEventListener('click', nextStory);
 
         let isHold = false;
+        let wasPaused = false;
         modal.addEventListener('touchstart', e => {
           if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           touchStartX = e.touches[0].clientX;
           touchStartTime = Date.now();
           touchTimer = setTimeout(() => {
             isHold = true;
-            pauseStory();
+            wasPaused = isPaused;
+            if (!isPaused) {
+              pauseStory();
+            }
           }, 250);
         });
 
@@ -1662,11 +1667,23 @@
           const dx = e.changedTouches[0].clientX - touchStartX;
           if (Math.abs(dx) > 50) return; // swipe ignore
           if (dur < 250) {
-            if (touchStartX < window.innerWidth / 2) prevStory();
-            else nextStory();
+            const width = window.innerWidth;
+            if (touchStartX < width / 3) {
+              prevStory();
+            } else if (touchStartX > (width * 2 / 3)) {
+              nextStory();
+            } else {
+              if (isPaused) {
+                resumeStory();
+              } else {
+                pauseStory();
+              }
+            }
           } else if (isHold) {
             isHold = false;
-            resumeStory();
+            if (!wasPaused) {
+              resumeStory();
+            }
           }
         });
 
@@ -1676,7 +1693,10 @@
           touchStartTime = Date.now();
           touchTimer = setTimeout(() => {
             isHold = true;
-            pauseStory();
+            wasPaused = isPaused;
+            if (!isPaused) {
+              pauseStory();
+            }
           }, 250);
         });
 
@@ -1686,11 +1706,23 @@
           const dx = e.clientX - touchStartX;
           if (Math.abs(dx) > 50) return;
           if (dur < 250) {
-            if (touchStartX < window.innerWidth / 2) prevStory();
-            else nextStory();
+            const width = window.innerWidth;
+            if (touchStartX < width / 3) {
+              prevStory();
+            } else if (touchStartX > (width * 2 / 3)) {
+              nextStory();
+            } else {
+              if (isPaused) {
+                resumeStory();
+              } else {
+                pauseStory();
+              }
+            }
           } else if (isHold) {
             isHold = false;
-            resumeStory();
+            if (!wasPaused) {
+              resumeStory();
+            }
           }
         });
 
