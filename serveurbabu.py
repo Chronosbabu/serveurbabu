@@ -202,6 +202,112 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     save_messages(messages)
     return entry, messages, key
 
+def recommend_posts(post_list, interacted_posts, current_user):
+    if not post_list or not interacted_posts:
+        return sorted(post_list, key=lambda p: datetime.fromisoformat(p["date"]).timestamp(), reverse=True)
+    
+    # Extract features for ranking
+    now = datetime.now(timezone.utc)
+    all_descriptions = [p["description"] for p in post_list]
+    interacted_descriptions = [p["description"] for p in interacted_posts]
+    
+    # Content similarity using TF-IDF
+    try:
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
+        tfidf_posts = tfidf_matrix[:len(post_list)]
+        tfidf_interacted = tfidf_matrix[len(post_list):]
+        content_scores = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
+    except Exception as e:
+        print(f"TF-IDF error: {e}")
+        content_scores = np.zeros(len(post_list))
+
+    # Engagement and recency scores
+    scores = []
+    like_ids = set(current_user.get("liked_posts", []))
+    view_ids = set(current_user.get("viewed_posts", []))
+    following = set(current_user.get("following", []))
+    
+    for i, post in enumerate(post_list):
+        # Engagement score: likes, comments, and shares
+        engagement = post.get("likes", 0) * 0.5 + len(post.get("comments", [])) * 0.3
+        # Recency score: newer posts get higher weight
+        post_time = datetime.fromisoformat(post["date"]).timestamp()
+        time_diff = (now.timestamp() - post_time) / (24 * 3600)  # Days since post
+        recency_score = max(0, 1 - time_diff / 7)  # Decay over 7 days
+        # Connection score: boost if from followed user
+        connection_score = 2.0 if post["username"] in following else 1.0
+        # Interaction score: boost if user liked or viewed
+        interaction_score = 2.0 if post["id"] in like_ids else 1.5 if post["id"] in view_ids else 1.0
+        # Combine scores (weights tuned to mimic Facebook's emphasis)
+        total_score = (content_scores[i] * 0.4 + engagement * 0.3 + recency_score * 0.2) * connection_score * interaction_score
+        scores.append(total_score)
+    
+    # Sort posts by score
+    sorted_indices = np.argsort(scores)[::-1]
+    return [post_list[i] for i in sorted_indices]
+
+def get_sorted_posts(posts, current_user, filter_videos=False):
+    now = datetime.now(timezone.utc)
+    username = current_user.get("username")
+    
+    # Separate boosted and non-boosted posts
+    boosted = [p for p in posts if p.get("boost_end") and datetime.fromisoformat(p["boost_end"]) > now]
+    boosted_unseen = [p for p in boosted if username not in p.get("boosted_viewed_by", [])]
+    boosted_seen = [p for p in boosted if p not in boosted_unseen]
+    
+    # Sort boosted unseen posts by recency
+    boosted_unseen.sort(key=lambda p: datetime.fromisoformat(p["boost_start"]).timestamp(), reverse=True)
+    non_boosted = [p for p in posts if p not in boosted]
+    
+    # Split non-boosted into followed and other posts
+    following = current_user.get("following", [])
+    followed_posts = [p for p in non_boosted if p["username"] in following]
+    other_posts = [p for p in non_boosted if p["username"] not in following]
+    
+    # Get interacted posts for personalization
+    interacted_post_ids = list(set(current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])))
+    interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
+    
+    # Rank posts using enhanced recommendation
+    rec_followed = recommend_posts(followed_posts, interacted_posts, current_user)
+    rec_other = recommend_posts(other_posts, interacted_posts, current_user)
+    
+    # Interleave posts for diversity
+    final_posts = []
+    boosted_index = 0
+    followed_index = 0
+    other_index = 0
+    max_boosted = min(len(boosted_unseen), 3)  # Limit boosted posts
+    
+    while boosted_index < len(boosted_unseen) or followed_index < len(rec_followed) or other_index < len(rec_other):
+        # Prioritize boosted unseen posts (mimicking Facebook ads)
+        if boosted_index < max_boosted and boosted_index < len(boosted_unseen):
+            final_posts.append(boosted_unseen[boosted_index])
+            boosted_index += 1
+        # Add followed posts
+        elif followed_index < len(rec_followed):
+            final_posts.append(rec_followed[followed_index])
+            followed_index += 1
+        # Add other posts
+        elif other_index < len(rec_other):
+            final_posts.append(rec_other[other_index])
+            other_index += 1
+        else:
+            # Add remaining boosted unseen posts
+            if boosted_index < len(boosted_unseen):
+                final_posts.append(boosted_unseen[boosted_index])
+                boosted_index += 1
+    
+    # Append seen boosted posts at the end
+    final_posts.extend(boosted_seen)
+    
+    if filter_videos:
+        video_posts = [p for p in final_posts if p.get("type") == "video" or any(f["type"] == "video" for f in p.get("files", []))]
+        return video_posts
+    
+    return final_posts
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -295,82 +401,6 @@ def logout():
     session.pop("avatar", None)
     session.pop("user_id", None)
     return redirect(url_for("login"))
-
-def recommend_posts(post_list, interacted_posts, current_user):
-    if not post_list or not interacted_posts:
-        return sorted(post_list, key=lambda p: p["id"], reverse=True)
-    all_descriptions = [p["description"] for p in post_list]
-    interacted_descriptions = [p["description"] for p in interacted_posts]
-    if not any(d.strip() for d in interacted_descriptions):
-        return sorted(post_list, key=lambda p: p["id"], reverse=True)
-    try:
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
-        tfidf_posts = tfidf_matrix[:len(post_list)]
-        tfidf_interacted = tfidf_matrix[len(post_list):]
-        similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
-        like_ids = set(current_user.get("liked_posts", []))
-        for i, p in enumerate(post_list):
-            if p["id"] in like_ids:
-                similarities[i] *= 2
-        sorted_indices = np.argsort(similarities)[::-1]
-        return [post_list[i] for i in sorted_indices]
-    except Exception as e:
-        print(f"Recommendation error: {e}")
-        return sorted(post_list, key=lambda p: p["id"], reverse=True)
-
-def get_sorted_posts(posts, current_user, filter_videos=False):
-    now = datetime.now(timezone.utc)
-    username = current_user.get("username")
-    # Separate boosted and non-boosted posts
-    boosted = [p for p in posts if p.get("boost_end") and datetime.fromisoformat(p["boost_end"]) > now]
-    # Filter boosted posts that the user hasn't seen
-    boosted_unseen = [p for p in boosted if username not in p.get("boosted_viewed_by", [])]
-    boosted_seen = [p for p in boosted if p not in boosted_unseen]
-    # Sort boosted unseen posts by recency
-    boosted_unseen.sort(key=lambda p: datetime.fromisoformat(p["boost_start"]), reverse=True)
-    non_boosted = [p for p in posts if p not in boosted]
-    following = current_user.get("following", [])
-    followed_posts = [p for p in non_boosted if p["username"] in following]
-    other_posts = [p for p in non_boosted if p["username"] not in following]
-    interacted_post_ids = list(set(current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])))
-    interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
-    rec_followed = recommend_posts(followed_posts, interacted_posts, current_user)
-    rec_other = recommend_posts(other_posts, interacted_posts, current_user)
-    # Interleave boosted unseen and followed posts to maintain balance
-    max_boosted = min(len(boosted_unseen), 3)  # Limit boosted posts to avoid overwhelming feed
-    final_posts = []
-    boosted_index = 0
-    followed_index = 0
-    other_index = 0
-    while boosted_index < len(boosted_unseen) or followed_index < len(rec_followed) or other_index < len(rec_other):
-        # Add up to 'max_boosted' boosted posts at the start
-        if boosted_index < max_boosted and boosted_index < len(boosted_unseen):
-            final_posts.append(boosted_unseen[boosted_index])
-            boosted_index += 1
-        # Add followed posts
-        elif followed_index < len(rec_followed):
-            final_posts.append(rec_followed[followed_index])
-            followed_index += 1
-        # Add other posts
-        elif other_index < len(rec_other):
-            final_posts.append(rec_other[other_index])
-            other_index += 1
-        else:
-            # If no more followed/other posts, add remaining boosted unseen
-            if boosted_index < len(boosted_unseen):
-                final_posts.append(boosted_unseen[boosted_index])
-                boosted_index += 1
-    # Append any seen boosted posts at the end
-    final_posts.extend(boosted_seen)
-    if filter_videos:
-        video_posts = []
-        for p in final_posts:
-            has_video = p.get("type") == "video" or any(f["type"] == "video" for f in p.get("files", []))
-            if has_video:
-                video_posts.append(p)
-        return video_posts
-    return final_posts
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -1352,7 +1382,6 @@ def boost_confirm(post_id):
     delai = durations[duration_days]
     devise = "FC" if currency == "franc" else "USD"
     message = f"Vous avez payé {tariff} {devise} pour un {delai} de boost."
-    # Notify all connected users of the new boosted post
     socketio.emit('new_boosted_post', {
         "id": post["id"],
         "username": post["username"],
