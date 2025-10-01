@@ -821,6 +821,7 @@
                   <i class="fa-solid fa-ellipsis"></i>
                 </button>
                 <div class="post-menu">
+                  <button class="boost-btn">Booster</button>
                   <button class="delete-btn">Supprimer</button>
                 </div>
               {% endif %}
@@ -1367,6 +1368,7 @@
                               if (!postsContainer.querySelector('.post')) {
                                   postsContainer.innerHTML = '<p style="color:#6b7280;">Aucune publication pour l’instant.</p>';
                               }
+                              socket.emit('post_deleted', { post_id: parseInt(postId) });
                           } else {
                               alert("Erreur : " + (data.error || "Échec de la suppression"));
                           }
@@ -1376,6 +1378,65 @@
                       }
                   }
                   menu.classList.remove('active');
+              });
+          }
+
+          const boostBtn = menu.querySelector('.boost-btn');
+          if (boostBtn) {
+              boostBtn.addEventListener('click', async () => {
+                  const postId = post.dataset.postId;
+                  menu.classList.remove('active');
+                  const choice = prompt("Choisissez la durée:\n1. Un jour\n2. Une semaine\n3. Un mois\n4. Un an");
+                  if (!choice) return;
+                  const durations = {'1':1, '2':7, '3':30, '4':365};
+                  const duration_days = durations[choice];
+                  if (!duration_days) {
+                      alert("Choix invalide");
+                      return;
+                  }
+                  const pass1 = prompt("Entrez votre mot de passe ChronosMoney:");
+                  if (!pass1) return;
+                  try {
+                      const res = await fetch(`/boost_init/${postId}`, {
+                          method: 'POST',
+                          headers: {'Content-Type': 'application/json'},
+                          body: JSON.stringify({duration_days, password: pass1})
+                      });
+                      const data = await res.json();
+                      if (!data.success) {
+                          alert(data.error);
+                          return;
+                      }
+                  } catch (e) {
+                      alert("Erreur");
+                      return;
+                  }
+                  const curr_choice = prompt("Choisissez la devise:\n1. Franc congolais (FC)\n2. Dollars (USD)");
+                  if (!curr_choice) return;
+                  const currencies = {'1':'franc', '2':'dollar'};
+                  const currency = currencies[curr_choice];
+                  if (!currency) {
+                      alert("Choix invalide");
+                      return;
+                  }
+                  const pass2 = prompt("Confirmez votre mot de passe ChronosMoney:");
+                  if (!pass2) return;
+                  try {
+                      const res = await fetch(`/boost_confirm/${postId}`, {
+                          method: 'POST',
+                          headers: {'Content-Type': 'application/json'},
+                          body: JSON.stringify({duration_days, currency, password: pass2})
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                          alert(data.message);
+                          location.reload();
+                      } else {
+                          alert(data.error);
+                      }
+                  } catch (e) {
+                      alert("Erreur");
+                  }
               });
           }
 

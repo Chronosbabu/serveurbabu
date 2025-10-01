@@ -416,41 +416,6 @@
     .username-link:hover {
       color: var(--link-hover);
     }
-    .post-menu {
-      margin-left: auto;
-      cursor: pointer;
-      position: relative;
-    }
-    .post-menu i {
-      font-size: 1.2rem;
-      color: var(--text-color);
-    }
-    .menu-dropdown {
-      display: none;
-      position: absolute;
-      right: 0;
-      top: 100%;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      box-shadow: 0 2px 8px var(--shadow-color);
-      z-index: 10;
-      min-width: 120px;
-    }
-    .menu-dropdown button {
-      display: block;
-      width: 100%;
-      padding: 10px 20px;
-      border: none;
-      background: none;
-      color: var(--text-color);
-      text-align: left;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    .menu-dropdown button:hover {
-      background: var(--textarea-bg);
-    }
     .description {
       padding: 12px 16px;
       font-size: 0.9rem;
@@ -684,7 +649,7 @@
       height: 36px;
       border-radius: 50%;
       object-fit: cover;
-      background: linear-gradient(45deg, var(--gradient-start), var--gradient-end);
+      background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -876,15 +841,6 @@
           <a class="username-link" href="{{ url_for('profile', username=post.username) }}">
             <p class="username">{{ post.username }}</p>
           </a>
-          {% if post.username == username %}
-          <div class="post-menu">
-            <i class="fa-solid fa-ellipsis" data-post-id="{{ post.id }}"></i>
-            <div class="menu-dropdown" style="display:none;">
-              <button class="boost-btn">Booster</button>
-              <button class="delete-btn">Supprimer</button>
-            </div>
-          </div>
-          {% endif %}
         </div>
         <p class="description">{{ post.description }}</p>
         <span class="toggle-description">Afficher plus</span>
@@ -1379,10 +1335,6 @@
     });
 
     /* ---------- Socket.IO ---------- */
-    socket.on('connect', () => {
-      socket.emit('join_room', { username: currentUsername });
-    });
-
     socket.on('like_updated', data => {
       const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
       if (post) {
@@ -1426,15 +1378,6 @@
         }
         const countEl = post.querySelector('.comment-count');
         countEl.textContent = parseInt(countEl.textContent || "0") + 1;
-      }
-    });
-
-    socket.on('post_deleted', data => {
-      const post = document.querySelector(`.post[data-post-id="${data.post_id}"]`);
-      if (post) {
-        post.style.transition = 'opacity 0.3s ease';
-        post.style.opacity = '0';
-        setTimeout(() => post.remove(), 300);
       }
     });
 
@@ -1699,6 +1642,10 @@
           }
         }
 
+        // Remove these as we handle in modal events
+        // leftTap.addEventListener('click', prevStory);
+        // rightTap.addEventListener('click', nextStory);
+
         let isHold = false;
         let wasPaused = false;
         modal.addEventListener('touchstart', e => {
@@ -1806,113 +1753,9 @@
       }
     });
 
-    /* ---------- Post Menu ---------- */
-    document.querySelectorAll('.fa-ellipsis[data-post-id]').forEach(el => {
-      el.addEventListener('click', e => {
-        const menu = e.target.nextElementSibling;
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-      });
-    });
-
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.post-menu')) {
-        document.querySelectorAll('.menu-dropdown').forEach(menu => {
-          menu.style.display = 'none';
-        });
-      }
-    });
-
-    /* ---------- Boost Functionality ---------- */
-    document.querySelectorAll('.boost-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const post = btn.closest('.post');
-        const postId = post.dataset.postId;
-        // Hide menu
-        btn.closest('.menu-dropdown').style.display = 'none';
-        const choice = prompt("Choisissez la durée:\n1. Un jour\n2. Une semaine\n3. Un mois\n4. Un an");
-        if (!choice) return;
-        const durations = {'1':1, '2':7, '3':30, '4':365};
-        const duration_days = durations[choice];
-        if (!duration_days) {
-          alert("Choix invalide");
-          return;
-        }
-        const pass1 = prompt("Entrez votre mot de passe ChronosMoney:");
-        if (!pass1) return;
-        try {
-          const res = await fetch(`/boost_init/${postId}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({duration_days, password: pass1})
-          });
-          const data = await res.json();
-          if (!data.success) {
-            alert(data.error);
-            return;
-          }
-        } catch (e) {
-          alert("Erreur");
-          return;
-        }
-        const curr_choice = prompt("Choisissez la devise:\n1. Franc congolais (FC)\n2. Dollars (USD)");
-        if (!curr_choice) return;
-        const currencies = {'1':'franc', '2':'dollar'};
-        const currency = currencies[curr_choice];
-        if (!currency) {
-          alert("Choix invalide");
-          return;
-        }
-        const pass2 = prompt("Confirmez votre mot de passe ChronosMoney:");
-        if (!pass2) return;
-        try {
-          const res = await fetch(`/boost_confirm/${postId}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({duration_days, currency, password: pass2})
-          });
-          const data = await res.json();
-          if (data.success) {
-            alert(data.message);
-            location.reload();
-          } else {
-            alert(data.error);
-          }
-        } catch (e) {
-          alert("Erreur");
-        }
-      });
-    });
-
-    /* ---------- Delete Post Functionality ---------- */
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const post = btn.closest('.post');
-        const postId = post.dataset.postId;
-        // Hide menu
-        btn.closest('.menu-dropdown').style.display = 'none';
-        if (confirm("Voulez-vous vraiment supprimer cette publication ?")) {
-          try {
-            const res = await fetch(`/posts/${postId}`, {
-              method: 'DELETE',
-              credentials: 'same-origin'
-            });
-            const data = await res.json();
-            if (data.success) {
-              post.style.transition = 'opacity 0.3s ease';
-              post.style.opacity = '0';
-              setTimeout(() => post.remove(), 300);
-              socket.emit('post_deleted', { post_id: parseInt(postId) });
-            } else {
-              alert(data.error);
-            }
-          } catch (e) {
-            alert("Erreur lors de la suppression de la publication");
-          }
-        }
-      });
-    });
-
   });
 </script>
 </body>
 </html>
+
+
