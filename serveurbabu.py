@@ -140,7 +140,12 @@ def load_stories():
     with open(STORIES_FILE, "r", encoding="utf-8") as f:
         stories = json.load(f)
     now = datetime.now(timezone.utc)
-    active_stories = [s for s in stories if now < datetime.fromisoformat(s["timestamp"]) + timedelta(hours=24)]
+    active_stories = []
+    for s in stories:
+        if "viewers" not in s:
+            s["viewers"] = []
+        if now < datetime.fromisoformat(s["timestamp"]) + timedelta(hours=24):
+            active_stories.append(s)
     if len(active_stories) < len(stories):
         save_stories(active_stories)
     return active_stories
@@ -341,13 +346,44 @@ def get_stories(username):
     user_stories = [s for s in stories if s["username"] == username]
     user_stories.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
     stories_data = []
+    users = load_users()
+    is_own = username == session["username"]
     for s in user_stories:
-        stories_data.append({
+        data = {
             "id": s["id"],
             "media_url": url_for('uploaded_file', filename=s["file"], _external=True),
             "type": s["type"]
-        })
-    return jsonify({"stories": stories_data})
+        }
+        viewers = s.get("viewers", [])
+        data["viewer_count"] = len(viewers)
+        if is_own:
+            data["viewers"] = []
+            for v in viewers:
+                user = next((u for u in users if u["username"] == v), None)
+                if user:
+                    data["viewers"].append({
+                        "username": v,
+                        "avatar": user.get("avatar")
+                    })
+        stories_data.append(data)
+    return jsonify({"stories": stories_data, "is_own": is_own})
+
+@app.route("/view_story/<story_id>", methods=["POST"])
+def view_story(story_id):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    stories = load_stories()
+    story = next((s for s in stories if s["id"] == story_id), None)
+    if not story:
+        return jsonify({"error": "Story non trouvée"}), 404
+    viewer = session["username"]
+    if viewer == story["username"]:
+        return jsonify({"success": True}), 200  # Owner doesn't count as viewer
+    viewers = story.setdefault("viewers", [])
+    if viewer not in viewers:
+        viewers.append(viewer)
+        save_stories(stories)
+    return jsonify({"success": True}), 200
 
 @app.route("/follow/<username>", methods=["POST"])
 def follow_user(username):
@@ -437,7 +473,8 @@ def add_story():
                 "username": username,
                 "file": filename,
                 "type": media_type,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "viewers": []
             }
             stories.append(new_story)
             new_stories.append(new_story)
@@ -1227,13 +1264,3 @@ def handle_stop_typing(data):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
-
-
-
-
-
-
-   
-   
-
-

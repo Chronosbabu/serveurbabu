@@ -307,6 +307,63 @@
       right: 0;
     }
 
+    /* ---------- STORY VIEWERS ---------- */
+    #viewer-count {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 20px;
+    }
+    #viewer-modal {
+      display: none;
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.9);
+      color: #000;
+      padding: 15px;
+      border-radius: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      width: 80%;
+      max-width: 400px;
+      z-index: 25;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    #viewer-modal.dark {
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+    }
+    .viewer-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    .viewer-item:last-child {
+      border-bottom: none;
+    }
+    .viewer-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .viewer-username {
+      font-weight: 600;
+    }
+
     /* ---------- POSTS ---------- */
     .scroll-box {
       padding: 20px 0;
@@ -1411,7 +1468,7 @@
       } catch (err) { console.error(err); }
     });
 
-    let touchStartTime, touchStartX, touchTimer, isPaused = false, currentIndex = 0, stories = [], timerId, startTime, duration;
+    let touchStartTime, touchStartX, touchTimer, isPaused = false, currentIndex = 0, stories = [], timerId, startTime, duration, isOwnStory = false, viewedStories = new Set();
 
     function storyClickHandler(e) {
       e.preventDefault();
@@ -1423,6 +1480,7 @@
       .then(res => res.json())
       .then(data => {
         stories = data.stories;
+        isOwnStory = data.is_own;
         if (stories.length === 0) return;
         let html = `
           <div class="story-progress">
@@ -1439,6 +1497,17 @@
           <div class="tap-left"></div>
           <div class="tap-right"></div>
         `;
+        if (isOwnStory) {
+          html += `
+            <div id="viewer-count" style="display:none;">
+              <i class="fa-solid fa-eye"></i>
+              <span>0</span>
+            </div>
+            <div id="viewer-modal" style="display:none;">
+              <div id="viewer-list"></div>
+            </div>
+          `;
+        }
         content.innerHTML = html;
         modal.style.display = 'flex';
         const track = content.querySelector('.story-track');
@@ -1447,6 +1516,42 @@
         const fills = content.querySelectorAll('.progress-fill');
         const leftTap = content.querySelector('.tap-left');
         const rightTap = content.querySelector('.tap-right');
+        const viewerCountEl = content.querySelector('#viewer-count');
+        const viewerModal = content.querySelector('#viewer-modal');
+        const viewerList = content.querySelector('#viewer-list');
+
+        if (isOwnStory && viewerCountEl) {
+          viewerCountEl.style.display = 'flex';
+          viewerModal.classList.toggle('dark', body.dataset.theme === 'dark');
+          viewerCountEl.addEventListener('click', () => {
+            viewerModal.style.display = viewerModal.style.display === 'block' ? 'none' : 'block';
+          });
+          modal.addEventListener('click', e => {
+            if (!viewerModal.contains(e.target) && !viewerCountEl.contains(e.target)) {
+              viewerModal.style.display = 'none';
+            }
+          });
+        }
+
+        function updateViewerInfo(index) {
+          if (!isOwnStory) return;
+          const count = stories[index].viewer_count || 0;
+          viewerCountEl.querySelector('span').textContent = count;
+          viewerList.innerHTML = '';
+          const viewers = stories[index].viewers || [];
+          viewers.forEach(v => {
+            const item = document.createElement('div');
+            item.className = 'viewer-item';
+            const avatarHtml = v.avatar
+              ? `<img src="/avatars/${v.avatar}?t=${Date.now()}" alt="${v.username}" class="viewer-avatar">`
+              : `<div class="avatar-fallback viewer-avatar">${v.username[0].toUpperCase()}</div>`;
+            item.innerHTML = `
+              ${avatarHtml}
+              <span class="viewer-username">${v.username}</span>
+            `;
+            viewerList.appendChild(item);
+          });
+        }
 
         function goTo(index) {
           if (index < 0 || index >= slides.length) return;
@@ -1460,6 +1565,14 @@
           fills[index].style.width = '0%';
           track.scrollLeft = index * track.offsetWidth;
           currentIndex = index;
+          if (!isOwnStory && !viewedStories.has(stories[index].id)) {
+            fetch(`/view_story/${stories[index].id}`, { method: 'POST' })
+              .then(res => {
+                if (res.ok) viewedStories.add(stories[index].id);
+              })
+              .catch(err => console.error(err));
+          }
+          updateViewerInfo(index);
           startStory();
         }
 
@@ -1532,7 +1645,7 @@
 
         let isHold = false;
         modal.addEventListener('touchstart', e => {
-          if (e.target.closest('#close-story')) return;
+          if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           touchStartX = e.touches[0].clientX;
           touchStartTime = Date.now();
           touchTimer = setTimeout(() => {
@@ -1556,7 +1669,7 @@
         });
 
         modal.addEventListener('mousedown', e => {
-          if (e.target.closest('#close-story')) return;
+          if (e.target.closest('#close-story') || e.target.closest('#viewer-count') || e.target.closest('#viewer-modal')) return;
           touchStartX = e.clientX;
           touchStartTime = Date.now();
           touchTimer = setTimeout(() => {
@@ -1592,6 +1705,8 @@
       stories = [];
       currentIndex = 0;
       isPaused = false;
+      isOwnStory = false;
+      viewedStories.clear();
     }
 
     const closeStory = document.getElementById('close-story');
@@ -1608,4 +1723,3 @@
 </script>
 </body>
 </html>
-
