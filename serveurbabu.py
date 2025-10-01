@@ -14,7 +14,7 @@ import numpy as np
 import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from b2sdk.v2 import B2Api, InMemoryAccountInfo, UploadSourceLocalFile
+from b2sdk.v2 import B2Api, InMemoryAccountInfo
 import tempfile
 
 app = Flask(__name__)
@@ -76,8 +76,10 @@ def download_file(b2_key, local_path):
         b2_api.download_file_by_name(bucket.name, b2_key, f)
 
 def upload_file(local_path, b2_key):
-    upload_source = UploadSourceLocalFile(local_path)
-    b2_api.upload_file(upload_source, bucket, b2_key)
+    bucket.upload_local_file(
+        local_file=local_path,
+        file_name=b2_key,
+    )
 
 def upload_stream(file_storage, basename, b2_key):
     with tempfile.NamedTemporaryFile(mode='wb', suffix=os.path.splitext(basename)[1], delete=False) as tmp:
