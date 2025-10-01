@@ -47,6 +47,21 @@ FEE_DOLLAR = 2
 FEE_FRANC = 6000
 TEST_MODE = True
 
+BOOST_TARIFFS = {
+    'franc': {
+        1: 5000,
+        7: 20000,
+        30: 100000,
+        365: 500000
+    },
+    'dollar': {
+        1: 2,
+        7: 8,
+        30: 36,
+        365: 180
+    }
+}
+
 @app.template_filter('timestamp')
 def timestamp_filter(s):
     return int(datetime.now(timezone.utc).timestamp())
@@ -281,6 +296,52 @@ def logout():
     session.pop("user_id", None)
     return redirect(url_for("login"))
 
+def recommend_posts(post_list, interacted_posts, current_user):
+    if not post_list or not interacted_posts:
+        return sorted(post_list, key=lambda p: p["id"], reverse=True)
+    all_descriptions = [p["description"] for p in post_list]
+    interacted_descriptions = [p["description"] for p in interacted_posts]
+    if not any(d.strip() for d in interacted_descriptions):
+        return sorted(post_list, key=lambda p: p["id"], reverse=True)
+    try:
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
+        tfidf_posts = tfidf_matrix[:len(post_list)]
+        tfidf_interacted = tfidf_matrix[len(post_list):]
+        similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
+        like_ids = set(current_user.get("liked_posts", []))
+        for i, p in enumerate(post_list):
+            if p["id"] in like_ids:
+                similarities[i] *= 2
+        sorted_indices = np.argsort(similarities)[::-1]
+        return [post_list[i] for i in sorted_indices]
+    except Exception as e:
+        print(f"Recommendation error: {e}")
+        return sorted(post_list, key=lambda p: p["id"], reverse=True)
+
+def get_sorted_posts(posts, current_user, filter_videos=False):
+    now = datetime.now(timezone.utc)
+    boosted = [p for p in posts if p.get("boost_end") and datetime.fromisoformat(p["boost_end"]) > now]
+    boosted.sort(key=lambda p: p["id"], reverse=True)
+    non_boosted = [p for p in posts if p not in boosted]
+    following = current_user.get("following", [])
+    followed_posts = [p for p in non_boosted if p["username"] in following]
+    other_posts = [p for p in non_boosted if p["username"] not in following]
+    interacted_post_ids = list(set(current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])))
+    interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
+    rec_followed = recommend_posts(followed_posts, interacted_posts, current_user)
+    rec_other = recommend_posts(other_posts, interacted_posts, current_user)
+    non_boosted_rec = rec_followed if rec_followed else rec_other
+    final_posts = boosted + non_boosted_rec
+    if filter_videos:
+        video_posts = []
+        for p in final_posts:
+            has_video = p.get("type") == "video" or any(f["type"] == "video" for f in p.get("files", []))
+            if has_video:
+                video_posts.append(p)
+        return video_posts
+    return final_posts
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     if "username" not in session:
@@ -293,28 +354,7 @@ def index():
         session.pop("avatar", None)
         session.pop("user_id", None)
         return redirect(url_for("login"))
-    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
-    interacted_post_ids = list(set(interacted_post_ids))
-    if interacted_post_ids:
-        interacted_posts = [p for p in posts if p["id"] in interacted_post_ids]
-        if interacted_posts:
-            all_descriptions = [p["description"] for p in posts]
-            interacted_descriptions = [p["description"] for p in interacted_posts]
-            if any(d.strip() for d in interacted_descriptions):
-                try:
-                    vectorizer = TfidfVectorizer()
-                    tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
-                    tfidf_posts = tfidf_matrix[:len(posts)]
-                    tfidf_interacted = tfidf_matrix[len(posts):]
-                    similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
-                    like_ids = set(current_user.get("liked_posts", []))
-                    for i, p in enumerate(posts):
-                        if p["id"] in like_ids:
-                            similarities[i] *= 2
-                    sorted_indices = np.argsort(similarities)[::-1]
-                    posts = [posts[i] for i in sorted_indices]
-                except Exception as e:
-                    print(f"Recommendation error: {e}")
+    posts = get_sorted_posts(posts, current_user)
     users = {u["username"]: u for u in users_list}
     for p in posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
@@ -918,41 +958,8 @@ def videos():
         session.pop("avatar", None)
         session.pop("user_id", None)
         return redirect(url_for("login"))
-    interacted_post_ids = current_user.get("liked_posts", []) + current_user.get("viewed_posts", [])
-    interacted_post_ids = list(set(interacted_post_ids))
-    video_posts = []
+    posts = get_sorted_posts(posts, current_user, filter_videos=True)
     for p in posts:
-        has_video = False
-        if p.get("type") == "video" and not p.get("files"):
-            has_video = True
-        elif p.get("files"):
-            for file in p["files"]:
-                if file["type"] == "video":
-                    has_video = True
-                    break
-        if has_video:
-            video_posts.append(p)
-    if interacted_post_ids:
-        interacted_posts = [p for p in video_posts if p["id"] in interacted_post_ids]
-        if interacted_posts:
-            all_descriptions = [p["description"] for p in video_posts]
-            interacted_descriptions = [p["description"] for p in interacted_posts]
-            if any(d.strip() for d in interacted_descriptions):
-                try:
-                    vectorizer = TfidfVectorizer()
-                    tfidf_matrix = vectorizer.fit_transform(all_descriptions + interacted_descriptions)
-                    tfidf_posts = tfidf_matrix[:len(video_posts)]
-                    tfidf_interacted = tfidf_matrix[len(video_posts):]
-                    similarities = cosine_similarity(tfidf_posts, tfidf_interacted).mean(axis=1)
-                    like_ids = set(current_user.get("liked_posts", []))
-                    for i, p in enumerate(video_posts):
-                        if p["id"] in like_ids:
-                            similarities[i] *= 2
-                    sorted_indices = np.argsort(similarities)[::-1]
-                    video_posts = [video_posts[i] for i in sorted_indices]
-                except Exception as e:
-                    print(f"Recommendation error: {e}")
-    for p in video_posts:
         p['liked_by_user'] = session["username"] in p.get("liked_by", [])
         p['comments_count'] = len(p.get("comments", []))
         p['following'] = is_following(session["username"], p["username"])
@@ -961,7 +968,7 @@ def videos():
             comment['avatar'] = users.get(comment["username"], {}).get("avatar")
     return render_template(
         "videos.html",
-        posts=video_posts,
+        posts=posts,
         username=session["username"],
         avatar=session.get("avatar")
     )
@@ -1248,6 +1255,65 @@ def get_balances():
         },
         "account_id": acc["account_id"]
     })
+
+@app.route("/boost_init/<int:post_id>", methods=["POST"])
+def boost_init(post_id):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    data = request.json
+    duration_days = data.get("duration_days")
+    password = data.get("password")
+    if not duration_days or not password or duration_days not in [1, 7, 30, 365]:
+        return jsonify({"error": "Données invalides"}), 400
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post or post["username"] != session["username"]:
+        return jsonify({"error": "Publication non trouvée ou non autorisée"}), 404
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == session["username"]), None)
+    if not acc or acc["password"] != hash_password(password):
+        return jsonify({"error": "Mot de passe incorrect ou compte non trouvé"}), 401
+    if acc["balance_franc"] <= 0 and acc["balance_dollar"] <= 0:
+        return jsonify({"error": "Solde insuffisant"}), 400
+    return jsonify({"success": True})
+
+@app.route("/boost_confirm/<int:post_id>", methods=["POST"])
+def boost_confirm(post_id):
+    if "username" not in session:
+        return jsonify({"error": "Non connecté"}), 401
+    data = request.json
+    duration_days = data.get("duration_days")
+    currency = data.get("currency")
+    password = data.get("password")
+    if not all([duration_days, currency, password]) or duration_days not in [1, 7, 30, 365] or currency not in ["franc", "dollar"]:
+        return jsonify({"error": "Données invalides"}), 400
+    posts = load_posts()
+    post = next((p for p in posts if p["id"] == post_id), None)
+    if not post or post["username"] != session["username"]:
+        return jupytext({"error": "Publication non trouvée ou non autorisée"}), 404
+    if post.get("boost_end"):
+        return jsonify({"error": "Publication déjà boostée"}), 400
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == session["username"]), None)
+    if not acc or acc["password"] != hash_password(password):
+        return jsonify({"error": "Mot de passe de confirmation incorrect"}), 401
+    tariff = BOOST_TARIFFS[currency][duration_days]
+    key = f"balance_{currency}"
+    if acc[key] < tariff:
+        return jsonify({"error": "Solde insuffisant"}), 400
+    acc[key] -= tariff
+    platform = next((a for a in bank if a["username"] == "platform"), None)
+    platform[key] += tariff
+    now = datetime.now(timezone.utc)
+    post["boost_start"] = now.isoformat()
+    post["boost_end"] = (now + timedelta(days=duration_days)).isoformat()
+    save_posts(posts)
+    save_bank(bank)
+    durations = {1: "jour", 7: "semaine", 30: "mois", 365: "an"}
+    delai = durations[duration_days]
+    devise = "FC" if currency == "franc" else "USD"
+    message = f"Vous avez payé {tariff} {devise} pour un {delai} de boost."
+    return jsonify({"success": True, "message": message})
 
 @socketio.on('typing', namespace='/')
 def handle_typing(data):
