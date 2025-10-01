@@ -98,6 +98,16 @@ def delete_file(b2_key):
     if file_versions:
         b2_api.delete_file_version(file_versions[0].file_id, file_versions[0].file_name)
 
+def add_media_urls(posts):
+    for p in posts:
+        p['media_urls'] = [f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/uploads/{f['name']}" for f in p.get('files', [])]
+    return posts
+
+def add_story_urls(stories):
+    for s in stories:
+        s['media_url'] = f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/uploads/{s['file']}"
+    return stories
+
 socketio = SocketIO(app, manage_session=True, cors_allowed_origins="*")
 
 connected_users = set()
@@ -358,7 +368,7 @@ def logout():
 def index():
     if "username" not in session:
         return redirect(url_for("login"))
-    posts = load_posts()
+    posts = add_media_urls(load_posts())
     users_list = load_users()
     current_user = next((u for u in users_list if u["username"] == session["username"]), None)
     if not current_user:
@@ -397,7 +407,7 @@ def index():
         for comment in p.get("comments", []):
             comment['avatar'] = users.get(comment["username"], {}).get("avatar")
     following = current_user.get("following", [])
-    all_stories = load_stories()
+    all_stories = add_story_urls(load_stories())
     stories_by_user = {}
     for s in all_stories:
         if s["username"] == session["username"] or s["username"] in following:
@@ -415,15 +425,14 @@ def get_stories(username):
     current_user = get_user(session["username"])
     if not current_user or (username != session["username"] and username not in current_user.get("following", [])):
         return jsonify({"error": "Non autorisé"}), 403
-    stories = load_stories()
+    stories = add_story_urls(load_stories())
     user_stories = [s for s in stories if s["username"] == username]
     user_stories.sort(key=lambda x: datetime.fromisoformat(x["timestamp"]))
     stories_data = []
     for s in user_stories:
-        media_url = f"{BUCKET_ENDPOINT}/{BUCKET_NAME}/uploads/{s['file']}"
         stories_data.append({
             "id": s["id"],
-            "media_url": media_url,
+            "media_url": s["media_url"],
             "type": s["type"]
         })
     return jsonify({"stories": stories_data})
@@ -483,10 +492,12 @@ def add_post():
         }
         posts.insert(0, new_post)
         save_posts(posts)
+        new_post_with_urls = add_media_urls([new_post])[0]
         socketio.emit('new_post', {
             "id": new_post["id"],
             "username": new_post["username"],
-            "description": new_post["description"]
+            "description": new_post["description"],
+            "media_urls": new_post_with_urls["media_urls"]
         }, namespace='/')
         return redirect(url_for("index"))
     return render_template("new_post.html")
@@ -523,7 +534,8 @@ def add_story():
             stories.append(new_story)
             new_stories.append(new_story)
     save_stories(stories)
-    return jsonify({"success": True})
+    new_stories_with_urls = add_story_urls(new_stories)
+    return jsonify({"success": True, "new_stories": [ {"id": s["id"], "media_url": s["media_url"], "type": s["type"]} for s in new_stories_with_urls ]})
 
 @app.route("/like/<int:post_id>", methods=["POST"])
 def like_post(post_id):
@@ -564,7 +576,7 @@ def like_post(post_id):
 def comments(post_id):
     if "username" not in session:
         return redirect(url_for("login"))
-    posts = load_posts()
+    posts = add_media_urls(load_posts())
     post = next((p for p in posts if p["id"] == post_id), None)
     if not post:
         abort(404)
@@ -580,7 +592,7 @@ def comments(post_id):
                 "date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             }
             post["comments"].append(comment_data)
-            save_posts(posts)
+            save_posts([p for p in posts if p["id"] != post_id] + [post])  # Re-save with updated post
             post_owner = post["username"]
             if post_owner != session["username"]:
                 notify_comment(post_owner, session["username"], post_id)
@@ -595,7 +607,7 @@ def profile(username):
     user = get_user(username)
     if not user:
         abort(404)
-    posts = load_posts()
+    posts = add_media_urls(load_posts())
     users = {u["username"]: u for u in load_users()}
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
@@ -624,7 +636,7 @@ def search_users():
         return redirect(url_for("login"))
     query = (request.args.get("q") or "").strip().lower()
     users = load_users()
-    posts = load_posts()
+    posts = add_media_urls(load_posts())
     users_dict = {u["username"]: u for u in users}
     users_results, posts_results = [], []
     if query:
@@ -964,7 +976,7 @@ def handle_join_room(data):
 def videos():
     if "username" not in session:
         return redirect(url_for("login"))
-    posts = load_posts()
+    posts = add_media_urls(load_posts())
     users = {u["username"]: u for u in load_users()}
     current_user = users.get(session["username"])
     if not current_user:
