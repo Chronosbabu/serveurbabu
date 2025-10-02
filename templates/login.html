@@ -278,9 +278,10 @@
         <div class="avatar">C</div>
         <h1>Bienvenue sur CHRONOS</h1>
         <h2>Espace Membre</h2>
-        <form method="POST">
-            <input type="text" name="username" placeholder="Nom d'utilisateur ou Email" required>
-            <input type="password" name="password" placeholder="Mot de passe" id="password" required>
+        <form method="POST" id="loginForm">
+            <input type="text" id="prenom" placeholder="Prénom" required>
+            <input type="text" id="nom" placeholder="Nom" required>
+            <input type="password" id="password" placeholder="Mot de passe" required>
             <div class="checkbox-container">
                 <input type="checkbox" id="showPassword">
                 <label for="showPassword">Afficher le mot de passe</label>
@@ -312,6 +313,9 @@
         const body = document.body;
         const showPassword = document.getElementById('showPassword');
         const passwordField = document.getElementById('password');
+        const loginForm = document.getElementById('loginForm');
+        const prenomInput = document.getElementById('prenom');
+        const nomInput = document.getElementById('nom');
 
         function setTheme(theme) {
             body.dataset.theme = theme;
@@ -340,6 +344,38 @@
                 }
             });
         }
+
+        // Générer username à partir de prénom et nom avant soumission pour la connexion
+        loginForm.addEventListener('submit', (e) => {
+            const prenom = prenomInput.value.trim().toLowerCase();
+            const nom = nomInput.value.trim().toLowerCase();
+            const password = passwordField.value;
+            if (prenom && nom && password) {
+                const generatedUsername = prenom + '.' + nom.replace(/\s+/g, '');
+                // Créer un champ hidden pour username
+                let hiddenUsername = document.querySelector('input[name="username"]');
+                if (!hiddenUsername) {
+                    hiddenUsername = document.createElement('input');
+                    hiddenUsername.type = 'hidden';
+                    hiddenUsername.name = 'username';
+                    loginForm.appendChild(hiddenUsername);
+                }
+                hiddenUsername.value = generatedUsername;
+                // Créer un champ hidden pour password si pas déjà
+                let hiddenPassword = document.querySelector('input[name="password"][type="hidden"]');
+                if (!hiddenPassword) {
+                    hiddenPassword = document.createElement('input');
+                    hiddenPassword.type = 'hidden';
+                    hiddenPassword.name = 'password';
+                    loginForm.appendChild(hiddenPassword);
+                }
+                hiddenPassword.value = password;
+                // Masquer les champs visibles et soumettre
+            } else {
+                e.preventDefault();
+                alert('Prénom, nom et mot de passe sont requis.');
+            }
+        });
 
         window.handleCredentialResponse = async function(response) {
             const res = await fetch('/google_login', {

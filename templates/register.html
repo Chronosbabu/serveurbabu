@@ -356,7 +356,14 @@
                 hiddenUsername.type = 'hidden';
                 hiddenUsername.name = 'username';
                 hiddenUsername.value = generatedUsername;
+                // Remove existing hidden username if any
+                const existingUsername = registerForm.querySelector('input[name="username"]');
+                if (existingUsername && existingUsername.type === 'hidden') {
+                    existingUsername.remove();
+                }
                 registerForm.appendChild(hiddenUsername);
+                // Optional: Show generated username to user
+                alert('Votre nom d\'utilisateur généré est: ' + generatedUsername + '\nUtilisez-le pour vous connecter.');
             } else {
                 e.preventDefault();
                 alert('Prénom et nom sont requis pour générer le nom d\'utilisateur.');
