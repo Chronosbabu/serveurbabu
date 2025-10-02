@@ -33,6 +33,8 @@
       --audio-waveform-color: #007AFF;
       --audio-progress-bg: #E5E5EA;
       --audio-progress-color: #007AFF;
+      --progress-thumb-bg: #007AFF;
+      --progress-thumb-border: #fafafa;
     }
 
     [data-theme="dark"] {
@@ -61,6 +63,8 @@
       --audio-waveform-color: #0A84FF;
       --audio-progress-bg: #38383D;
       --audio-progress-color: #0A84FF;
+      --progress-thumb-bg: #0A84FF;
+      --progress-thumb-border: #1a1a1a;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -281,14 +285,30 @@
       background: var(--audio-progress-bg) !important;
       border-radius: 2px !important;
       margin-top: 5px !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       cursor: pointer !important;
+      position: relative !important;
     }
     .audio-progress-bar {
       height: 100% !important;
       background: var(--audio-progress-color) !important;
       width: 0% !important;
       transition: width 0.1s ease !important;
+      border-radius: 2px !important;
+      position: relative !important;
+    }
+    .progress-thumb {
+      position: absolute !important;
+      right: -6px !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      width: 12px !important;
+      height: 12px !important;
+      background: var(--progress-thumb-bg) !important;
+      border-radius: 50% !important;
+      border: 2px solid var(--progress-thumb-border) !important;
+      transition: right 0.1s ease !important;
+      pointer-events: none !important;
     }
     .audio-waveform {
       display: flex !important;
@@ -422,6 +442,7 @@
       .current-time { font-size: 0.7rem !important; min-width: 35px !important; }
       .waveform-bars { height: 16px !important; }
       .waveform-bar { width: 2px !important; }
+      .progress-thumb { width: 10px !important; height: 10px !important; right: -5px !important; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -464,7 +485,9 @@
             <span class="current-time">0:00</span>
           </div>
           <div class="audio-progress">
-            <div class="audio-progress-bar"></div>
+            <div class="audio-progress-bar">
+              <div class="progress-thumb"></div>
+            </div>
           </div>
           <p class="audio-duration">{{ msg.duration if 'duration' in msg else '0:00' }}</p>
         </div>
@@ -546,6 +569,7 @@
     let mediaRecorder, audioChunks = [];
     let isSending = false;
     let typingTimer;
+    let audioDuration = 0; // For local recording duration
 
     // Normaliser les styles des messages texte
     function normalizeMessages() {
@@ -610,20 +634,31 @@
         const progressBar = container.querySelector('.audio-progress-bar');
         const progressContainer = container.querySelector('.audio-progress');
         const waveform = container.querySelector('.waveform-bars');
+        const thumb = container.querySelector('.progress-thumb');
 
+        // Set initial duration immediately after load
         player.addEventListener('loadedmetadata', () => {
-          const duration = Math.floor(player.duration);
+          const duration = Math.floor(player.duration || 0);
           const minutes = Math.floor(duration / 60);
           const seconds = duration % 60;
           durationEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
           player.dataset.duration = duration;
+          console.log(`Durée audio chargée: ${duration}s`);
         });
+
+        // Fallback if metadata not loaded immediately
+        if (!player.dataset.duration) {
+          player.load();
+        }
 
         player.addEventListener('timeupdate', () => {
           const current = Math.floor(player.currentTime);
-          const duration = player.dataset.duration || 0;
-          const progress = (current / duration) * 100;
+          const duration = parseInt(player.dataset.duration) || 0;
+          const progress = duration > 0 ? (current / duration) * 100 : 0;
           progressBar.style.width = `${progress}%`;
+          if (thumb) {
+            thumb.style.right = `${100 - progress}%`; // Move thumb from left to right
+          }
           const minutes = Math.floor(current / 60);
           const seconds = current % 60;
           currentTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -632,7 +667,7 @@
           const bars = waveform.querySelectorAll('.waveform-bar');
           bars.forEach((bar, index) => {
             const delay = (index / bars.length) * 0.5;
-            if (current > 0) {
+            if (current > 0 && !player.paused) {
               bar.style.animationPlayState = 'running';
               bar.style.animationDelay = `${delay}s`;
             } else {
@@ -642,9 +677,32 @@
         });
 
         player.addEventListener('ended', () => {
-          progressBar.style.width = '0%';
-          currentTimeEl.textContent = '0:00';
+          // Keep progress at 100% and thumb at end, don't reset
+          const duration = parseInt(player.dataset.duration) || 0;
+          const progress = 100;
+          progressBar.style.width = `${progress}%`;
+          if (thumb) {
+            thumb.style.right = `${100 - progress}%`;
+          }
+          currentTimeEl.textContent = durationEl.textContent; // Show full duration
           waveform.querySelectorAll('.waveform-bar').forEach(bar => {
+            bar.style.animationPlayState = 'paused';
+          });
+          console.log('Audio terminé, progress maintenu à 100%');
+        });
+
+        player.addEventListener('play', () => {
+          // Resume waveform animation
+          const bars = waveform.querySelectorAll('.waveform-bar');
+          bars.forEach(bar => {
+            bar.style.animationPlayState = 'running';
+          });
+        });
+
+        player.addEventListener('pause', () => {
+          // Pause waveform
+          const bars = waveform.querySelectorAll('.waveform-bar');
+          bars.forEach(bar => {
             bar.style.animationPlayState = 'paused';
           });
         });
@@ -656,6 +714,7 @@
           const width = rect.width;
           const seekTime = (clickX / width) * player.duration;
           player.currentTime = seekTime;
+          console.log(`Seek to: ${seekTime}s`);
         });
       });
     }
@@ -815,12 +874,18 @@
         progressContainer.className = 'audio-progress';
         const progressBar = document.createElement('div');
         progressBar.className = 'audio-progress-bar';
+        const thumb = document.createElement('div');
+        thumb.className = 'progress-thumb';
+        progressBar.appendChild(thumb);
         progressContainer.appendChild(progressBar);
         audioContainer.appendChild(progressContainer);
 
         const durationEl = document.createElement('p');
         durationEl.className = 'audio-duration';
-        durationEl.textContent = msg.duration ? `${Math.floor(msg.duration / 60)}:${(msg.duration % 60).toString().padStart(2, '0')}` : '0:00';
+        const dur = msg.duration || 0;
+        const minutes = Math.floor(dur / 60);
+        const seconds = dur % 60;
+        durationEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         audioContainer.appendChild(durationEl);
 
         div.appendChild(audioContainer);
@@ -902,6 +967,14 @@
             selectedFile = null;
             input.value = '';
             adjustInputHeight();
+            // Add local message immediately after successful upload
+            addMessage({
+              id: data.id || msgId,
+              sender: username,
+              type: data.type,
+              url: data.url,
+              duration: 0 // Will be fetched by player
+            }, true);
             console.log('Fichier envoyé avec succès:', data);
           } else {
             console.error('Échec de l\'envoi du fichier, statut:', res.status);
@@ -916,33 +989,47 @@
           setTimeout(() => sendMessage(), 1000);
         }
       } else if (recordedAudio) {
-        const formData = new FormData();
-        formData.append('recipient', chatUser);
-        formData.append('file', recordedAudio, "audio_message.webm");
-        try {
-          const res = await fetch('/send_file', { 
+        // Get duration before sending
+        const tempAudio = new Audio(URL.createObjectURL(recordedAudio));
+        tempAudio.addEventListener('loadedmetadata', () => {
+          audioDuration = Math.floor(tempAudio.duration);
+          tempAudio.pause();
+          URL.revokeObjectURL(tempAudio.src);
+          // Now send
+          const formData = new FormData();
+          formData.append('recipient', chatUser);
+          formData.append('file', recordedAudio, "audio_message.webm");
+          fetch('/send_file', { 
             method: 'POST', 
             body: formData,
-            timeout: 30000 // 30s timeout
-          });
-          if (res.ok) {
-            const data = await res.json();
+            timeout: 30000
+          }).then(res => {
+            if (res.ok) {
+              return res.json();
+            } else {
+              throw new Error(`HTTP ${res.status}`);
+            }
+          }).then(data => {
             recordedAudio = null;
             input.value = '';
             adjustInputHeight();
+            // Add local message immediately
+            addMessage({
+              id: data.id || msgId,
+              sender: username,
+              type: 'audio',
+              url: data.url,
+              duration: audioDuration
+            }, true);
             console.log('Audio envoyé avec succès:', data);
-          } else {
-            console.error('Échec de l\'envoi de l\'audio, statut:', res.status);
+          }).catch(e => {
+            console.error('Erreur lors de l\'envoi de l\'audio:', e);
             alert('Erreur lors de l\'envoi de l\'audio. Réessayez.');
             // Retry once
             setTimeout(() => sendMessage(), 1000);
-          }
-        } catch (e) {
-          console.error('Erreur réseau lors de l\'envoi de l\'audio:', e);
-          alert('Erreur réseau lors de l\'envoi de l\'audio. Réessayez.');
-          // Retry once
-          setTimeout(() => sendMessage(), 1000);
-        }
+          });
+        });
+        tempAudio.load();
       } else if (text) {
         addMessage({
           id: msgId,
