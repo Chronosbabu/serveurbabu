@@ -48,9 +48,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            overflow: hidden;
+            overflow-x: hidden;
             -webkit-text-size-adjust: 100% !important;
-            transform: scale(1) !important;
         }
 
         /* Style du logo "CHRONOS" */
@@ -78,7 +77,8 @@
             background: var(--card-bg);
             padding: 40px;
             border-radius: 15px;
-            width: 320px;
+            width: 100%;
+            max-width: 320px;
             box-shadow: var(--shadow);
             border: 1px solid var(--border-color);
         }
@@ -111,6 +111,9 @@
             margin: 10px 0;
             font-size: 14px;
             border: 1px solid var(--border-color);
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .file-input input[type="file"] {
@@ -123,6 +126,7 @@
             margin: 20px 0;
             font-size: 14px;
             color: var(--text-color);
+            justify-content: flex-start;
         }
 
         .checkbox-container input {
@@ -141,12 +145,43 @@
             font-size: 16px;
             font-weight: bold;
             transition: opacity 0.2s ease, transform 0.2s ease;
+            box-sizing: border-box;
         }
 
         button:hover {
             opacity: 0.9;
-            transform: scale(1.02) !important;
+            transform: scale(1.02);
             background: var(--button-hover);
+        }
+
+        .google-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            background: var(--google-button-bg);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 10px 0;
+            color: #000;
+            transition: background 0.2s ease, transform 0.2s ease;
+            box-sizing: border-box;
+            border: 1px solid #dadce0;
+        }
+
+        .google-button img {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+        }
+
+        .google-button:hover {
+            background: var(--google-button-hover);
+            transform: scale(1.02);
         }
 
         .login-link {
@@ -164,28 +199,6 @@
             opacity: 0.8;
         }
 
-        #google-signin-button {
-            width: 100%;
-            padding: 12px;
-            background: var(--google-button-bg);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin: 10px 0;
-            transition: background 0.2s ease, transform 0.2s ease;
-        }
-
-        #google-signin-button:hover {
-            background: var(--google-button-hover);
-            transform: scale(1.02) !important;
-        }
-
         #theme-toggle {
             position: fixed;
             top: 20px;
@@ -201,7 +214,7 @@
 
         #theme-toggle:hover {
             color: var(--link-color);
-            transform: scale(1.1) !important;
+            transform: scale(1.1);
         }
 
         .error-message {
@@ -212,16 +225,47 @@
         }
 
         @media (max-width: 600px) {
-            .main-container { padding: 16px; }
+            .main-container { 
+                padding: 16px; 
+                align-items: flex-start;
+                margin-top: 60px;
+            }
             .container { 
-                width: 90%; 
+                width: 100%; 
+                max-width: none;
                 padding: 20px; 
             }
-            .logo { font-size: 32px; margin: 16px auto; }
+            .logo { 
+                font-size: 32px; 
+                margin: 16px auto 10px; 
+            }
             #theme-toggle { 
                 font-size: 1.3rem; 
                 top: 16px; 
                 right: 16px; 
+            }
+            input[type="text"], input[type="email"], input[type="tel"], input[type="password"] {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+            .checkbox-container {
+                font-size: 16px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .container {
+                padding: 16px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (min-width: 601px) and (max-width: 935px) {
+            .main-container {
+                padding: 20px;
             }
         }
     </style>
@@ -235,10 +279,9 @@
     <div class="main-container">
         <div class="container">
             <h1>Créer un compte</h1>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="text" name="prenom" placeholder="Prénom" required>
-                <input type="text" name="nom" placeholder="Nom" required>
-                <input type="text" name="username" placeholder="Nom d'utilisateur" required>
+            <form method="POST" enctype="multipart/form-data" id="registerForm">
+                <input type="text" name="prenom" id="prenom" placeholder="Prénom" required>
+                <input type="text" name="nom" id="nom" placeholder="Nom" required>
                 <input type="email" name="email" placeholder="Email" required>
                 <input type="tel" name="telephone" placeholder="Téléphone" required>
                 <input type="password" name="password" placeholder="Entrez le mot de passe" required>
@@ -258,9 +301,15 @@
                 <button type="submit">S'inscrire</button>
             </form>
 
-            <button id="google-signin-button">
-                <i class="fa-brands fa-google"></i> Continuer avec Google
-            </button>
+            <div id="g_id_onload"
+                 data-client_id="587697854709-7kimvj92k1qappbbg92chai69v2o034i.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+            <div class="google-button" onclick="google.accounts.id.prompt();">
+                <img src="https://www.google.com/favicon.ico" alt="Google Icon">
+                Continuer avec Google
+            </div>
 
             {% if error %}
                 <p class="error-message">{{ error }}</p>
@@ -275,6 +324,9 @@
     <script>
         const themeToggleBtn = document.getElementById('theme-toggle');
         const body = document.body;
+        const registerForm = document.getElementById('registerForm');
+        const prenomInput = document.getElementById('prenom');
+        const nomInput = document.getElementById('nom');
 
         function setTheme(theme) {
             body.dataset.theme = theme;
@@ -294,44 +346,42 @@
             });
         }
 
-        // Google Sign-In (adapted for register)
-        window.handleCredentialResponse = (response) => {
-            const idToken = response.credential;
-            fetch('/google_login', {
+        // Générer username à partir de prénom et nom avant soumission (format: prenom.nom)
+        registerForm.addEventListener('submit', (e) => {
+            const prenom = prenomInput.value.trim().toLowerCase();
+            const nom = nomInput.value.trim().toLowerCase();
+            if (prenom && nom) {
+                const generatedUsername = prenom + '.' + nom.replace(/\s+/g, '');
+                const hiddenUsername = document.createElement('input');
+                hiddenUsername.type = 'hidden';
+                hiddenUsername.name = 'username';
+                hiddenUsername.value = generatedUsername;
+                registerForm.appendChild(hiddenUsername);
+            } else {
+                e.preventDefault();
+                alert('Prénom et nom sont requis pour générer le nom d\'utilisateur.');
+            }
+        });
+
+        // Google Sign-In (adapted exactly like in login)
+        window.handleCredentialResponse = async function(response) {
+            const res = await fetch('/google_login', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ id_token: idToken }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = data.redirect || '/';
-                } else {
-                    const errorMessage = document.createElement('p');
-                    errorMessage.className = 'error-message';
-                    errorMessage.textContent = data.error || 'Erreur lors de l\'inscription avec Google';
-                    document.querySelector('.container').appendChild(errorMessage);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                const errorMessage = document.createElement('p');
-                errorMessage.className = 'error-message';
-                errorMessage.textContent = 'Erreur réseau lors de l\'inscription';
-                document.querySelector('.container').appendChild(errorMessage);
+                body: JSON.stringify({ id_token: response.credential })
             });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = data.redirect || '/';
+            } else {
+                const errorDiv = document.createElement('p');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = data.error || 'Erreur lors de l\'inscription avec Google';
+                document.querySelector('.container').appendChild(errorDiv);
+            }
         };
-
-        document.getElementById('google-signin-button').addEventListener('click', () => {
-            google.accounts.id.initialize({
-                client_id: '587697854709-7kimvj92k1qappbbg92chai69v2o034i.apps.googleusercontent.com',
-                callback: handleCredentialResponse,
-                auto_select: true,
-            });
-            google.accounts.id.prompt();
-        });
     </script>
 </body>
 </html>
