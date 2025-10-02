@@ -28,6 +28,11 @@
       --mic-btn-recording: #d32f2f;
       --status-color: #8e8e8e;
       --read-color: #4caf50;
+      --audio-me-bg: #dcf8c6;
+      --audio-other-bg: #ffffff;
+      --audio-waveform-color: #007AFF;
+      --audio-progress-bg: #E5E5EA;
+      --audio-progress-color: #007AFF;
     }
 
     [data-theme="dark"] {
@@ -51,6 +56,11 @@
       --mic-btn-recording: #b71c1c;
       --status-color: #6b7280;
       --read-color: #66bb6a;
+      --audio-me-bg: #2a6041;
+      --audio-other-bg: #3a3a3a;
+      --audio-waveform-color: #0A84FF;
+      --audio-progress-bg: #38383D;
+      --audio-progress-color: #0A84FF;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,12 +233,31 @@
       max-width: 100% !important;
       min-width: 0 !important; /* Allow audio to size naturally */
       box-shadow: none !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+    }
+    .message.audio-wrapper .audio-container {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 5px !important;
+      padding: 10px 14px !important;
+      border-radius: 15px !important;
+      max-width: 75% !important;
+      min-width: 200px !important;
+      box-shadow: 0 1px 3px var(--shadow-color) !important;
+    }
+    .message.audio-wrapper.from-me .audio-container {
+      background: var(--audio-me-bg) !important;
+    }
+    .message.audio-wrapper.from-other .audio-container {
+      background: var(--audio-other-bg) !important;
     }
     .message.audio-wrapper audio {
-      width: 250px !important;
-      display: block !important;
-      margin: 5px 0 !important;
+      width: 100% !important;
+      outline: none !important;
       border-radius: 8px !important;
+      margin: 0 !important;
     }
     .message img, .message video {
       max-width: 100% !important;
@@ -236,6 +265,61 @@
       display: block !important;
     }
     .message video { max-height: 300px !important; }
+
+    /* ---------- AUDIO DURATION & TIMER ---------- */
+    .audio-duration {
+      font-size: 0.8rem !important;
+      color: var(--text-color) !important;
+      font-weight: 500 !important;
+      margin: 0 !important;
+      text-align: right !important;
+      opacity: 0.8 !important;
+    }
+    .audio-progress {
+      width: 100% !important;
+      height: 3px !important;
+      background: var(--audio-progress-bg) !important;
+      border-radius: 2px !important;
+      margin-top: 5px !important;
+      overflow: hidden !important;
+      cursor: pointer !important;
+    }
+    .audio-progress-bar {
+      height: 100% !important;
+      background: var(--audio-progress-color) !important;
+      width: 0% !important;
+      transition: width 0.1s ease !important;
+    }
+    .audio-waveform {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      margin-top: 5px !important;
+    }
+    .waveform-bars {
+      display: flex !important;
+      gap: 2px !important;
+      height: 20px !important;
+    }
+    .waveform-bar {
+      width: 3px !important;
+      background: var(--audio-waveform-color) !important;
+      border-radius: 2px !important;
+      animation: wave 1.5s ease-in-out infinite !important;
+    }
+    .waveform-bar:nth-child(2) { animation-delay: 0.1s !important; }
+    .waveform-bar:nth-child(3) { animation-delay: 0.2s !important; }
+    .waveform-bar:nth-child(4) { animation-delay: 0.3s !important; }
+    @keyframes wave {
+      0%, 100% { transform: scaleY(0.5); }
+      50% { transform: scaleY(1); }
+    }
+    .current-time {
+      font-size: 0.75rem !important;
+      color: var(--text-color) !important;
+      opacity: 0.7 !important;
+      min-width: 40px !important;
+    }
 
     /* ---------- MESSAGE STATUS INDICATOR ---------- */
     .status-indicator {
@@ -328,11 +412,16 @@
         background-clip: padding-box !important;
         -webkit-text-size-adjust: 100% !important;
       }
-      .message.audio-wrapper audio { width: 200px !important; }
+      .message.audio-wrapper .audio-container { min-width: 180px !important; }
+      .message.audio-wrapper audio { width: calc(100% - 20px) !important; }
       .input-box { padding: 6px 12px; }
       .input-box textarea { font-size: 0.9rem; padding: 10px 12px; }
       .input-box button { width: 36px; height: 36px; font-size: 0.9rem; }
       .status-indicator { font-size: 0.7rem; bottom: 4px; right: 8px; }
+      .audio-duration { font-size: 0.75rem !important; }
+      .current-time { font-size: 0.7rem !important; min-width: 35px !important; }
+      .waveform-bars { height: 16px !important; }
+      .waveform-bar { width: 2px !important; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -363,7 +452,22 @@
         {% elif msg.type == 'video' %}
         <video src="{{ msg.url }}" controls></video>
         {% elif msg.type == 'audio' %}
-        <audio controls src="{{ msg.url }}"></audio>
+        <div class="audio-container">
+          <audio controls src="{{ msg.url }}" class="audio-player" data-duration="{{ msg.duration if 'duration' in msg else '0' }}"></audio>
+          <div class="audio-waveform">
+            <div class="waveform-bars">
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+            </div>
+            <span class="current-time">0:00</span>
+          </div>
+          <div class="audio-progress">
+            <div class="audio-progress-bar"></div>
+          </div>
+          <p class="audio-duration">{{ msg.duration if 'duration' in msg else '0:00' }}</p>
+        </div>
         {% endif %}
         {% if msg.sender == session['username'] %}
         {% set read_len = msg.read_by|length if 'read_by' in msg else 1 %}
@@ -422,7 +526,9 @@
     const socket = io({
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      forceNew: true
     });
     const username = document.body.dataset.username;
     const chatUser = "{{ chat_user }}";
@@ -473,6 +579,10 @@
           msg.style.minWidth = '0';
           msg.style.background = 'none';
           msg.style.boxShadow = 'none';
+          const container = msg.querySelector('.audio-container');
+          if (container) {
+            container.style.background = msg.classList.contains('from-me') ? 'var(--audio-me-bg)' : 'var(--audio-other-bg)';
+          }
         } else {
           msg.style.fontSize = '0.9rem';
           msg.style.lineHeight = '1.4';
@@ -485,8 +595,68 @@
           msg.style.overflow = 'visible';
           msg.style.backgroundClip = 'padding-box';
           msg.style.webkitTextSizeAdjust = '100%';
-          msg.style.whiteSpace = 'pre-line';
         }
+      });
+      initializeAudioPlayers();
+    }
+
+    // Initialiser les players audio avec timer et progress
+    function initializeAudioPlayers() {
+      const audioPlayers = document.querySelectorAll('.audio-player');
+      audioPlayers.forEach(player => {
+        const container = player.closest('.audio-container');
+        const durationEl = container.querySelector('.audio-duration');
+        const currentTimeEl = container.querySelector('.current-time');
+        const progressBar = container.querySelector('.audio-progress-bar');
+        const progressContainer = container.querySelector('.audio-progress');
+        const waveform = container.querySelector('.waveform-bars');
+
+        player.addEventListener('loadedmetadata', () => {
+          const duration = Math.floor(player.duration);
+          const minutes = Math.floor(duration / 60);
+          const seconds = duration % 60;
+          durationEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          player.dataset.duration = duration;
+        });
+
+        player.addEventListener('timeupdate', () => {
+          const current = Math.floor(player.currentTime);
+          const duration = player.dataset.duration || 0;
+          const progress = (current / duration) * 100;
+          progressBar.style.width = `${progress}%`;
+          const minutes = Math.floor(current / 60);
+          const seconds = current % 60;
+          currentTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+          // Animate waveform based on progress
+          const bars = waveform.querySelectorAll('.waveform-bar');
+          bars.forEach((bar, index) => {
+            const delay = (index / bars.length) * 0.5;
+            if (current > 0) {
+              bar.style.animationPlayState = 'running';
+              bar.style.animationDelay = `${delay}s`;
+            } else {
+              bar.style.animationPlayState = 'paused';
+            }
+          });
+        });
+
+        player.addEventListener('ended', () => {
+          progressBar.style.width = '0%';
+          currentTimeEl.textContent = '0:00';
+          waveform.querySelectorAll('.waveform-bar').forEach(bar => {
+            bar.style.animationPlayState = 'paused';
+          });
+        });
+
+        // Click on progress to seek
+        progressContainer.addEventListener('click', (e) => {
+          const rect = progressContainer.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const width = rect.width;
+          const seekTime = (clickX / width) * player.duration;
+          player.currentTime = seekTime;
+        });
       });
     }
 
@@ -616,10 +786,44 @@
         video.controls = true;
         div.appendChild(video);
       } else if (msg.type === 'audio') {
+        const audioContainer = document.createElement('div');
+        audioContainer.className = 'audio-container';
         const audio = document.createElement('audio');
         audio.src = msg.url;
+        audio.className = 'audio-player';
         audio.controls = true;
-        div.appendChild(audio);
+        audio.dataset.duration = msg.duration || 0;
+        audioContainer.appendChild(audio);
+
+        const waveformContainer = document.createElement('div');
+        waveformContainer.className = 'audio-waveform';
+        const waveformBars = document.createElement('div');
+        waveformBars.className = 'waveform-bars';
+        for (let i = 0; i < 4; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'waveform-bar';
+          waveformBars.appendChild(bar);
+        }
+        const currentTime = document.createElement('span');
+        currentTime.className = 'current-time';
+        currentTime.textContent = '0:00';
+        waveformContainer.appendChild(waveformBars);
+        waveformContainer.appendChild(currentTime);
+        audioContainer.appendChild(waveformContainer);
+
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'audio-progress';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'audio-progress-bar';
+        progressContainer.appendChild(progressBar);
+        audioContainer.appendChild(progressContainer);
+
+        const durationEl = document.createElement('p');
+        durationEl.className = 'audio-duration';
+        durationEl.textContent = msg.duration ? `${Math.floor(msg.duration / 60)}:${(msg.duration % 60).toString().padStart(2, '0')}` : '0:00';
+        audioContainer.appendChild(durationEl);
+
+        div.appendChild(audioContainer);
       }
       // Appliquer les styles explicitement
       if (msg.type === 'audio') {
@@ -628,6 +832,10 @@
         div.style.minWidth = '0';
         div.style.background = 'none';
         div.style.boxShadow = 'none';
+        const container = div.querySelector('.audio-container');
+        if (container) {
+          container.style.background = msg.sender === username ? 'var(--audio-me-bg)' : 'var(--audio-other-bg)';
+        }
       } else {
         div.style.fontSize = '0.9rem';
         div.style.lineHeight = '1.4';
@@ -683,37 +891,57 @@
         formData.append('recipient', chatUser);
         formData.append('file', selectedFile);
         try {
-          const res = await fetch('/send_file', { method: 'POST', body: formData });
+          const res = await fetch('/send_file', { 
+            method: 'POST', 
+            body: formData,
+            timeout: 30000 // 30s timeout
+          });
           if (res.ok) {
+            const data = await res.json();
             fileInput.value = '';
             selectedFile = null;
             input.value = '';
             adjustInputHeight();
+            console.log('Fichier envoyé avec succès:', data);
           } else {
             console.error('Échec de l\'envoi du fichier, statut:', res.status);
-            alert('Erreur lors de l\'envoi du fichier.');
+            alert('Erreur lors de l\'envoi du fichier. Réessayez.');
+            // Retry once
+            setTimeout(() => sendMessage(), 1000);
           }
         } catch (e) {
           console.error('Erreur réseau lors de l\'envoi du fichier:', e);
-          alert('Erreur réseau lors de l\'envoi du fichier.');
+          alert('Erreur réseau lors de l\'envoi du fichier. Réessayez.');
+          // Retry once
+          setTimeout(() => sendMessage(), 1000);
         }
       } else if (recordedAudio) {
         const formData = new FormData();
         formData.append('recipient', chatUser);
         formData.append('file', recordedAudio, "audio_message.webm");
         try {
-          const res = await fetch('/send_file', { method: 'POST', body: formData });
+          const res = await fetch('/send_file', { 
+            method: 'POST', 
+            body: formData,
+            timeout: 30000 // 30s timeout
+          });
           if (res.ok) {
+            const data = await res.json();
             recordedAudio = null;
             input.value = '';
             adjustInputHeight();
+            console.log('Audio envoyé avec succès:', data);
           } else {
             console.error('Échec de l\'envoi de l\'audio, statut:', res.status);
-            alert('Erreur lors de l\'envoi de l\'audio.');
+            alert('Erreur lors de l\'envoi de l\'audio. Réessayez.');
+            // Retry once
+            setTimeout(() => sendMessage(), 1000);
           }
         } catch (e) {
           console.error('Erreur réseau lors de l\'envoi de l\'audio:', e);
-          alert('Erreur réseau lors de l\'envoi de l\'audio.');
+          alert('Erreur réseau lors de l\'envoi de l\'audio. Réessayez.');
+          // Retry once
+          setTimeout(() => sendMessage(), 1000);
         }
       } else if (text) {
         addMessage({
@@ -723,13 +951,13 @@
           type: 'text',
           date: new Date().toISOString()
         }, true);
-        // Tenter d'envoyer le message
+        // Tenter d'envoyer le message avec retry
         let attempts = 0;
-        const maxAttempts = 3;
+        const maxAttempts = 5;
         const sendAttempt = () => {
           if (attempts >= maxAttempts) {
             console.error('Échec de l\'envoi du message après', maxAttempts, 'tentatives');
-            alert('Échec de l\'envoi du message. Veuillez vérifier votre connexion.');
+            alert('Échec de l\'envoi du message après plusieurs tentatives. Vérifiez votre connexion.');
             return;
           }
           if (socket.connected) {
@@ -739,7 +967,7 @@
           } else {
             attempts++;
             console.warn(`Tentative ${attempts} échouée, Socket.IO non connecté`);
-            setTimeout(sendAttempt, 1000);
+            setTimeout(sendAttempt, 2000 * attempts); // Exponential backoff
           }
         };
         sendAttempt();
@@ -760,27 +988,45 @@
       console.log('Fichier sélectionné:', file.name);
     });
 
-    // Micro
+    // Micro avec enregistrement robuste
     micBtn.addEventListener('click', async () => {
       if (!mediaRecorder || mediaRecorder.state === "inactive") {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorder = new MediaRecorder(stream);
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              sampleRate: 44100
+            } 
+          });
+          mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+          });
           audioChunks = [];
-          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.ondataavailable = e => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
           mediaRecorder.onstop = () => {
-            recordedAudio = new Blob(audioChunks, { type: "audio/webm" });
-            input.value = "[Audio prêt]";
-            adjustInputHeight();
+            if (audioChunks.length > 0) {
+              recordedAudio = new Blob(audioChunks, { type: "audio/webm" });
+              input.value = "[Audio prêt]";
+              adjustInputHeight();
+            }
             stream.getTracks().forEach(track => track.stop());
             console.log('Enregistrement audio terminé');
           };
-          mediaRecorder.start();
+          mediaRecorder.onerror = (e) => {
+            console.error('Erreur MediaRecorder:', e);
+            alert('Erreur lors de l\'enregistrement. Réessayez.');
+            micBtn.classList.remove("recording");
+            stream.getTracks().forEach(track => track.stop());
+          };
+          mediaRecorder.start(1000); // Collect data every second for smoother chunks
           micBtn.classList.add("recording");
           console.log('Enregistrement audio démarré');
         } catch (e) {
           console.error('Erreur d\'accès au micro:', e);
-          alert("Impossible d'accéder au micro");
+          alert("Impossible d'accéder au micro. Vérifiez les permissions.");
         }
       } else {
         mediaRecorder.stop();
