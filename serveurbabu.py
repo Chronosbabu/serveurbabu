@@ -311,20 +311,35 @@ def get_sorted_posts(posts, current_user, filter_videos=False):
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
+        prenom = (request.form.get("prenom") or "").strip()
+        nom = (request.form.get("nom") or "").strip()
         username = (request.form.get("username") or "").strip()
+        email = (request.form.get("email") or "").strip()
+        telephone = (request.form.get("telephone") or "").strip()
         password = (request.form.get("password") or "").strip()
+        confirm_password = (request.form.get("confirm_password") or "").strip()
         avatar_file = request.files.get("avatar")
-        if not username or not password:
-            return "Nom d'utilisateur et mot de passe requis.", 400
+        if not all([prenom, nom, username, email, telephone, password, confirm_password]):
+            return "Tous les champs sont requis.", 400
+        if password != confirm_password:
+            return "Les mots de passe ne correspondent pas.", 400
         users = load_users()
         if any(u["username"].lower() == username.lower() for u in users):
             return "Nom d'utilisateur déjà pris !", 400
+        if any(u["email"].lower() == email.lower() for u in users):
+            return "Email déjà utilisé !", 400
+        if any(u["telephone"] == telephone for u in users):
+            return "Numéro de téléphone déjà utilisé !", 400
         avatar_filename = None
         if avatar_file and avatar_file.filename:
             avatar_filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
             avatar_file.save(os.path.join(AVATAR_FOLDER, avatar_filename))
         users.append({
+            "prenom": prenom,
+            "nom": nom,
             "username": username,
+            "email": email,
+            "telephone": telephone,
             "password": hash_password(password),
             "avatar": avatar_filename,
             "bio": "",
@@ -336,6 +351,43 @@ def register():
         save_users(users)
         return redirect(url_for("login"))
     return render_template("register.html")
+
+@app.route("/recuperer", methods=["GET", "POST"])
+def recuperer():
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip()
+        telephone = (request.form.get("telephone") or "").strip()
+        if not email or not telephone:
+            return render_template("recuperer.html", error="Email et numéro de téléphone requis.")
+        users = load_users()
+        user = next((u for u in users if u["email"].lower() == email.lower() and u["telephone"] == telephone), None)
+        if not user:
+            return render_template("recuperer.html", error="Email ou numéro de téléphone incorrect.")
+        session["recovery_user"] = user["username"]
+        return redirect(url_for("reset_password"))
+    return render_template("recuperer.html")
+
+@app.route("/reset_password", methods=["GET", "POST"])
+def reset_password():
+    if "recovery_user" not in session:
+        return redirect(url_for("recuperer"))
+    if request.method == "POST":
+        new_password = (request.form.get("new_password") or "").strip()
+        confirm_password = (request.form.get("confirm_password") or "").strip()
+        if not new_password or not confirm_password:
+            return render_template("reset_password.html", error="Nouveau mot de passe requis.")
+        if new_password != confirm_password:
+            return render_template("reset_password.html", error="Les mots de passe ne correspondent pas.")
+        users = load_users()
+        user = next((u for u in users if u["username"] == session["recovery_user"]), None)
+        if not user:
+            session.pop("recovery_user", None)
+            return redirect(url_for("recuperer"))
+        user["password"] = hash_password(new_password)
+        save_users(users)
+        session.pop("recovery_user", None)
+        return redirect(url_for("login"))
+    return render_template("reset_password.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():

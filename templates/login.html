@@ -285,7 +285,7 @@
                 <input type="checkbox" id="showPassword">
                 <label for="showPassword">Afficher le mot de passe</label>
             </div>
-            <a href="#">Mot de passe oublié ?</a>
+            <a href="{{ url_for('recuperer') }}">Mot de passe oublié ?</a>
             <button type="submit">Connexion</button>
             {% if error %}
                 <p class="error-message">{{ error }}</p>
