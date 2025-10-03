@@ -1,3 +1,4 @@
+## fichier 2
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -691,7 +692,15 @@
       align-items: center;
       gap: 6px;
     }
-    .follow-count span {
+    .referrals-count {
+      margin-top: 8px;
+      font-weight: bold;
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .follow-count span, .referrals-count span {
       font-size: 16px;
       color: var(--link-hover);
     }
@@ -777,6 +786,7 @@
         <h1>@{{ profile_user.username }}</h1>
         <p>{{ profile_user.bio if profile_user.bio else "Aucune bio pour le moment." }}</p>
         <div class="follow-count">👥 <span id="follower-count">{{ profile_user.followers|length }}</span></div>
+        <div class="referrals-count">📩 <span id="referrals-count">{{ profile_user.referrals_count }}</span> Invités</div>
         <div class="profile-buttons">
           {% if current_username != profile_user.username %}
             <button class="follow-btn{% if profile_user.following %} following{% endif %}" data-following="{{ 'true' if profile_user.following else 'false' }}" id="follow-btn">
@@ -996,6 +1006,15 @@
       }
   });
 
+  socket.on("update_referrals", (data) => {
+      if (data.username === "{{ profile_user.username }}") {
+          const countEl = document.getElementById("referrals-count");
+          if (countEl) {
+              countEl.textContent = data.referrals_count;
+          }
+      }
+  });
+
   socket.on("avatar_updated", (data) => {
       console.log(`Mise à jour de l'avatar reçue pour ${data.username}: ${data.new_avatar_url}`);
       if (data.username === "{{ profile_user.username }}" || data.username === "{{ current_username }}") {
@@ -1080,6 +1099,7 @@
         }
         const countEl = post.querySelector('.comment-count');
         countEl.textContent = parseInt(countEl.textContent || "0") + 1;
+        socket.emit('send_comment', { post_id: parseInt(data.post_id), comment_id: data.comment_id, username: data.username, content: data.content, avatar: data.avatar });
       }
   });
 

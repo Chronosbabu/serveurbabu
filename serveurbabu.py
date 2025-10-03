@@ -1,3 +1,4 @@
+## fichier 1
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
@@ -141,8 +142,13 @@ def load_bank():
     with open(BANK_FILE, "r", encoding="utf-8") as f:
         bank = json.load(f)
     if not any(acc["username"] == "platform" for acc in bank):
-        bank.append({"username": "platform", "balance_franc": 0, "balance_dollar": 0, "account_id": "00000000", "password": "", "subscription_end": None, "referrer_id": None})
+        bank.append({"username": "platform", "balance_franc": 0, "balance_dollar": 0, "account_id": "00000000", "password": "", "subscription_end": None, "referrer_id": None, "referrals_count": 0})
         save_bank(bank)
+    # Ensure referrals_count exists for all accounts
+    for acc in bank:
+        if "referrals_count" not in acc:
+            acc["referrals_count"] = 0
+    save_bank(bank)
     return bank
 
 def save_bank(bank):
@@ -706,6 +712,9 @@ def profile(username):
         abort(404)
     posts = load_posts()
     users = {u["username"]: u for u in load_users()}
+    bank = load_bank()
+    acc = next((a for a in bank if a["username"] == username), None)
+    referrals_count = acc.get("referrals_count", 0) if acc else 0
     user_posts = [p for p in posts if p.get("username") == user["username"]]
     current_username = session.get("username")
     current_user = get_user(current_username) if current_username else None
@@ -719,6 +728,7 @@ def profile(username):
     all_users = load_users()
     followers = [u["username"] for u in all_users if username in u.get("following", [])]
     user["followers"] = followers
+    user["referrals_count"] = referrals_count
     return render_template(
         "profile.html",
         profile_user=user,
@@ -1138,10 +1148,12 @@ def bank_create():
     bank = load_bank()
     if next((a for a in bank if a["username"] == un), None):
         return jsonify({"error": "Compte existe déjà"}), 400
-    if referral_id:
-        referrer = next((a for a in bank if a.get("account_id") == referral_id), None)
-        if not referrer:
-            referral_id = ""
+    referrer = next((a for a in bank if a.get("account_id") == referral_id), None)
+    if not referrer:
+        referral_id = ""
+    else:
+        # Increment referrer's referrals_count
+        referrer["referrals_count"] = referrer.get("referrals_count", 0) + 1
     account_id = generate_account_id()
     bank.append({
         "username": un,
@@ -1150,9 +1162,13 @@ def bank_create():
         "balance_dollar": 0.0,
         "account_id": account_id,
         "referrer_id": referral_id,
-        "subscription_end": None
+        "subscription_end": None,
+        "referrals_count": 0
     })
     save_bank(bank)
+    # Emit update if needed, but since it's new, perhaps notify referrer
+    if referrer:
+        socketio.emit("update_referrals", {"username": referrer["username"], "referrals_count": referrer["referrals_count"]}, namespace='/')
     return jsonify({"success": True, "account_id": account_id})
 
 @app.route("/bank/login", methods=["POST"])
@@ -1169,7 +1185,7 @@ def bank_login():
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
     if acc["password"] != hash_password(pwd):
-        return jsonify({"error": "Mot de passe incorrect"}), 401
+        return jupytext({"error": "Mot de passe incorrect"}), 401
     return jsonify({
         "success": True,
         "balances": {
@@ -1300,12 +1316,13 @@ def pay_subscription():
     if acc[key] < fee:
         return jsonify({"error": f"Solde insuffisant pour payer les frais ({fee} {currency})"}), 400
     acc[key] -= fee
-    platform[key] += fee * 0.7
     referrer_id = acc.get("referrer_id")
-    if referrer_id:
-        referrer = next((a for a in bank if a.get("account_id") == referrer_id), None)
-        if referrer:
-            referrer[key] += fee * 0.3
+    referrer = next((a for a in bank if a.get("account_id") == referrer_id), None) if referrer_id else None
+    if referrer:
+        platform[key] += fee * 0.7
+        referrer[key] += fee * 0.3
+    else:
+        platform[key] += fee  # 100% to platform if no referrer
     delta = timedelta(minutes=1) if TEST_MODE else timedelta(days=30)
     acc["subscription_end"] = (datetime.now(timezone.utc) + delta).isoformat()
     save_bank(bank)
