@@ -88,27 +88,12 @@ h2 {
 .notification-message a:hover {
   text-decoration: underline;
 }
-#theme-toggle {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: none;
-  border: none;
-  color: var(--text-color);
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: color 0.2s ease, transform 0.2s ease;
-}
-#theme-toggle:hover {
-  color: var(--link-hover);
-  transform: scale(1.1);
-}
 </style>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body data-theme="light">
 <div class="container">
-    <h2>Notifications<button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button></h2>
+    <h2>Notifications</h2>
     <div class="scroll-box" id="notifications-list">
         {% for notif in notifications %}
         <div class="notification-item">
@@ -131,46 +116,30 @@ h2 {
 </div>
 
 <script>
-const socket = io();
-const userId = {{ session["user_id"]|tojson }};
-socket.emit("join", { user_id: userId });
+document.addEventListener('DOMContentLoaded', () => {
+    // Apply theme from localStorage
+    const body = document.body;
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    body.dataset.theme = savedTheme;
 
-// Theme toggle functionality
-const themeToggleBtn = document.getElementById('theme-toggle');
-const body = document.body;
+    const socket = io();
+    const userId = {{ session["user_id"]|tojson }};
+    socket.emit("join", { user_id: userId });
 
-function setTheme(theme) {
-  body.dataset.theme = theme;
-  localStorage.setItem('theme', theme);
-  const icon = themeToggleBtn.querySelector('i');
-  icon.classList.toggle('fa-moon', theme === 'light');
-  icon.classList.toggle('fa-sun', theme === 'dark');
-}
-
-// Load saved theme or default to light
-const savedTheme = localStorage.getItem('theme') || 'light';
-setTheme(savedTheme);
-
-if (themeToggleBtn) {
-  themeToggleBtn.addEventListener('click', () => {
-    const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-  });
-}
-
-// Réception des nouvelles notifications
-socket.on("new_notification", data => {
-    const list = document.getElementById("notifications-list");
-    if(list){
-        const div = document.createElement("div");
-        div.className = "notification-item";
-        const avatarImg = data.avatar ? `<img src="${data.avatar}" alt="${data.sender}" class="notification-avatar">` : `<div class="avatar-fallback">${data.sender[0].toUpperCase()}</div>`;
-        const message = data.type === 'like' ? `a aimé votre publication.` : 
-                        data.type === 'comment' ? `a commenté votre publication.` : 
-                        data.type === 'follow' ? `a commencé à vous suivre.` : data.message;
-        div.innerHTML = `${avatarImg}<span class="notification-message"><a href="/profile/${data.sender}">${data.sender}</a> ${message}</span>`;
-        list.prepend(div);
-    }
+    // Réception des nouvelles notifications
+    socket.on("new_notification", data => {
+        const list = document.getElementById("notifications-list");
+        if(list){
+            const div = document.createElement("div");
+            div.className = "notification-item";
+            const avatarImg = data.avatar ? `<img src="${data.avatar}" alt="${data.sender}" class="notification-avatar">` : `<div class="avatar-fallback">${data.sender[0].toUpperCase()}</div>`;
+            const message = data.type === 'like' ? `a aimé votre publication.` : 
+                            data.type === 'comment' ? `a commenté votre publication.` : 
+                            data.type === 'follow' ? `a commencé à vous suivre.` : data.message;
+            div.innerHTML = `${avatarImg}<span class="notification-message"><a href="/profile/${data.sender}">${data.sender}</a> ${message}</span>`;
+            list.prepend(div);
+        }
+    });
 });
 </script>
 </body>
