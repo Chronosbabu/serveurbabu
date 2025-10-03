@@ -35,6 +35,7 @@
       --audio-progress-color: #007AFF;
       --progress-thumb-bg: #007AFF;
       --progress-thumb-border: #fafafa;
+      --initial-bg: #dbdbdb;
     }
 
     [data-theme="dark"] {
@@ -65,6 +66,7 @@
       --audio-progress-color: #0A84FF;
       --progress-thumb-bg: #0A84FF;
       --progress-thumb-border: #1a1a1a;
+      --initial-bg: #444444;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -101,31 +103,40 @@
       z-index: 1000;
       box-shadow: 0 1px 2px var(--shadow-color);
     }
-    .chat-header {
+    .profile-info {
       display: flex;
       align-items: center;
-      gap: 12px;
     }
-    .chat-user-avatar {
+    .profile-pic {
       width: 40px;
       height: 40px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid var(--border-color);
+      margin-right: 10px;
     }
-    .chat-user-name {
+    .profile-initial {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--initial-bg);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 1.2rem;
-      font-weight: 600;
-      color: var(--text-color);
-      max-width: 200px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      margin-right: 10px;
+    }
+    .name-status {
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-name {
+      font-size: 1.2rem;
+      font-weight: bold;
     }
     .typing-status {
       font-size: 0.8rem;
       color: var(--status-color);
-      margin-left: 10px;
       font-style: italic;
       display: none;
     }
@@ -423,8 +434,7 @@
     @media (max-width: 600px) {
       .main-container { padding: 16px 16px 70px 16px; }
       .main-header { padding: 10px 16px; }
-      .chat-user-avatar { width: 32px; height: 32px; }
-      .chat-user-name { font-size: 1rem; max-width: 150px; }
+      .logo { font-size: 1.5rem; }
       .header-icons { gap: 16px; }
       .header-icons a { font-size: 1.3rem; }
       .bottom-nav { padding: 10px 0; }
@@ -455,6 +465,9 @@
       .waveform-bars { height: 16px !important; }
       .waveform-bar { width: 2px !important; }
       .progress-thumb { width: 10px !important; height: 10px !important; right: -5px !important; }
+      .profile-pic, .profile-initial { width: 32px; height: 32px; font-size: 1rem; }
+      .chat-name { font-size: 1rem; }
+      .typing-status { font-size: 0.75rem; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -462,20 +475,23 @@
 <body data-username="{{ session['username'] }}" data-theme="light">
   <div class="main-container">
     <header class="main-header">
-      <div class="chat-header">
-        {% set user = users.get(chat_user, {}) %}
-        {% set avatar = user.get('avatar') %}
-        {% set full_name = user.get('prenom', '') + ' ' + user.get('nom', '') %}
-        {% set display_name = full_name if full_name|length <= 15 else full_name[:12] + '...' %}
-        {% if avatar %}
-        <img src="{{ url_for('avatar_file', filename=avatar) }}?t={{ timestamp_filter() }}" alt="Avatar de {{ chat_user }}" class="chat-user-avatar">
+      <div class="profile-info">
+        {% if chat_user_data.avatar %}
+          <img src="{{ url_for('avatar_file', filename=chat_user_data.avatar) }}" alt="Profile" class="profile-pic">
         {% else %}
-        <div class="chat-user-avatar" style="background: #ccc; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: #fff;">
-          {{ chat_user[0]|upper }}
-        </div>
+          <div class="profile-initial">{{ (chat_user_data.prenom or chat_user)[:1] | upper }}</div>
         {% endif %}
-        <div>
-          <span class="chat-user-name">{{ display_name }}</span>
+        <div class="name-status">
+          {% set full_name = (chat_user_data.prenom or '') ~ ' ' ~ (chat_user_data.nom or '') | trim %}
+          {% set words = full_name.split() %}
+          {% if words|length >= 2 and full_name|length > 12 %}
+            {% set truncated_name = words[0] ~ ' ' ~ words[1][:4] ~ '......' %}
+          {% elif full_name|length > 12 %}
+            {% set truncated_name = full_name[:12] ~ '...' %}
+          {% else %}
+            {% set truncated_name = full_name %}
+          {% endif %}
+          <span class="chat-name">{{ truncated_name or chat_user }}</span>
           <span id="typing-status" class="typing-status"></span>
         </div>
       </div>

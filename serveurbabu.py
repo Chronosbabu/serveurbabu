@@ -880,8 +880,7 @@ def conversations():
         last_msg_entry = conv[-1] if conv else None
         last_msg = last_msg_entry["text"] if last_msg_entry else ""
         last_date = last_msg_entry.get("date") if last_msg_entry else ""
-        last_sender = last_msg_entry["sender"] if last ㅤ
-_msg_entry else None
+        last_sender = last_msg_entry["sender"] if last_msg_entry else None
         last_status = None
         if last_sender == username and last_msg_entry:
             read_len = len(last_msg_entry.get("read_by", []))
@@ -906,7 +905,6 @@ def chat(username):
         return redirect(url_for("login"))
     messages = load_messages()
     users = {u["username"]: u for u in load_users()}
-    chat_user_data = users.get(username, {})
     key1 = f"{session['username']}_{username}"
     key2 = f"{username}_{session['username']}"
     conv = messages.get(key1) or messages.get(key2) or []
@@ -937,14 +935,8 @@ def chat(username):
         socketio.emit('messages_read', {'ids': newly_read}, room=username, namespace='/')
     for msg in conv:
         msg['avatar'] = users.get(msg["sender"], {}).get("avatar")
-    return render_template(
-        "chat.html",
-        chat_user=username,
-        messages=conv,
-        avatar=session.get("avatar"),
-        chat_user_avatar=chat_user_data.get("avatar"),
-        chat_user_name=f"{chat_user_data.get('prenom', '')} {chat_user_data.get('nom', '')}".strip() or username
-    )
+    other_user_data = users.get(username, {})
+    return render_template("chat.html", chat_user=username, messages=conv, avatar=session.get("avatar"), chat_user_data=other_user_data)
 
 @app.route("/send_message", methods=["POST"])
 def send_message_http():
@@ -1458,7 +1450,7 @@ def boost_confirm(post_id):
     key = f"balance_{currency}"
     if acc[key] < tariff:
         return jsonify({"error": "Solde insuffisant"}), 400
-    acc[key] = acc[key] - tariff
+    acc[key] -= tariff
     platform = next((a for a in bank if a["username"] == "platform"), None)
     platform[key] += tariff
     now = datetime.now(timezone.utc)
