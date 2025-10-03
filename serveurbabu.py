@@ -1474,6 +1474,45 @@ def handle_stop_typing(data):
     if receiver:
         emit('stop_typing', {'sender': session.get('username')}, room=receiver)
 
+@app.route("/verify_password", methods=["POST"])
+def verify_password():
+    if "username" not in session:
+        return jsonify({"success": False, "error": "Non connecté"}), 401
+    data = request.get_json()
+    password = data.get("password")
+    if not password:
+        return jsonify({"success": False, "error": "Mot de passe requis"}), 400
+    user = get_user(session["username"])
+    if not user:
+        return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
+    if user["password"] != hash_password(password):
+        return jsonify({"success": False, "error": "Mot de passe incorrect"}), 401
+    return jsonify({"success": True})
+
+@app.route("/update_name", methods=["POST"])
+def update_name():
+    if "username" not in session:
+        return jsonify({"success": False, "error": "Non connecté"}), 401
+    data = request.get_json()
+    new_prenom = (data.get("new_prenom") or "").strip()
+    new_nom = (data.get("new_nom") or "").strip()
+    confirm_password = data.get("confirm_password")
+    if not new_prenom or not new_nom or not confirm_password:
+        return jsonify({"success": False, "error": "Champs requis manquants"}), 400
+    user = get_user(session["username"])
+    if not user:
+        return jsonify({"success": False, "error": "Utilisateur non trouvé"}), 404
+    if user["password"] != hash_password(confirm_password):
+        return jsonify({"success": False, "error": "Mot de passe de confirmation incorrect"}), 401
+    user["prenom"] = new_prenom
+    user["nom"] = new_nom
+    users = load_users()
+    save_users(users)
+    # Pas besoin de propagation dans les données, car le changement est reflété via users.json lors des affichages
+    # (par exemple, dans les templates, utiliser users[post.username].prenom et .nom pour afficher le nom sur les posts, commentaires, etc.)
+    socketio.emit("name_updated", {"username": session["username"], "new_prenom": new_prenom, "new_nom": new_nom}, namespace='/')
+    return jsonify({"success": True, "message": "Nom mis à jour avec succès"})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
