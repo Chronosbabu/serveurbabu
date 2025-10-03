@@ -935,7 +935,7 @@ def chat(username):
         socketio.emit('messages_read', {'ids': newly_read}, room=username, namespace='/')
     for msg in conv:
         msg['avatar'] = users.get(msg["sender"], {}).get("avatar")
-    return render_template("chat.html", chat_user=username, messages=conv, avatar=session.get("avatar"))
+    return render_template("chat.html", chat_user=username, messages=conv, avatar=session.get("avatar"), users=users)
 
 @app.route("/send_message", methods=["POST"])
 def send_message_http():
