@@ -75,7 +75,7 @@
       background: var(--bg-color);
       color: var(--text-color);
       line-height: 1.5;
-      overflow: hidden; /* Prevent body scrolling */
+      overflow: hidden;
     }
     a { text-decoration: none; color: inherit; }
     .main-container { 
@@ -101,20 +101,37 @@
       z-index: 1000;
       box-shadow: 0 1px 2px var(--shadow-color);
     }
-    .logo {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--text-color);
-      font-family: 'Lobster', cursive;
-      letter-spacing: 1px;
-      flex-shrink: 0;
+    .chat-header {
       display: flex;
       align-items: center;
+      gap: 10px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .chat-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    .chat-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-username {
+      font-size: 1.2rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
     }
     .typing-status {
       font-size: 0.8rem;
       color: var(--status-color);
-      margin-left: 10px;
       font-style: italic;
       display: none;
     }
@@ -169,7 +186,7 @@
       justify-content: space-around;
       align-items: center;
       padding: 12px 0;
-      z-index: 1100; /* Higher than input-box to ensure visibility */
+      z-index: 1100;
       box-shadow: 0 -1px 2px var(--shadow-color);
     }
     .bottom-nav a {
@@ -197,37 +214,37 @@
       gap: 8px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      background: var(--messages-bg); /* WhatsApp-like background */
+      background: var(--messages-bg);
     }
     .messages::-webkit-scrollbar { width: 6px; }
     .messages::-webkit-scrollbar-thumb { background: var(--shadow-color); border-radius: 3px; }
 
     /* ---------- MESSAGE INDIVIDUAL ---------- */
     .message {
-      padding: 10px 14px !important; /* Forcer le padding pour les messages texte */
+      padding: 10px 14px !important;
       border-radius: 15px !important;
       max-width: 75% !important;
-      min-width: 100px !important; /* Prevent overly narrow bubbles */
+      min-width: 100px !important;
       overflow-wrap: break-word !important;
-      font-size: 0.9rem !important; /* Forcer la taille de police */
-      line-height: 1.4 !important; /* Forcer la hauteur de ligne */
+      font-size: 0.9rem !important;
+      line-height: 1.4 !important;
       white-space: pre-line !important;
       box-shadow: 0 1px 3px var(--shadow-color) !important;
       box-sizing: border-box !important;
       width: fit-content !important;
-      transform: scale(1) !important; /* Empêcher toute mise à l'échelle */
+      transform: scale(1) !important;
       max-height: none !important;
       overflow: visible !important;
-      background-clip: padding-box !important; /* Assurer que le fond respecte le padding */
-      -webkit-text-size-adjust: 100% !important; /* Empêcher les ajustements automatiques sur mobile */
-      position: relative; /* For status indicator positioning */
+      background-clip: padding-box !important;
+      -webkit-text-size-adjust: 100% !important;
+      position: relative;
     }
     .from-me {
-      background: var(--message-me-bg) !important; /* WhatsApp-like green for sent messages */
+      background: var(--message-me-bg) !important;
       align-self: flex-end !important;
     }
     .from-other {
-      background: var(--message-other-bg) !important; /* White for received messages */
+      background: var(--message-other-bg) !important;
       align-self: flex-start !important;
     }
     .message.audio-wrapper {
@@ -235,7 +252,7 @@
       padding: 0 !important;
       border: none !important;
       max-width: 100% !important;
-      min-width: 0 !important; /* Allow audio to size naturally */
+      min-width: 0 !important;
       box-shadow: none !important;
       display: flex !important;
       align-items: center !important;
@@ -365,7 +382,7 @@
       gap: 8px;
       box-shadow: 0 -1px 2px var(--shadow-color);
       z-index: 1000;
-      transition: bottom 0.3s ease; /* Smooth transition for keyboard */
+      transition: bottom 0.3s ease;
     }
     .input-box textarea {
       flex: 1;
@@ -412,16 +429,17 @@
     @media (max-width: 600px) {
       .main-container { padding: 16px 16px 70px 16px; }
       .main-header { padding: 10px 16px; }
-      .logo { font-size: 1.5rem; }
+      .chat-avatar { width: 32px; height: 32px; }
+      .chat-username { font-size: 1rem; max-width: 150px; }
       .header-icons { gap: 16px; }
       .header-icons a { font-size: 1.3rem; }
       .bottom-nav { padding: 10px 0; }
       .bottom-nav a { font-size: 1.3rem; }
       .messages { padding: 10px 12px; }
       .message {
-        font-size: 0.9rem !important; /* Forcer la taille de police */
-        padding: 10px 14px !important; /* Forcer le padding */
-        line-height: 1.4 !important; /* Forcer la hauteur de ligne */
+        font-size: 0.9rem !important;
+        padding: 10px 14px !important;
+        line-height: 1.4 !important;
         max-width: 75% !important;
         min-width: 100px !important;
         overflow-wrap: break-word !important;
@@ -450,7 +468,21 @@
 <body data-username="{{ session['username'] }}" data-theme="light">
   <div class="main-container">
     <header class="main-header">
-      <h2 class="logo">Chat avec {{ chat_user }} <span id="typing-status" class="typing-status"></span></h2>
+      <div class="chat-header">
+        {% if users[chat_user].avatar %}
+        <img src="{{ url_for('avatar_file', filename=users[chat_user].avatar) }}?t={{ timestamp_filter() }}" class="chat-avatar" alt="{{ chat_user }} avatar">
+        {% else %}
+        <img src="https://via.placeholder.com/40" class="chat-avatar" alt="Default avatar">
+        {% endif %}
+        <div class="chat-info">
+          {% set display_name = users[chat_user].prenom + ' ' + users[chat_user].nom %}
+          {% if display_name|length > 15 %}
+            {% set display_name = display_name[:12] + '...' %}
+          {% endif %}
+          <span class="chat-username">{{ display_name }}</span>
+          <span id="typing-status" class="typing-status"></span>
+        </div>
+      </div>
       <nav class="header-icons">
         <a href="{{ url_for('index') }}" title="Accueil"><i class="fa-solid fa-house"></i></a>
         <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
@@ -550,7 +582,7 @@
     let mediaRecorder, audioChunks = [];
     let isSending = false;
     let typingTimer;
-    let audioDuration = 0; // For local recording duration
+    let audioDuration = 0;
 
     // Normaliser les styles des messages texte
     function normalizeMessages() {
@@ -638,7 +670,7 @@
           const progress = duration > 0 ? (current / duration) * 100 : 0;
           progressBar.style.width = `${progress}%`;
           if (thumb) {
-            thumb.style.right = `${100 - progress}%`; // Move thumb from left to right
+            thumb.style.right = `${100 - progress}%`;
           }
           const minutes = Math.floor(current / 60);
           const seconds = current % 60;
@@ -658,14 +690,13 @@
         });
 
         player.addEventListener('ended', () => {
-          // Keep progress at 100% and thumb at end, don't reset
           const duration = parseInt(player.dataset.duration) || 0;
           const progress = 100;
           progressBar.style.width = `${progress}%`;
           if (thumb) {
             thumb.style.right = `${100 - progress}%`;
           }
-          currentTimeEl.textContent = durationEl.textContent; // Show full duration
+          currentTimeEl.textContent = durationEl.textContent;
           waveform.querySelectorAll('.waveform-bar').forEach(bar => {
             bar.style.animationPlayState = 'paused';
           });
@@ -673,7 +704,6 @@
         });
 
         player.addEventListener('play', () => {
-          // Resume waveform animation
           const bars = waveform.querySelectorAll('.waveform-bar');
           bars.forEach(bar => {
             bar.style.animationPlayState = 'running';
@@ -681,7 +711,6 @@
         });
 
         player.addEventListener('pause', () => {
-          // Pause waveform
           const bars = waveform.querySelectorAll('.waveform-bar');
           bars.forEach(bar => {
             bar.style.animationPlayState = 'paused';
@@ -778,7 +807,7 @@
 
     // Initialisation
     window.addEventListener('load', () => {
-      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
+      messagesDiv.style.height = 'auto';
       adjustInputHeight();
       scrollToBottom();
       adjustMessagesHeight();
@@ -789,7 +818,7 @@
 
     // Réappliquer les styles lors de la navigation
     window.addEventListener('popstate', () => {
-      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
+      messagesDiv.style.height = 'auto';
       adjustMessagesHeight();
       normalizeAllMessages();
       console.log('Navigation détectée (popstate), styles réappliqués');
@@ -940,7 +969,7 @@
           const res = await fetch('/send_file', { 
             method: 'POST', 
             body: formData,
-            timeout: 30000 // 30s timeout
+            timeout: 30000
           });
           if (res.ok) {
             const data = await res.json();
@@ -948,35 +977,30 @@
             selectedFile = null;
             input.value = '';
             adjustInputHeight();
-            // Add local message immediately after successful upload
             addMessage({
               id: data.id || msgId,
               sender: username,
               type: data.type,
               url: data.url,
-              duration: 0 // Will be fetched by player
+              duration: 0
             }, true);
             console.log('Fichier envoyé avec succès:', data);
           } else {
             console.error('Échec de l\'envoi du fichier, statut:', res.status);
             alert('Erreur lors de l\'envoi du fichier. Réessayez.');
-            // Retry once
             setTimeout(() => sendMessage(), 1000);
           }
         } catch (e) {
           console.error('Erreur réseau lors de l\'envoi du fichier:', e);
           alert('Erreur réseau lors de l\'envoi du fichier. Réessayez.');
-          // Retry once
           setTimeout(() => sendMessage(), 1000);
         }
       } else if (recordedAudio) {
-        // Get duration before sending
         const tempAudio = new Audio(URL.createObjectURL(recordedAudio));
         tempAudio.addEventListener('loadedmetadata', () => {
           audioDuration = Math.floor(tempAudio.duration);
           tempAudio.pause();
           URL.revokeObjectURL(tempAudio.src);
-          // Now send
           const formData = new FormData();
           formData.append('recipient', chatUser);
           formData.append('file', recordedAudio, "audio_message.webm");
@@ -994,7 +1018,6 @@
             recordedAudio = null;
             input.value = '';
             adjustInputHeight();
-            // Add local message immediately
             addMessage({
               id: data.id || msgId,
               sender: username,
@@ -1006,7 +1029,6 @@
           }).catch(e => {
             console.error('Erreur lors de l\'envoi de l\'audio:', e);
             alert('Erreur lors de l\'envoi de l\'audio. Réessayez.');
-            // Retry once
             setTimeout(() => sendMessage(), 1000);
           });
         });
@@ -1019,7 +1041,6 @@
           type: 'text',
           date: new Date().toISOString()
         }, true);
-        // Tenter d'envoyer le message avec retry
         let attempts = 0;
         const maxAttempts = 5;
         const sendAttempt = () => {
@@ -1035,7 +1056,7 @@
           } else {
             attempts++;
             console.warn(`Tentative ${attempts} échouée, Socket.IO non connecté`);
-            setTimeout(sendAttempt, 2000 * attempts); // Exponential backoff
+            setTimeout(sendAttempt, 2000 * attempts);
           }
         };
         sendAttempt();
@@ -1089,7 +1110,7 @@
             micBtn.classList.remove("recording");
             stream.getTracks().forEach(track => track.stop());
           };
-          mediaRecorder.start(1000); // Collect data every second for smoother chunks
+          mediaRecorder.start(1000);
           micBtn.classList.add("recording");
           console.log('Enregistrement audio démarré');
         } catch (e) {
