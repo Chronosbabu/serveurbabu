@@ -1185,7 +1185,7 @@ def bank_login():
     if not acc:
         return jsonify({"error": "Compte non trouvé"}), 404
     if acc["password"] != hash_password(pwd):
-        return jupytext({"error": "Mot de passe incorrect"}), 401
+        return jsonify({"error": "Mot de passe incorrect"}), 401
     return jsonify({
         "success": True,
         "balances": {
@@ -1313,9 +1313,6 @@ def pay_subscription():
         return jsonify({"error": "Plateforme non trouvée"}), 500
     fee = FEE_FRANC if currency == "franc" else FEE_DOLLAR
     key = "balance_franc" if currency == "franc" else "balance_dollar"
-    if acc[key] < fee:
-        return jsonify({"error": f"Solde insuffisant pour payer les frais ({fee} {currency})"}), 400
-    acc[key] -= fee
     referrer_id = acc.get("referrer_id")
     referrer = next((a for a in bank if a.get("account_id") == referrer_id), None) if referrer_id else None
     if referrer:
