@@ -736,6 +736,12 @@ def profile(username):
         current_avatar=session.get("avatar")
     )
 
+@app.route("/parametre")
+def parametre():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    return render_template("parametre.html", current_username=session.get("username"))
+
 @app.route("/search", methods=["GET"])
 def search_users():
     if "username" not in session:
