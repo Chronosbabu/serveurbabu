@@ -51,6 +51,7 @@
             -webkit-text-size-adjust: 100% !important;
         }
 
+        /* Style du logo "CHRONOS" */
         .logo {
             font-size: 40px;
             font-weight: bold;
@@ -246,6 +247,7 @@
     </style>
 </head>
 <body data-theme="dark">
+    <!-- Logo CHRONOS -->
     <div class="logo">CHRONOS</div>
 
     <div class="main-container">
@@ -328,7 +330,7 @@
                 }
             });
 
-            // Google Sign-In
+            // Google Sign-In (adapted exactly like in login)
             window.handleCredentialResponse = async function(response) {
                 const res = await fetch('/google_login', {
                     method: 'POST',

@@ -118,18 +118,6 @@
             margin-top: 10px;
         }
 
-        #theme-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 1.5rem;
-            cursor: pointer;
-            z-index: 1000;
-        }
-
         @media (max-width: 600px) {
             .container { width: 90%; padding: 20px; }
             .logo { font-size: 32px; }
@@ -137,8 +125,6 @@
     </style>
 </head>
 <body data-theme="dark">
-    <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
-
     <div class="logo">CHRONOS</div>
 
     <div class="container">
@@ -159,26 +145,12 @@
     </div>
 
     <script>
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const body = document.body;
-
-        function setTheme(theme) {
-            body.dataset.theme = theme;
-            localStorage.setItem('theme', theme);
-            const icon = themeToggleBtn.querySelector('i');
-            icon.classList.toggle('fa-moon', theme === 'dark');
-            icon.classList.toggle('fa-sun', theme === 'light');
-        }
-
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        setTheme(savedTheme);
-
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                const newTheme = body.dataset.theme === 'dark' ? 'light' : 'dark';
-                setTheme(newTheme);
-            });
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            // Apply theme from localStorage
+            const body = document.body;
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            body.dataset.theme = savedTheme;
+        });
     </script>
 </body>
 </html>
