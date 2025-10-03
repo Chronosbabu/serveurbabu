@@ -133,21 +133,6 @@
       color: white;
       cursor: move;
     }
-    #theme-toggle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      color: var(--text-color);
-      font-size: 1.5rem;
-      cursor: pointer;
-      transition: color 0.2s ease, transform 0.2s ease;
-    }
-    #theme-toggle:hover {
-      color: var(--button-bg);
-      transform: scale(1.1);
-    }
   </style>
 </head>
 <body data-theme="light">
@@ -158,7 +143,6 @@
       <input type="file" id="mediaInput" name="media" accept="image/*,video/*" multiple>
       <button type="submit">Publier</button>
     </form>
-    <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
   </div>
 
   <!-- ✅ Fenêtre d’édition -->
@@ -175,28 +159,10 @@
   </div>
 
 <script>
-  // Theme toggle functionality
-  const themeToggleBtn = document.getElementById('theme-toggle');
+  // Theme application from localStorage
   const body = document.body;
-
-  function setTheme(theme) {
-    body.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
-    const icon = themeToggleBtn.querySelector('i');
-    icon.classList.toggle('fa-moon', theme === 'light');
-    icon.classList.toggle('fa-sun', theme === 'dark');
-  }
-
-  // Load saved theme or default to light
   const savedTheme = localStorage.getItem('theme') || 'light';
-  setTheme(savedTheme);
-
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
-      setTheme(newTheme);
-    });
-  }
+  body.dataset.theme = savedTheme;
 
   const mediaInput = document.getElementById("mediaInput");
   const editor = document.getElementById("editor");
