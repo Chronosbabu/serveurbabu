@@ -218,23 +218,6 @@
             margin: 5px 0;
         }
 
-        #theme-toggle {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: color 0.2s ease, transform 0.2s ease;
-        }
-
-        #theme-toggle:hover {
-            color: var(--link-color);
-            transform: scale(1.1);
-        }
-
         .error-message {
             color: #ed4956;
             font-size: 0.9rem;
@@ -271,7 +254,6 @@
 <body data-theme="light">
     <header>
         <h2>🔑 Se connecter</h2>
-        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
     </header>
 
     <div class="container">
@@ -309,92 +291,79 @@
     </div>
 
     <script>
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const body = document.body;
-        const showPassword = document.getElementById('showPassword');
-        const passwordField = document.getElementById('password');
-        const loginForm = document.getElementById('loginForm');
-        const prenomInput = document.getElementById('prenom');
-        const nomInput = document.getElementById('nom');
+        document.addEventListener('DOMContentLoaded', () => {
+            // Apply theme from localStorage
+            const body = document.body;
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            body.dataset.theme = savedTheme;
 
-        function setTheme(theme) {
-            body.dataset.theme = theme;
-            localStorage.setItem('theme', theme);
-            const icon = themeToggleBtn.querySelector('i');
-            icon.classList.toggle('fa-moon', theme === 'light');
-            icon.classList.toggle('fa-sun', theme === 'dark');
-        }
+            const showPassword = document.getElementById('showPassword');
+            const passwordField = document.getElementById('password');
+            const loginForm = document.getElementById('loginForm');
+            const prenomInput = document.getElementById('prenom');
+            const nomInput = document.getElementById('nom');
 
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        setTheme(savedTheme);
+            if (showPassword && passwordField) {
+                showPassword.addEventListener('change', () => {
+                    if (showPassword.checked) {
+                        passwordField.type = 'text';
+                    } else {
+                        passwordField.type = 'password';
+                    }
+                });
+            }
 
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                const newTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
-                setTheme(newTheme);
-            });
-        }
-
-        if (showPassword && passwordField) {
-            showPassword.addEventListener('change', () => {
-                if (showPassword.checked) {
-                    passwordField.type = 'text';
+            // Générer username à partir de prénom et nom avant soumission pour la connexion
+            loginForm.addEventListener('submit', (e) => {
+                const prenom = prenomInput.value.trim().toLowerCase();
+                const nom = nomInput.value.trim().toLowerCase();
+                const password = passwordField.value;
+                if (prenom && nom && password) {
+                    const generatedUsername = prenom + '.' + nom.replace(/\s+/g, '');
+                    // Créer un champ hidden pour username
+                    let hiddenUsername = document.querySelector('input[name="username"]');
+                    if (!hiddenUsername) {
+                        hiddenUsername = document.createElement('input');
+                        hiddenUsername.type = 'hidden';
+                        hiddenUsername.name = 'username';
+                        loginForm.appendChild(hiddenUsername);
+                    }
+                    hiddenUsername.value = generatedUsername;
+                    // Créer un champ hidden pour password si pas déjà
+                    let hiddenPassword = document.querySelector('input[name="password"][type="hidden"]');
+                    if (!hiddenPassword) {
+                        hiddenPassword = document.createElement('input');
+                        hiddenPassword.type = 'hidden';
+                        hiddenPassword.name = 'password';
+                        loginForm.appendChild(hiddenPassword);
+                    }
+                    hiddenPassword.value = password;
+                    // Masquer les champs visibles et soumettre
                 } else {
-                    passwordField.type = 'password';
+                    e.preventDefault();
+                    alert('Prénom, nom et mot de passe sont requis.');
                 }
             });
-        }
 
-        // Générer username à partir de prénom et nom avant soumission pour la connexion
-        loginForm.addEventListener('submit', (e) => {
-            const prenom = prenomInput.value.trim().toLowerCase();
-            const nom = nomInput.value.trim().toLowerCase();
-            const password = passwordField.value;
-            if (prenom && nom && password) {
-                const generatedUsername = prenom + '.' + nom.replace(/\s+/g, '');
-                // Créer un champ hidden pour username
-                let hiddenUsername = document.querySelector('input[name="username"]');
-                if (!hiddenUsername) {
-                    hiddenUsername = document.createElement('input');
-                    hiddenUsername.type = 'hidden';
-                    hiddenUsername.name = 'username';
-                    loginForm.appendChild(hiddenUsername);
+            window.handleCredentialResponse = async function(response) {
+                const res = await fetch('/google_login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id_token: response.credential })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    const errorDiv = document.createElement('p');
+                    errorDiv.className = 'error-message';
+                    errorDiv.textContent = data.error || 'Erreur lors de la connexion avec Google';
+                    document.querySelector('.container').appendChild(errorDiv);
                 }
-                hiddenUsername.value = generatedUsername;
-                // Créer un champ hidden pour password si pas déjà
-                let hiddenPassword = document.querySelector('input[name="password"][type="hidden"]');
-                if (!hiddenPassword) {
-                    hiddenPassword = document.createElement('input');
-                    hiddenPassword.type = 'hidden';
-                    hiddenPassword.name = 'password';
-                    loginForm.appendChild(hiddenPassword);
-                }
-                hiddenPassword.value = password;
-                // Masquer les champs visibles et soumettre
-            } else {
-                e.preventDefault();
-                alert('Prénom, nom et mot de passe sont requis.');
-            }
+            };
         });
-
-        window.handleCredentialResponse = async function(response) {
-            const res = await fetch('/google_login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ id_token: response.credential })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = data.redirect;
-            } else {
-                const errorDiv = document.createElement('p');
-                errorDiv.className = 'error-message';
-                errorDiv.textContent = data.error || 'Erreur lors de la connexion avec Google';
-                document.querySelector('.container').appendChild(errorDiv);
-            }
-        };
     </script>
 </body>
 </html>
