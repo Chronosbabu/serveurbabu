@@ -329,12 +329,14 @@ def register():
         if password != confirm_password:
             return "Les mots de passe ne correspondent pas.", 400
         users = load_users()
-        if any(u["username"].lower() == username.lower() for u in users):
-            return "Nom d'utilisateur déjà pris !", 400
-        if any(u["email"].lower() == email.lower() for u in users):
-            return "Email déjà utilisé !", 400
-        if any(u["telephone"] == telephone for u in users):
-            return "Numéro de téléphone déjà utilisé !", 400
+        # Check for duplicate username, email, and telephone with safe key access
+        for u in users:
+            if u.get("username", "").lower() == username.lower():
+                return "Nom d'utilisateur déjà pris !", 400
+            if u.get("email", "").lower() == email.lower():
+                return "Email déjà utilisé !", 400
+            if u.get("telephone", "") == telephone:
+                return "Numéro de téléphone déjà utilisé !", 400
         avatar_filename = None
         if avatar_file and avatar_file.filename:
             avatar_filename = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S_") + secure_filename(avatar_file.filename)
@@ -365,7 +367,7 @@ def recuperer():
         if not email or not telephone:
             return render_template("recuperer.html", error="Email et numéro de téléphone requis.")
         users = load_users()
-        user = next((u for u in users if u["email"].lower() == email.lower() and u["telephone"] == telephone), None)
+        user = next((u for u in users if u.get("email", "").lower() == email.lower() and u.get("telephone", "") == telephone), None)
         if not user:
             return render_template("recuperer.html", error="Email ou numéro de téléphone incorrect.")
         session["recovery_user"] = user["username"]
@@ -432,7 +434,11 @@ def google_login():
                 "following": [],
                 "liked_posts": [],
                 "viewed_posts": [],
-                "google_email": email
+                "google_email": email,
+                "email": email,  # Ensure email field for Google login users
+                "telephone": "",  # Optional, can be updated later
+                "prenom": name.split()[0] if name.split() else name,
+                "nom": name.split()[1] if len(name.split()) > 1 else ""
             }
             users.append(user)
             save_users(users)
@@ -446,7 +452,10 @@ def google_login():
             "bio": user.get("bio", ""),
             "created_at": user.get("created_at"),
             "following": user.get("following", []),
-            "google_email": user.get("google_email", "")
+            "google_email": user.get("google_email", ""),
+            "email": user.get("email", ""),
+            "prenom": user.get("prenom", ""),
+            "nom": user.get("nom", "")
         }
         return jsonify({"success": True, "redirect": url_for("index"), "user": user_info})
     except ValueError as e:
@@ -1508,8 +1517,6 @@ def update_name():
     user["nom"] = new_nom
     users = load_users()
     save_users(users)
-    # Pas besoin de propagation dans les données, car le changement est reflété via users.json lors des affichages
-    # (par exemple, dans les templates, utiliser users[post.username].prenom et .nom pour afficher le nom sur les posts, commentaires, etc.)
     socketio.emit("name_updated", {"username": session["username"], "new_prenom": new_prenom, "new_nom": new_nom}, namespace='/')
     return jsonify({"success": True, "message": "Nom mis à jour avec succès"})
 
