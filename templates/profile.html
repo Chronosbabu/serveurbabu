@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -763,7 +762,6 @@
           <i class="fa-regular fa-message"></i>
           <span class="message-badge" id="unread-count" style="display:none;">0</span>
         </a>
-        <button id="theme-toggle" title="Changer de thème"><i class="fa-solid fa-moon"></i></button>
       </nav>
     </header>
 
@@ -783,7 +781,7 @@
         <input type="file" id="avatar-input" accept="image/*" style="display: none;" />
       {% endif %}
       <div class="profile-meta">
-        <h1>@{{ profile_user.username }}</h1>
+        <h1>@{{ profile_user.username }}{% if current_username == profile_user.username %} <button id="settings-btn" title="Paramètres"><i class="fa-solid fa-gear"></i></button>{% endif %}</h1>
         <p>{{ profile_user.bio if profile_user.bio else "Aucune bio pour le moment." }}</p>
         <div class="follow-count">👥 <span id="follower-count">{{ profile_user.followers|length }}</span></div>
         <div class="referrals-count">📩 <span id="referrals-count">{{ profile_user.referrals_count }}</span> Invités</div>
@@ -1491,7 +1489,7 @@
                   vid.play().catch(() => {});
               });
               vid.addEventListener('click', (e) => {
-                  if (e.target.classList.contains('mute-btn') || e.target.closest('.mute-btn')) return;
+                  if (e.target.classList.contains('mute-btn') or e.target.closest('.mute-btn')) return;
                   if (vid.paused) {
                       vid.play().catch(() => {});
                   } else {
@@ -1685,3 +1683,4 @@
   </script>
 </body>
 </html>
+

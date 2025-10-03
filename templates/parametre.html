@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paramètres</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    /* ---------- GLOBAL ---------- */
+    :root {
+      --bg-color: #fafafa;
+      --text-color: #262626;
+      --border-color: #dbdbdb;
+      --card-bg: #fff;
+      --link-hover: #0095f6;
+      --shadow-color: rgba(0,0,0,0.05);
+      --button-bg: #0095f6;
+      --button-hover: #00376b;
+      --comment-form-bg: #fff;
+      --textarea-bg: #fafafa;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --border-color: #333;
+      --card-bg: #262626;
+      --link-hover: #4dabf7;
+      --shadow-color: rgba(0,0,0,0.3);
+      --button-bg: #4dabf7;
+      --button-hover: #1c6dd0;
+      --comment-form-bg: #262626;
+      --textarea-bg: #333;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    a { text-decoration: none; color: inherit; }
+    .main-container { max-width: 935px; margin: 0 auto; padding: 20px 20px 80px 20px; }
+
+    /* ---------- HEADER ---------- */
+    .main-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 1px 2px var(--shadow-color);
+    }
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-color);
+      font-family: 'Lobster', cursive;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: nowrap;
+    }
+    .header-icons a, .header-icons button {
+      color: var(--text-color);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, transform 0.2s ease;
+      position: relative;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .header-icons a:hover, .header-icons button:hover {
+      color: var(--link-hover);
+      transform: scale(1.1);
+    }
+
+    /* ---------- BOTTOM NAVIGATION BAR ---------- */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      z-index: 1000;
+      box-shadow: 0 -1px 2px var(--shadow-color);
+    }
+    .bottom-nav a {
+      color: var(--text-color);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, transform 0.2s ease;
+      position: relative;
+    }
+    .bottom-nav a:hover {
+      color: var(--link-hover);
+      transform: scale(1.1);
+    }
+    .bottom-nav a.active {
+      color: var(--link-hover);
+    }
+    .message-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ed4956;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 50%;
+      line-height: 1;
+      border: 2px solid var(--card-bg);
+    }
+
+    /* Settings styles */
+    .settings-container {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px var(--shadow-color);
+      margin-top: 20px;
+    }
+    #change-theme-btn {
+      background: var(--button-bg);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    #change-theme-btn:hover {
+      background: var(--button-hover);
+      transform: scale(1.02);
+    }
+    #theme-options {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .theme-option {
+      background: var(--textarea-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .theme-option:hover {
+      background: var(--border-color);
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="main-container">
+    <header class="main-header">
+      <h2 class="logo">CHRONOS</h2>
+      <nav class="header-icons">
+        <a href="{{ url_for('index') }}" title="Accueil"><i class="fa-solid fa-house"></i></a>
+        <a href="{{ url_for('add_post') }}" title="Nouvelle publication"><i class="fa-solid fa-circle-plus"></i></a>
+        <a href="{{ url_for('profile', username=current_username) }}" title="Profil"><i class="fa-regular fa-user"></i></a>
+        <a href="{{ url_for('conversations') }}" title="Messages" id="messages-link">
+          <i class="fa-regular fa-message"></i>
+          <span class="message-badge" id="unread-count" style="display:none;">0</span>
+        </a>
+      </nav>
+    </header>
+
+    <div class="settings-container">
+      <h2>Paramètres</h2>
+      <button id="change-theme-btn">Changer de thème</button>
+      <div id="theme-options">
+        <button class="theme-option" data-theme="dark">Thème sombre</button>
+        <button class="theme-option" data-theme="light">Thème clair</button>
+      </div>
+    </div>
+
+    <nav class="bottom-nav">
+      <a href="{{ url_for('notifications') }}" title="Notifications" id="notifications-link">
+        <i class="fa-regular fa-bell"></i>
+        <span class="message-badge" id="notifications-count" style="display:none;">0</span>
+      </a>
+      <a href="{{ url_for('search_users') }}" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></a>
+      <a href="{{ url_for('login') }}" title="Déconnexion" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+    </nav>
+  </div>
+
+  <script>
+    // Theme toggle functionality
+    const body = document.body;
+
+    function setTheme(theme) {
+      body.dataset.theme = theme;
+      localStorage.setItem('theme', theme);
+    }
+
+    // Load saved theme or default to light
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+
+    document.getElementById('change-theme-btn').addEventListener('click', () => {
+      const options = document.getElementById('theme-options');
+      options.style.display = options.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    document.querySelectorAll('.theme-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setTheme(btn.dataset.theme);
+        document.getElementById('theme-options').style.display = 'none';
+      });
+    });
+  </script>
+</body>
+</html>

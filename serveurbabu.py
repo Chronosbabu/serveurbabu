@@ -1,4 +1,3 @@
-## fichier 1
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, session, abort, jsonify
 from flask_socketio import SocketIO, emit, join_room
 import os, json, hashlib
