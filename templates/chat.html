@@ -36,9 +36,6 @@
       --progress-thumb-bg: #007AFF;
       --progress-thumb-border: #fafafa;
       --initial-bg: #dbdbdb;
-      --dialog-bg: #fff;
-      --dialog-btn-bg: #0095f6;
-      --dialog-btn-color: #fff;
     }
 
     [data-theme="dark"] {
@@ -70,9 +67,6 @@
       --progress-thumb-bg: #0A84FF;
       --progress-thumb-border: #1a1a1a;
       --initial-bg: #444444;
-      --dialog-bg: #262626;
-      --dialog-btn-bg: #4dabf7;
-      --dialog-btn-color: #e0e0e0;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -107,7 +101,7 @@
       left: 0;
       right: 0;
       z-index: 1000;
-      box-shadow: 0 1px 2px var(--shadow-color);
+      box-shadow: 0 1px 1px var(--shadow-color);
     }
     .profile-info {
       display: flex;
@@ -249,9 +243,6 @@
       background-clip: padding-box !important; /* Assurer que le fond respecte le padding */
       -webkit-text-size-adjust: 100% !important; /* Empêcher les ajustements automatiques sur mobile */
       position: relative; /* For status indicator positioning */
-      user-select: none; /* Prevent text selection on long press */
-      -webkit-user-select: none;
-      touch-action: manipulation;
     }
     .from-me {
       background: var(--message-me-bg) !important; /* WhatsApp-like green for sent messages */
@@ -439,29 +430,29 @@
     }
     .input-box input[type="file"] { display: none; }
 
-    /* ---------- DELETE DIALOG ---------- */
-    .delete-dialog {
+    /* ---------- DELETE MENU ---------- */
+    #delete-menu {
+      display: none;
       position: absolute;
-      background: var(--dialog-bg);
+      background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
       padding: 10px;
       box-shadow: 0 2px 10px var(--shadow-color);
-      z-index: 1200;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      border-radius: 8px;
+      z-index: 2000;
     }
-    .delete-dialog button {
-      background: var(--dialog-btn-bg);
-      color: var(--dialog-btn-color);
+    #delete-menu button {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      background: var(--button-bg);
+      color: white;
       border: none;
-      padding: 8px 16px;
       border-radius: 4px;
       cursor: pointer;
-      transition: background 0.2s;
     }
-    .delete-dialog button:hover {
+    #delete-menu button:hover {
       background: var(--button-hover);
     }
 
@@ -503,8 +494,6 @@
       .profile-pic, .profile-initial { width: 32px; height: 32px; font-size: 1rem; }
       .chat-name { font-size: 1rem; }
       .typing-status { font-size: 0.75rem; }
-      .delete-dialog { padding: 8px; gap: 6px; }
-      .delete-dialog button { padding: 6px 12px; font-size: 0.9rem; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -602,6 +591,11 @@
     </nav>
   </div>
 
+  <div id="delete-menu" style="display:none; position:absolute; background:var(--card-bg); border:1px solid var(--border-color); padding:10px; box-shadow:0 2px 10px var(--shadow-color); border-radius:8px; z-index:2000;">
+    <button id="delete-everyone">Supprimer pour tout le monde</button>
+    <button id="delete-me">Supprimer pour moi</button>
+  </div>
+
   <script>
     // Theme application from localStorage
     const body = document.body;
@@ -625,6 +619,9 @@
     const messagesDiv = document.getElementById('messages');
     const inputBox = document.querySelector('.input-box');
     const typingStatus = document.getElementById('typing-status');
+    const deleteMenu = document.getElementById('delete-menu');
+    const deleteEveryoneBtn = document.getElementById('delete-everyone');
+    const deleteMeBtn = document.getElementById('delete-me');
 
     let selectedFile = null;
     let recordedAudio = null;
@@ -632,7 +629,8 @@
     let isSending = false;
     let typingTimer;
     let audioDuration = 0; // For local recording duration
-    let longPressTimer;
+    let currentMsgId;
+    let pressTimer;
 
     // Normaliser les styles des messages texte
     function normalizeMessages() {
@@ -716,7 +714,7 @@
 
         player.addEventListener('timeupdate', () => {
           const current = Math.floor(player.currentTime);
-          const duration = parseInt(player.dataset.duration) or 0;
+          const duration = parseInt(player.dataset.duration) || 0;
           const progress = duration > 0 ? (current / duration) * 100 : 0;
           progressBar.style.width = `${progress}%`;
           if (thumb) {
@@ -781,6 +779,17 @@
         });
       });
     }
+
+    // Initialisation
+    window.addEventListener('load', () => {
+      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
+      adjustInputHeight();
+      scrollToBottom();
+      adjustMessagesHeight();
+      handleKeyboard();
+      normalizeAllMessages();
+      console.log('Page chargée, normalisation initiale effectuée');
+    });
 
     // Rejoindre sa room et normaliser les messages
     socket.on('connect', () => {
@@ -858,17 +867,6 @@
       });
     }
 
-    // Initialisation
-    window.addEventListener('load', () => {
-      messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
-      adjustInputHeight();
-      scrollToBottom();
-      adjustMessagesHeight();
-      handleKeyboard();
-      normalizeAllMessages();
-      console.log('Page chargée, normalisation initiale effectuée');
-    });
-
     // Réappliquer les styles lors de la navigation
     window.addEventListener('popstate', () => {
       messagesDiv.style.height = 'auto'; // Réinitialiser pour éviter l'accumulation
@@ -902,7 +900,7 @@
         const img = document.createElement('img');
         img.src = msg.url;
         div.appendChild(img);
-      } else if (msg.type == 'video') {
+      } else if (msg.type === 'video') {
         const video = document.createElement('video');
         video.src = msg.url;
         video.controls = true;
@@ -1240,75 +1238,6 @@
       }
     });
 
-    // Gestion suppression messages
-    function handleLongPress(e) {
-      const target = e.target.closest('.message');
-      if (!target) return;
-      clearTimeout(longPressTimer);
-      longPressTimer = setTimeout(() => {
-        showDeleteDialog(target);
-      }, 500);
-    }
-
-    function clearLongPress() {
-      clearTimeout(longPressTimer);
-    }
-
-    messagesDiv.addEventListener('touchstart', handleLongPress, {passive: true});
-    messagesDiv.addEventListener('touchend', clearLongPress);
-    messagesDiv.addEventListener('touchmove', clearLongPress);
-    messagesDiv.addEventListener('mousedown', handleLongPress);
-    messagesDiv.addEventListener('mouseup', clearLongPress);
-    messagesDiv.addEventListener('mouseleave', clearLongPress);
-
-    function showDeleteDialog(messageEl) {
-      const existingDialog = document.querySelector('.delete-dialog');
-      if (existingDialog) existingDialog.remove();
-
-      const dialog = document.createElement('div');
-      dialog.className = 'delete-dialog';
-
-      const rect = messageEl.getBoundingClientRect();
-      dialog.style.top = `${rect.top + window.scrollY - dialog.offsetHeight - 10}px`; // Above the message
-      dialog.style.left = `${rect.left}px`;
-
-      const deleteMeBtn = document.createElement('button');
-      deleteMeBtn.textContent = 'Supprimer pour moi';
-      deleteMeBtn.onclick = () => {
-        socket.emit('delete_message', { msg_id: messageEl.dataset.msgId, mode: 'me', receiver: chatUser });
-        dialog.remove();
-      };
-      dialog.appendChild(deleteMeBtn);
-
-      if (messageEl.classList.contains('from-me')) {
-        const deleteEveryoneBtn = document.createElement('button');
-        deleteEveryoneBtn.textContent = 'Supprimer pour tout le monde';
-        deleteEveryoneBtn.onclick = () => {
-          socket.emit('delete_message', { msg_id: messageEl.dataset.msgId, mode: 'everyone', receiver: chatUser });
-          dialog.remove();
-        };
-        dialog.appendChild(deleteEveryoneBtn);
-      }
-
-      document.body.appendChild(dialog);
-
-      // Close on click outside
-      const closeDialog = (e) => {
-        if (!dialog.contains(e.target)) {
-          dialog.remove();
-          document.removeEventListener('click', closeDialog);
-        }
-      };
-      setTimeout(() => document.addEventListener('click', closeDialog), 0);
-    }
-
-    socket.on('message_deleted', (data) => {
-      const msgEl = document.querySelector(`.message[data-msg-id="${data.msg_id}"]`);
-      if (msgEl) {
-        msgEl.remove();
-      }
-    });
-
     // Gestion badge messages
     let unreadCount = 0;
     const updateUnreadBadge = () => {
@@ -1363,6 +1292,63 @@
         updateNotifBadge();
       }
     });
+
+    // Gestion suppression messages
+    function showDeleteMenu(target) {
+      const rect = target.getBoundingClientRect();
+      deleteMenu.style.left = `${rect.left}px`;
+      deleteMenu.style.top = `${rect.bottom + window.scrollY}px`;
+      deleteMenu.style.display = 'block';
+      currentMsgId = target.dataset.msgId;
+      if (target.classList.contains('from-me')) {
+        deleteEveryoneBtn.style.display = 'block';
+      } else {
+        deleteEveryoneBtn.style.display = 'none';
+      }
+    }
+
+    document.addEventListener('click', e => {
+      if (!deleteMenu.contains(e.target) && !e.target.closest('.message')) {
+        deleteMenu.style.display = 'none';
+      }
+    });
+
+    deleteEveryoneBtn.addEventListener('click', () => {
+      socket.emit('delete_message', {msg_id: currentMsgId, mode: 'everyone', receiver: chatUser});
+      deleteMenu.style.display = 'none';
+    });
+
+    deleteMeBtn.addEventListener('click', () => {
+      socket.emit('delete_message', {msg_id: currentMsgId, mode: 'me', receiver: chatUser});
+      deleteMenu.style.display = 'none';
+    });
+
+    socket.on('message_deleted', data => {
+      const msgEl = document.querySelector(`[data-msg-id="${data.msg_id}"]`);
+      if (msgEl && (data.mode === 'everyone' || data.mode === 'me')) {
+        msgEl.remove();
+      }
+    });
+
+    // Détection long press (mouse)
+    messagesDiv.addEventListener('mousedown', e => {
+      const target = e.target.closest('.message');
+      if (target) {
+        pressTimer = setTimeout(() => showDeleteMenu(target), 500);
+      }
+    });
+    messagesDiv.addEventListener('mouseup', () => clearTimeout(pressTimer));
+    messagesDiv.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+
+    // Détection long press (touch)
+    messagesDiv.addEventListener('touchstart', e => {
+      const target = e.target.closest('.message');
+      if (target) {
+        pressTimer = setTimeout(() => showDeleteMenu(target), 500);
+      }
+    }, {passive: true});
+    messagesDiv.addEventListener('touchend', () => clearTimeout(pressTimer));
+    messagesDiv.addEventListener('touchmove', () => clearTimeout(pressTimer));
   </script>
 </body>
 </html>

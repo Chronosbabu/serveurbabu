@@ -195,7 +195,6 @@ def append_message(sender, receiver, text, msg_type="text", url=None):
     key2 = f"{receiver}_{sender}"
     now_iso = datetime.now(timezone.utc).isoformat()
     entry = {"sender": sender, "text": text, "type": msg_type, "url": url, "date": now_iso, "read_by": [sender], "delivered_to": [] if receiver not in connected_users else [receiver]}
-    entry["id"] = str(uuid.uuid4())
     if key1 in messages:
         messages[key1].append(entry)
         key = key1
@@ -354,8 +353,7 @@ def register():
             "created_at": datetime.now(timezone.utc).isoformat(),
             "following": [],
             "liked_posts": [],
-            "viewed_posts": [],
-            "deleted_messages": {}
+            "viewed_posts": []
         })
         save_users(users)
         return redirect(url_for("login"))
@@ -440,8 +438,7 @@ def google_login():
                 "email": email,  # Ensure email field for Google login users
                 "telephone": "",  # Optional, can be updated later
                 "prenom": name.split()[0] if name.split() else name,
-                "nom": name.split()[1] if len(name.split()) > 1 else "",
-                "deleted_messages": {}
+                "nom": name.split()[1] if len(name.split()) > 1 else ""
             }
             users.append(user)
             save_users(users)
@@ -810,12 +807,13 @@ def send_file_route():
         file_type = "audio"
     url = url_for("uploaded_file", filename=filename)
     entry, messages, key = append_message(session["username"], receiver, f"[{file_type}]: {filename}", msg_type=file_type, url=url)
+    entry['id'] = str(uuid.uuid4())
     save_messages(messages)
     socketio.emit("new_message", entry, room=receiver, namespace='/')
     socketio.emit("new_message", entry, room=session["username"], namespace='/')
     if receiver in connected_users:
         socketio.emit('message_delivered', {'id': entry['id']}, room=session["username"], namespace='/')
-    return jsonify({"success": True, "url": url, "type": file_type, "id": entry['id']})
+    return jsonify({"success": True, "url": url, "type": file_type})
 
 @app.route("/update_avatar", methods=["POST"])
 def update_avatar():
@@ -910,9 +908,7 @@ def chat(username):
     key1 = f"{session['username']}_{username}"
     key2 = f"{username}_{session['username']}"
     conv = messages.get(key1) or messages.get(key2) or []
-    current_user = get_user(session['username'])
-    deleted_ids = current_user.get("deleted_messages", {}).get(username, []) if current_user else []
-    conv = [m for m in conv if m.get('id') not in deleted_ids]
+    conv = [m for m in conv if session['username'] not in m.get('deleted_for', [])]
     need_save = False
     newly_delivered = []
     newly_read = []
@@ -954,6 +950,7 @@ def send_message_http():
     if not receiver or not text:
         return jsonify({"success": False, "error": "Champs manquants"}), 400
     entry, messages, key = append_message(sender, receiver, text, msg_type="text")
+    entry['id'] = data.get('id', str(uuid.uuid4()))
     save_messages(messages)
     socketio.emit("new_message", entry, room=receiver, namespace='/')
     socketio.emit("new_message", entry, room=sender, namespace='/')
@@ -1005,6 +1002,7 @@ def handle_send_message(data):
     if not sender or not receiver or not text:
         return
     entry, messages, key = append_message(sender, receiver, text, msg_type="text")
+    entry['id'] = data.get('id', str(uuid.uuid4()))
     save_messages(messages)
     socketio.emit("new_message", entry, room=receiver, namespace='/')
     socketio.emit("new_message", entry, room=sender, namespace='/')
@@ -1028,40 +1026,6 @@ def mark_read(data):
     save_messages(messages)
     if newly_read:
         socketio.emit('messages_read', {'ids': newly_read}, room=sender, namespace='/')
-
-@socketio.on('delete_message', namespace='/')
-def handle_delete_message(data):
-    sender = session.get("username")
-    receiver = data.get("receiver")
-    msg_id = data.get("msg_id")
-    mode = data.get("mode")
-    if not sender or not receiver or not msg_id or mode not in ['everyone', 'me']:
-        return
-    messages = load_messages()
-    key1 = f"{sender}_{receiver}"
-    key2 = f"{receiver}_{sender}"
-    conv = messages.get(key1) or messages.get(key2)
-    if not conv:
-        return
-    message = next((m for m in conv if m.get('id') == msg_id), None)
-    if not message:
-        return
-    if mode == 'everyone':
-        if message['sender'] != sender:
-            return  # Only sender can delete for everyone
-        conv.remove(message)
-        save_messages(messages)
-        emit('message_deleted', {'msg_id': msg_id, 'mode': 'everyone'}, room=sender)
-        emit('message_deleted', {'msg_id': msg_id, 'mode': 'everyone'}, room=receiver)
-    elif mode == 'me':
-        users = load_users()
-        user = next((u for u in users if u["username"] == sender), None)
-        if user:
-            deleted_msgs = user.setdefault("deleted_messages", {}).setdefault(receiver, [])
-            if msg_id not in deleted_msgs:
-                deleted_msgs.append(msg_id)
-            save_users(users)
-        emit('message_deleted', {'msg_id': msg_id, 'mode': 'me'}, room=sender)
 
 @socketio.on('send_comment', namespace='/')
 def handle_send_comment(data):
@@ -1558,6 +1522,38 @@ def update_name():
     socketio.emit("name_updated", {"username": session["username"], "new_prenom": new_prenom, "new_nom": new_nom}, namespace='/')
     return jsonify({"success": True, "message": "Nom mis à jour avec succès"})
 
+@socketio.on('delete_message', namespace='/')
+def handle_delete_message(data):
+    msg_id = data['msg_id']
+    mode = data['mode']
+    sender = session.get('username')
+    receiver = data['receiver']
+    messages = load_messages()
+    key1 = f"{sender}_{receiver}"
+    key2 = f"{receiver}_{sender}"
+    key = key1 if key1 in messages else key2 if key2 in messages else None
+    if not key:
+        return
+    conv = messages[key]
+    msg_idx = next((i for i, m in enumerate(conv) if m.get('id') == msg_id), None)
+    if msg_idx is None:
+        return
+    msg = conv[msg_idx]
+    if mode == 'everyone':
+        if msg['sender'] != sender:
+            return
+        del conv[msg_idx]
+        save_messages(messages)
+        socketio.emit('message_deleted', {'msg_id': msg_id, 'mode': 'everyone'}, room=sender)
+        socketio.emit('message_deleted', {'msg_id': msg_id, 'mode': 'everyone'}, room=receiver)
+    elif mode == 'me':
+        deleted_for = msg.setdefault('deleted_for', [])
+        if sender not in deleted_for:
+            deleted_for.append(sender)
+        save_messages(messages)
+        socketio.emit('message_deleted', {'msg_id': msg_id, 'mode': 'me'}, room=sender)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     socketio.run(app, host="0.0.0.0", port=port)
+
